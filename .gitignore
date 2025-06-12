@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Build outputs
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend specific
+frontend/build/
+frontend/.env.local
+
+# Backend specific
+backend/simple_food_app.db
+backend/food_planning.db
+backend/*.log
+EOF < /dev/null
