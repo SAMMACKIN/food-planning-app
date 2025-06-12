@@ -8,6 +8,7 @@ import jwt
 import datetime
 import uuid
 import os
+from claude_service import claude_service
 
 app = FastAPI(title="Food Planning API")
 
@@ -189,6 +190,23 @@ class PantryItemResponse(BaseModel):
     quantity: float
     expiration_date: Optional[str] = None
     updated_at: str
+
+class MealRecommendationRequest(BaseModel):
+    num_recommendations: Optional[int] = 5
+    meal_type: Optional[str] = None  # breakfast, lunch, dinner, snack
+    preferences: Optional[dict] = {}
+
+class MealRecommendationResponse(BaseModel):
+    name: str
+    description: str
+    prep_time: int
+    difficulty: str
+    servings: int
+    ingredients_needed: list
+    instructions: list
+    tags: list
+    nutrition_notes: str
+    pantry_usage_score: int
 
 # Utility functions
 def hash_password(password: str) -> str:
@@ -717,6 +735,109 @@ async def remove_pantry_item(ingredient_id: str):
     conn.close()
     
     return {"message": "Pantry item removed successfully"}
+
+# Meal Recommendations endpoints
+@app.post("/api/v1/recommendations", response_model=List[MealRecommendationResponse])
+async def get_meal_recommendations(request: MealRecommendationRequest):
+    conn = sqlite3.connect('simple_food_app.db')
+    cursor = conn.cursor()
+    
+    # Get current user (simplified for demo)
+    cursor.execute("SELECT id FROM users LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    user_id = user[0]
+    
+    # Get family members
+    cursor.execute('''
+        SELECT id, name, age, dietary_restrictions, preferences 
+        FROM family_members 
+        WHERE user_id = ?
+    ''', (user_id,))
+    family_data = cursor.fetchall()
+    
+    family_members = [
+        {
+            'id': member[0],
+            'name': member[1],
+            'age': member[2],
+            'dietary_restrictions': eval(member[3]) if member[3] else [],
+            'preferences': eval(member[4]) if member[4] else {}
+        }
+        for member in family_data
+    ]
+    
+    # Get pantry items
+    cursor.execute('''
+        SELECT p.quantity, p.expiration_date,
+               i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
+               i.carbs_per_unit, i.fat_per_unit, i.allergens
+        FROM pantry_items p
+        JOIN ingredients i ON p.ingredient_id = i.id
+        WHERE p.user_id = ?
+    ''', (user_id,))
+    pantry_data = cursor.fetchall()
+    
+    pantry_items = [
+        {
+            'quantity': item[0],
+            'expiration_date': item[1],
+            'ingredient': {
+                'id': item[2],
+                'name': item[3],
+                'category': item[4],
+                'unit': item[5],
+                'calories_per_unit': item[6] or 0,
+                'protein_per_unit': item[7] or 0,
+                'carbs_per_unit': item[8] or 0,
+                'fat_per_unit': item[9] or 0,
+                'allergens': eval(item[10]) if item[10] else []
+            }
+        }
+        for item in pantry_data
+    ]
+    
+    conn.close()
+    
+    try:
+        # Get recommendations from Claude
+        recommendations = await claude_service.get_meal_recommendations(
+            family_members=family_members,
+            pantry_items=pantry_items,
+            preferences=request.preferences,
+            num_recommendations=request.num_recommendations
+        )
+        
+        return [
+            MealRecommendationResponse(
+                name=rec['name'],
+                description=rec['description'],
+                prep_time=rec['prep_time'],
+                difficulty=rec['difficulty'],
+                servings=rec['servings'],
+                ingredients_needed=rec['ingredients_needed'],
+                instructions=rec['instructions'],
+                tags=rec['tags'],
+                nutrition_notes=rec['nutrition_notes'],
+                pantry_usage_score=rec['pantry_usage_score']
+            )
+            for rec in recommendations
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
+
+@app.get("/api/v1/recommendations/status")
+async def get_recommendation_status():
+    """Check if Claude API is available for recommendations"""
+    return {
+        "claude_available": claude_service.is_available(),
+        "message": "Claude API is available for meal recommendations" if claude_service.is_available() 
+                  else "Claude API not configured - using fallback recommendations"
+    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -162,10 +162,29 @@ export interface MealRating {
 }
 
 export interface MealRecommendation {
-  meal: Meal;
-  score: number;
-  reasons: string[];
-  missing_ingredients: Ingredient[];
+  name: string;
+  description: string;
+  prep_time: number;
+  difficulty: string;
+  servings: number;
+  ingredients_needed: IngredientNeeded[];
+  instructions: string[];
+  tags: string[];
+  nutrition_notes: string;
+  pantry_usage_score: number;
+}
+
+export interface IngredientNeeded {
+  name: string;
+  quantity: string;
+  unit: string;
+  have_in_pantry: boolean;
+}
+
+export interface MealRecommendationRequest {
+  num_recommendations?: number;
+  meal_type?: string;
+  preferences?: Record<string, any>;
 }
 
 export interface ShoppingListItem {

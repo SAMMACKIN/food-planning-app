@@ -9,6 +9,7 @@ import Register from './pages/Auth/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import FamilyManagement from './pages/Family/FamilyManagement';
 import PantryManagement from './pages/Pantry/PantryManagement';
+import MealRecommendations from './pages/Recommendations/MealRecommendations';
 import './App.css';
 
 const theme = createTheme({
@@ -45,6 +46,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="family" element={<FamilyManagement />} />
             <Route path="pantry" element={<PantryManagement />} />
+            <Route path="recommendations" element={<MealRecommendations />} />
           </Route>
         </Routes>
       </Router>

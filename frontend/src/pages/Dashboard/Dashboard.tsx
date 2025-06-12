@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
               <Typography variant="body2" color="text.secondary" mb={2}>
                 Get AI-powered meal suggestions based on your preferences
               </Typography>
-              <Button variant="outlined" size="small">
+              <Button variant="outlined" size="small" onClick={() => navigate('/recommendations')}>
                 Get Suggestions
               </Button>
             </CardContent>
