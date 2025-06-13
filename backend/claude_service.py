@@ -4,6 +4,10 @@ from typing import List, Dict, Any, Optional
 from anthropic import Anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -42,10 +46,11 @@ class ClaudeService:
                 family_members, pantry_items, preferences, num_recommendations
             )
             
-            # Call Claude API
+            # Call Claude API (using cheapest model)
+            logger.info("Calling Claude API for meal recommendations...")
             response = self.client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=2000,
+                model="claude-3-haiku-20240307",  # Cheapest Claude model
+                max_tokens=1500,  # Reduced tokens to save cost
                 temperature=0.7,
                 messages=[
                     {
@@ -54,14 +59,23 @@ class ClaudeService:
                     }
                 ]
             )
+            logger.info("Claude API response received successfully")
             
             # Parse the response
             recommendations = self._parse_claude_response(response.content[0].text)
             logger.info(f"Successfully generated {len(recommendations)} meal recommendations")
+            
+            # Add AI indicator to each recommendation
+            for rec in recommendations:
+                rec['ai_generated'] = True
+                rec['tags'] = rec.get('tags', []) + ['AI-Generated']
+            
             return recommendations
             
         except Exception as e:
             logger.error(f"Error getting Claude recommendations: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            logger.error(f"Exception details: {str(e)}")
             return self._get_fallback_recommendations()
 
     def _build_recommendation_prompt(
@@ -180,6 +194,7 @@ Focus on practical, family-friendly meals that make good use of available ingred
 
     def _get_fallback_recommendations(self) -> List[Dict[str, Any]]:
         """Provide fallback recommendations when Claude API is unavailable"""
+        logger.warning("Using fallback recommendations - Claude API failed")
         return [
             {
                 "name": "Simple Pasta with Garlic",
@@ -198,9 +213,10 @@ Focus on practical, family-friendly meals that make good use of available ingred
                     "Toss pasta with garlic oil",
                     "Season with salt and pepper"
                 ],
-                "tags": ["quick", "vegetarian", "italian"],
+                "tags": ["quick", "vegetarian", "italian", "Fallback"],
                 "nutrition_notes": "Good source of carbohydrates",
-                "pantry_usage_score": 90
+                "pantry_usage_score": 90,
+                "ai_generated": False
             },
             {
                 "name": "Scrambled Eggs with Toast",
@@ -218,9 +234,10 @@ Focus on practical, family-friendly meals that make good use of available ingred
                     "Toast bread",
                     "Serve together"
                 ],
-                "tags": ["breakfast", "protein", "quick"],
+                "tags": ["breakfast", "protein", "quick", "Fallback"],
                 "nutrition_notes": "High in protein",
-                "pantry_usage_score": 95
+                "pantry_usage_score": 95,
+                "ai_generated": False
             },
             {
                 "name": "Basic Rice Bowl",
@@ -236,9 +253,10 @@ Focus on practical, family-friendly meals that make good use of available ingred
                     "Add any available vegetables",
                     "Season to taste"
                 ],
-                "tags": ["simple", "filling", "customizable"],
+                "tags": ["simple", "filling", "customizable", "Fallback"],
                 "nutrition_notes": "Good carbohydrate base",
-                "pantry_usage_score": 80
+                "pantry_usage_score": 80,
+                "ai_generated": False
             }
         ]
 

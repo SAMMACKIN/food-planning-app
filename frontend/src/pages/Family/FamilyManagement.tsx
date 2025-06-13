@@ -24,13 +24,10 @@ import { apiRequest } from '../../services/api';
 
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  age: z.number().min(0).max(120).optional().or(z.literal('')),
+  age: z.union([z.number().min(0).max(120), z.literal('')]).optional(),
 });
 
-type FamilyMemberFormData = {
-  name: string;
-  age: number | '';
-};
+type FamilyMemberFormData = z.infer<typeof familyMemberSchema>;
 
 const FamilyManagement: React.FC = () => {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);

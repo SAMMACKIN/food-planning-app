@@ -8,7 +8,11 @@ import jwt
 import datetime
 import uuid
 import os
+from dotenv import load_dotenv
 from claude_service import claude_service
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="Food Planning API")
 
@@ -207,6 +211,7 @@ class MealRecommendationResponse(BaseModel):
     tags: list
     nutrition_notes: str
     pantry_usage_score: int
+    ai_generated: Optional[bool] = False
 
 # Utility functions
 def hash_password(password: str) -> str:
@@ -804,12 +809,22 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
     
     try:
         # Get recommendations from Claude
+        print(f"DEBUG: Getting {request.num_recommendations} recommendations")
+        print(f"DEBUG: Family members: {len(family_members)}")
+        print(f"DEBUG: Pantry items: {len(pantry_items)}")
+        
         recommendations = await claude_service.get_meal_recommendations(
             family_members=family_members,
             pantry_items=pantry_items,
             preferences=request.preferences,
             num_recommendations=request.num_recommendations
         )
+        
+        print(f"DEBUG: Got {len(recommendations)} recommendations")
+        if recommendations:
+            print(f"DEBUG: First recommendation: {recommendations[0].get('name', 'NO_NAME')}")
+            print(f"DEBUG: AI Generated: {recommendations[0].get('ai_generated', 'UNKNOWN')}")
+            print(f"DEBUG: Tags: {recommendations[0].get('tags', [])}")
         
         return [
             MealRecommendationResponse(
@@ -822,7 +837,8 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
                 instructions=rec['instructions'],
                 tags=rec['tags'],
                 nutrition_notes=rec['nutrition_notes'],
-                pantry_usage_score=rec['pantry_usage_score']
+                pantry_usage_score=rec['pantry_usage_score'],
+                ai_generated=rec.get('ai_generated', False)
             )
             for rec in recommendations
         ]
