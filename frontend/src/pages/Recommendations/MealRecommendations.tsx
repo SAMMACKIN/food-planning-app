@@ -5,7 +5,7 @@ import {
   Button,
   Card,
   CardContent,
-  Grid,
+  Stack,
   Chip,
   Alert,
   CircularProgress,
@@ -54,7 +54,16 @@ const MealRecommendations: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', request);
+      
+      // Add timestamp to force fresh request
+      const requestWithTimestamp = {
+        ...request,
+        timestamp: Date.now()
+      };
+      
+      console.log('Fetching fresh AI recommendations...');
+      const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
+      console.log('Received recommendations:', recs.map(r => ({ name: r.name, ai_generated: r.ai_generated })));
       setRecommendations(recs);
     } catch (error: any) {
       setError('Failed to get meal recommendations');
@@ -154,15 +163,31 @@ const MealRecommendations: React.FC = () => {
           </Typography>
         </Box>
       ) : (
-        <Grid container spacing={3}>
+        <Box 
+          sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, 
+            gap: 3 
+          }}
+        >
           {recommendations.map((meal, index) => (
-            <Grid key={index} size={{ xs: 12, md: 6, lg: 4 }}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                    <Typography variant="h6" component="h2" gutterBottom>
-                      {meal.name}
-                    </Typography>
+            <Card key={index} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                  <Box>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        {meal.name}
+                      </Typography>
+                      {meal.ai_generated && (
+                        <Chip
+                          icon={<AutoAwesome />}
+                          label="AI Generated"
+                          color="primary"
+                          size="small"
+                          sx={{ mr: 1 }}
+                        />
+                      )}
+                    </Box>
                     <Chip
                       label={`${meal.pantry_usage_score}%`}
                       color={getPantryScoreColor(meal.pantry_usage_score) as any}
@@ -246,9 +271,8 @@ const MealRecommendations: React.FC = () => {
                   </Button>
                 </Box>
               </Card>
-            </Grid>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {recommendations.length === 0 && !loading && (

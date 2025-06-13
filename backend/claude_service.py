@@ -37,7 +37,12 @@ class ClaudeService:
         """
         Get AI-powered meal recommendations based on family preferences and pantry items
         """
+        print(f"🤖 CLAUDE SERVICE CALLED at {__import__('datetime').datetime.now()}")
+        print(f"🔑 Client available: {self.client is not None}")
+        print(f"🔄 Requesting {num_recommendations} recommendations")
+        
         if not self.client:
+            print("❌ No Claude client - using fallback")
             return self._get_fallback_recommendations()
 
         try:
@@ -46,11 +51,18 @@ class ClaudeService:
                 family_members, pantry_items, preferences, num_recommendations
             )
             
+            # Log the prompt being sent
+            logger.info("=" * 80)
+            logger.info("PROMPT BEING SENT TO CLAUDE:")
+            logger.info("=" * 80)
+            logger.info(prompt)
+            logger.info("=" * 80)
+            
             # Call Claude API (using cheapest model)
             logger.info("Calling Claude API for meal recommendations...")
             response = self.client.messages.create(
                 model="claude-3-haiku-20240307",  # Cheapest Claude model
-                max_tokens=1500,  # Reduced tokens to save cost
+                max_tokens=4096,  # Maximum allowed for Haiku
                 temperature=0.7,
                 messages=[
                     {
@@ -61,15 +73,28 @@ class ClaudeService:
             )
             logger.info("Claude API response received successfully")
             
+            # Log the raw response
+            logger.info("=" * 80)
+            logger.info("RAW CLAUDE RESPONSE:")
+            logger.info("=" * 80)
+            logger.info(response.content[0].text)
+            logger.info("=" * 80)
+            
             # Parse the response
+            logger.info("Parsing Claude response...")
             recommendations = self._parse_claude_response(response.content[0].text)
-            logger.info(f"Successfully generated {len(recommendations)} meal recommendations")
+            logger.info(f"Parsed {len(recommendations)} recommendations from Claude response")
+            
+            # Log parsed recommendations
+            for i, rec in enumerate(recommendations):
+                logger.info(f"Recommendation {i+1}: {rec.get('name', 'NO_NAME')}")
             
             # Add AI indicator to each recommendation
             for rec in recommendations:
                 rec['ai_generated'] = True
                 rec['tags'] = rec.get('tags', []) + ['AI-Generated']
             
+            logger.info(f"Successfully generated {len(recommendations)} meal recommendations")
             return recommendations
             
         except Exception as e:
@@ -112,79 +137,76 @@ class ClaudeService:
             pantry_info.append(f"{category}: {', '.join(items)}")
         
         prompt = f"""
-You are a professional meal planning assistant. Create {num_recommendations} personalized meal recommendations based on the following information:
+Create {num_recommendations} meal recommendations in valid JSON format:
 
-FAMILY MEMBERS:
-{chr(10).join(family_info)}
+FAMILY: {chr(10).join(family_info)}
+PANTRY: {chr(10).join(pantry_info)}
 
-PANTRY INVENTORY:
-{chr(10).join(pantry_info)}
-
-REQUIREMENTS:
-- Suggest complete meals (not just ingredients)
-- Consider dietary restrictions and family size
-- Prioritize using available pantry ingredients
-- Include prep time and difficulty level
-- Provide brief cooking instructions
-- Ensure nutritional balance
-
-RESPONSE FORMAT (return valid JSON):
+Return ONLY valid JSON in this exact format:
 {{
   "recommendations": [
     {{
-      "name": "Meal Name",
-      "description": "Brief description of the dish",
+      "name": "Recipe Name",
+      "description": "Short description",
       "prep_time": 30,
-      "difficulty": "Easy|Medium|Hard",
+      "difficulty": "Easy",
       "servings": 4,
       "ingredients_needed": [
-        {{
-          "name": "ingredient name",
-          "quantity": "amount",
-          "unit": "measurement",
-          "have_in_pantry": true/false
-        }}
+        {{"name": "ingredient", "quantity": "1", "unit": "cup", "have_in_pantry": true}}
       ],
-      "instructions": [
-        "Step 1...",
-        "Step 2..."
-      ],
-      "tags": ["category1", "category2"],
-      "nutrition_notes": "Brief nutritional highlights",
-      "pantry_usage_score": 85
+      "instructions": ["Step 1", "Step 2"],
+      "tags": ["tag1"],
+      "nutrition_notes": "Brief notes",
+      "pantry_usage_score": 80
     }}
   ]
 }}
 
-Focus on practical, family-friendly meals that make good use of available ingredients.
+Keep responses concise. Use pantry ingredients when possible.
 """
         return prompt
 
     def _parse_claude_response(self, response_text: str) -> List[Dict[str, Any]]:
         """Parse Claude's JSON response"""
         try:
+            logger.info(f"Starting to parse response of length: {len(response_text)}")
+            
             # Extract JSON from the response
             start_idx = response_text.find('{')
             end_idx = response_text.rfind('}') + 1
             
+            logger.info(f"JSON boundaries: start={start_idx}, end={end_idx}")
+            
             if start_idx == -1 or end_idx == 0:
+                logger.error("No JSON found in Claude response")
                 raise ValueError("No JSON found in response")
             
             json_str = response_text[start_idx:end_idx]
+            logger.info(f"Extracted JSON string (first 200 chars): {json_str[:200]}...")
+            
             data = json.loads(json_str)
+            logger.info(f"Successfully parsed JSON. Keys: {list(data.keys())}")
             
             recommendations = data.get('recommendations', [])
+            logger.info(f"Found {len(recommendations)} recommendations in response")
             
             # Validate and clean up the recommendations
             cleaned_recommendations = []
-            for rec in recommendations:
+            for i, rec in enumerate(recommendations):
+                logger.info(f"Validating recommendation {i+1}: {rec.get('name', 'NO_NAME')}")
                 if self._validate_recommendation(rec):
                     cleaned_recommendations.append(rec)
+                    logger.info(f"  ✓ Valid")
+                else:
+                    logger.warning(f"  ✗ Invalid - missing required fields")
             
+            logger.info(f"Returning {len(cleaned_recommendations)} valid recommendations")
             return cleaned_recommendations
             
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"Error parsing Claude response: {e}")
+            logger.error(f"Response text that failed to parse: {response_text[:500]}...")
+            logger.warning("Falling back to default recommendations")
             return self._get_fallback_recommendations()
 
     def _validate_recommendation(self, rec: Dict[str, Any]) -> bool:
@@ -193,72 +215,15 @@ Focus on practical, family-friendly meals that make good use of available ingred
         return all(field in rec for field in required_fields)
 
     def _get_fallback_recommendations(self) -> List[Dict[str, Any]]:
-        """Provide fallback recommendations when Claude API is unavailable"""
-        logger.warning("Using fallback recommendations - Claude API failed")
-        return [
-            {
-                "name": "Simple Pasta with Garlic",
-                "description": "Quick and easy pasta dish with garlic and olive oil",
-                "prep_time": 20,
-                "difficulty": "Easy",
-                "servings": 4,
-                "ingredients_needed": [
-                    {"name": "Pasta", "quantity": "1", "unit": "cup", "have_in_pantry": True},
-                    {"name": "Garlic", "quantity": "3", "unit": "clove", "have_in_pantry": True},
-                    {"name": "Olive Oil", "quantity": "2", "unit": "tablespoon", "have_in_pantry": True}
-                ],
-                "instructions": [
-                    "Boil pasta according to package instructions",
-                    "Heat olive oil and sauté minced garlic",
-                    "Toss pasta with garlic oil",
-                    "Season with salt and pepper"
-                ],
-                "tags": ["quick", "vegetarian", "italian", "Fallback"],
-                "nutrition_notes": "Good source of carbohydrates",
-                "pantry_usage_score": 90,
-                "ai_generated": False
-            },
-            {
-                "name": "Scrambled Eggs with Toast",
-                "description": "Classic breakfast that works for any meal",
-                "prep_time": 10,
-                "difficulty": "Easy",
-                "servings": 2,
-                "ingredients_needed": [
-                    {"name": "Eggs", "quantity": "4", "unit": "large", "have_in_pantry": True},
-                    {"name": "Bread", "quantity": "2", "unit": "slice", "have_in_pantry": True}
-                ],
-                "instructions": [
-                    "Crack eggs into bowl and whisk",
-                    "Cook in pan over medium heat",
-                    "Toast bread",
-                    "Serve together"
-                ],
-                "tags": ["breakfast", "protein", "quick", "Fallback"],
-                "nutrition_notes": "High in protein",
-                "pantry_usage_score": 95,
-                "ai_generated": False
-            },
-            {
-                "name": "Basic Rice Bowl",
-                "description": "Simple rice dish with available vegetables",
-                "prep_time": 25,
-                "difficulty": "Easy",
-                "servings": 3,
-                "ingredients_needed": [
-                    {"name": "Rice", "quantity": "1", "unit": "cup", "have_in_pantry": True}
-                ],
-                "instructions": [
-                    "Cook rice according to package instructions",
-                    "Add any available vegetables",
-                    "Season to taste"
-                ],
-                "tags": ["simple", "filling", "customizable", "Fallback"],
-                "nutrition_notes": "Good carbohydrate base",
-                "pantry_usage_score": 80,
-                "ai_generated": False
-            }
-        ]
+        """NO MORE FALLBACK RECIPES - Force debugging by raising an exception"""
+        logger.error("🚨 CLAUDE API FAILED - NO FALLBACK RECIPES AVAILABLE")
+        print(f"🚨 CLAUDE API FAILURE at {__import__('datetime').datetime.now()}")
+        import traceback
+        print("🔍 FAILURE STACK TRACE:")
+        traceback.print_stack()
+        
+        # Instead of returning fallback recipes, raise an exception to force fixing the issue
+        raise Exception("Claude API failed and fallback recipes have been disabled. Check Claude API configuration and token limits.")
 
 # Global instance
 claude_service = ClaudeService()

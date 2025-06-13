@@ -172,6 +172,7 @@ export interface MealRecommendation {
   tags: string[];
   nutrition_notes: string;
   pantry_usage_score: number;
+  ai_generated?: boolean;
 }
 
 export interface IngredientNeeded {

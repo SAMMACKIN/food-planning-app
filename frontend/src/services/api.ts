@@ -1,7 +1,8 @@
 import axios, { AxiosResponse } from 'axios';
 import { ApiResponse, AuthTokens } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+console.log('🔗 API Base URL:', API_BASE_URL);
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
@@ -56,16 +57,17 @@ export const apiRequest = async <T>(
   data?: any
 ): Promise<T> => {
   try {
-    console.log(`Making ${method} request to ${api.defaults.baseURL}${url}`, data);
+    console.log(`🚀 Making ${method} request to ${api.defaults.baseURL}${url}`, data);
+    console.log('🔗 Full URL:', `${api.defaults.baseURL}${url}`);
     const response: AxiosResponse<T> = await api.request({
       method,
       url,
       data,
     });
-    console.log('API Response:', response.data);
+    console.log('✅ API Response received:', response.data);
     return response.data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('❌ API Error:', error);
     throw error;
   }
 };

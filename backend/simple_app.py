@@ -8,8 +8,20 @@ import jwt
 import datetime
 import uuid
 import os
+import logging
 from dotenv import load_dotenv
 from claude_service import claude_service
+
+# Set up detailed logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('backend.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -744,6 +756,13 @@ async def remove_pantry_item(ingredient_id: str):
 # Meal Recommendations endpoints
 @app.post("/api/v1/recommendations", response_model=List[MealRecommendationResponse])
 async def get_meal_recommendations(request: MealRecommendationRequest):
+    print(f"🎯 RECOMMENDATIONS REQUEST - {datetime.datetime.now()}")
+    print(f"📝 Request: {request}")
+    logger.info("=== RECOMMENDATIONS REQUEST RECEIVED ===")
+    logger.info(f"Request: {request}")
+    logger.info(f"Time: {datetime.datetime.now()}")
+    logger.info("="*50)
+    
     conn = sqlite3.connect('simple_food_app.db')
     cursor = conn.cursor()
     
@@ -809,9 +828,9 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
     
     try:
         # Get recommendations from Claude
-        print(f"DEBUG: Getting {request.num_recommendations} recommendations")
-        print(f"DEBUG: Family members: {len(family_members)}")
-        print(f"DEBUG: Pantry items: {len(pantry_items)}")
+        logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations")
+        logger.info(f"DEBUG: Family members: {len(family_members)}")
+        logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
         
         recommendations = await claude_service.get_meal_recommendations(
             family_members=family_members,
@@ -820,13 +839,13 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
             num_recommendations=request.num_recommendations
         )
         
-        print(f"DEBUG: Got {len(recommendations)} recommendations")
+        logger.info(f"DEBUG: Got {len(recommendations)} recommendations")
         if recommendations:
-            print(f"DEBUG: First recommendation: {recommendations[0].get('name', 'NO_NAME')}")
-            print(f"DEBUG: AI Generated: {recommendations[0].get('ai_generated', 'UNKNOWN')}")
-            print(f"DEBUG: Tags: {recommendations[0].get('tags', [])}")
+            logger.info(f"DEBUG: First recommendation: {recommendations[0].get('name', 'NO_NAME')}")
+            logger.info(f"DEBUG: AI Generated: {recommendations[0].get('ai_generated', 'UNKNOWN')}")
+            logger.info(f"DEBUG: Tags: {recommendations[0].get('tags', [])}")
         
-        return [
+        response_list = [
             MealRecommendationResponse(
                 name=rec['name'],
                 description=rec['description'],
@@ -843,19 +862,59 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
             for rec in recommendations
         ]
         
+        logger.info(f"RESPONSE: Returning {len(response_list)} recommendations")
+        if response_list:
+            logger.info(f"RESPONSE: First AI flag: {response_list[0].ai_generated}")
+        
+        return response_list
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
 
 @app.get("/api/v1/recommendations/status")
 async def get_recommendation_status():
     """Check if Claude API is available for recommendations"""
+    logger.info("🔍 Frontend checking Claude status")
+    print("🔍 FRONTEND STATUS CHECK - Current time:", datetime.datetime.now())
     return {
         "claude_available": claude_service.is_available(),
         "message": "Claude API is available for meal recommendations" if claude_service.is_available() 
                   else "Claude API not configured - using fallback recommendations"
     }
 
+@app.get("/api/v1/recommendations/test")
+async def test_ai_recommendations():
+    """Test endpoint to verify AI is working"""
+    try:
+        # Quick test with minimal data
+        recommendations = await claude_service.get_meal_recommendations(
+            family_members=[],
+            pantry_items=[],
+            num_recommendations=1
+        )
+        
+        if recommendations and recommendations[0].get('ai_generated', False):
+            return {
+                "status": "AI_WORKING",
+                "test_recipe": recommendations[0]['name'],
+                "ai_generated": recommendations[0].get('ai_generated', False),
+                "message": "Claude AI is generating recipes successfully"
+            }
+        else:
+            return {
+                "status": "FALLBACK_USED", 
+                "test_recipe": recommendations[0]['name'] if recommendations else "None",
+                "message": "Using fallback recipes"
+            }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "error": str(e),
+            "message": "Error testing AI recommendations"
+        }
+
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8001))
+    # Railway uses PORT environment variable
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

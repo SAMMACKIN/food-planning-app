@@ -12,3 +12,4 @@ slowapi
 anthropic
 httpx
 tenacity
+requests
