@@ -14,6 +14,13 @@ import {
   Chip,
   IconButton,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  Checkbox,
+  ListItemText,
 } from '@mui/material';
 import { Add, Edit, Delete, Person } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
@@ -25,9 +32,23 @@ import { apiRequest } from '../../services/api';
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   age: z.union([z.number().min(0).max(120), z.literal('')]).optional(),
+  dietary_restrictions: z.array(z.string()).optional(),
+  food_likes: z.string().optional(),
+  food_dislikes: z.string().optional(),
+  preferred_cuisines: z.array(z.string()).optional(),
 });
 
 type FamilyMemberFormData = z.infer<typeof familyMemberSchema>;
+
+const DIETARY_RESTRICTIONS = [
+  'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 
+  'Soy-Free', 'Egg-Free', 'Halal', 'Kosher', 'Low-Carb', 'Keto'
+];
+
+const CUISINE_TYPES = [
+  'Italian', 'Chinese', 'Mexican', 'Indian', 'Thai', 'Japanese', 
+  'Mediterranean', 'American', 'French', 'Korean', 'Vietnamese', 'Greek'
+];
 
 const FamilyManagement: React.FC = () => {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -35,6 +56,8 @@ const FamilyManagement: React.FC = () => {
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
 
   const {
     register,
@@ -65,7 +88,9 @@ const FamilyManagement: React.FC = () => {
 
   const handleAddMember = () => {
     setEditingMember(null);
-    reset({ name: '', age: '' });
+    reset({ name: '', age: '', food_likes: '', food_dislikes: '' });
+    setSelectedDietaryRestrictions([]);
+    setSelectedCuisines([]);
     setIsDialogOpen(true);
   };
 
@@ -73,8 +98,12 @@ const FamilyManagement: React.FC = () => {
     setEditingMember(member);
     reset({ 
       name: member.name, 
-      age: member.age || '' 
+      age: member.age || '',
+      food_likes: member.preferences?.likes?.join(', ') || '',
+      food_dislikes: member.preferences?.dislikes?.join(', ') || ''
     });
+    setSelectedDietaryRestrictions(member.dietary_restrictions || []);
+    setSelectedCuisines(member.preferences?.preferred_cuisines || []);
     setIsDialogOpen(true);
   };
 
@@ -98,11 +127,11 @@ const FamilyManagement: React.FC = () => {
       const memberData: FamilyMemberCreate = {
         name: data.name,
         age: data.age === '' ? undefined : Number(data.age),
-        dietary_restrictions: [],
+        dietary_restrictions: selectedDietaryRestrictions,
         preferences: {
-          likes: [],
-          dislikes: [],
-          preferred_cuisines: [],
+          likes: data.food_likes ? data.food_likes.split(',').map(s => s.trim()) : [],
+          dislikes: data.food_dislikes ? data.food_dislikes.split(',').map(s => s.trim()) : [],
+          preferred_cuisines: selectedCuisines,
           spice_level: 0
         }
       };
@@ -203,7 +232,46 @@ const FamilyManagement: React.FC = () => {
                       </Typography>
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
                         {member.dietary_restrictions.map((restriction, index) => (
-                          <Chip key={index} label={restriction} size="small" />
+                          <Chip key={index} label={restriction} size="small" color="secondary" />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {member.preferences?.preferred_cuisines && member.preferences.preferred_cuisines.length > 0 && (
+                    <Box mt={2}>
+                      <Typography variant="body2" gutterBottom>
+                        Preferred Cuisines:
+                      </Typography>
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {member.preferences.preferred_cuisines.map((cuisine, index) => (
+                          <Chip key={index} label={cuisine} size="small" color="primary" />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {member.preferences?.likes && member.preferences.likes.length > 0 && (
+                    <Box mt={2}>
+                      <Typography variant="body2" gutterBottom>
+                        Likes:
+                      </Typography>
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {member.preferences.likes.map((food, index) => (
+                          <Chip key={index} label={food} size="small" variant="outlined" color="success" />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {member.preferences?.dislikes && member.preferences.dislikes.length > 0 && (
+                    <Box mt={2}>
+                      <Typography variant="body2" gutterBottom>
+                        Dislikes:
+                      </Typography>
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {member.preferences.dislikes.map((food, index) => (
+                          <Chip key={index} label={food} size="small" variant="outlined" color="error" />
                         ))}
                       </Box>
                     </Box>
@@ -241,7 +309,76 @@ const FamilyManagement: React.FC = () => {
               {...register('age', { valueAsNumber: true })}
               error={!!errors.age}
               helperText={errors.age?.message}
+              sx={{ mb: 2 }}
             />
+            
+            <TextField
+              margin="dense"
+              label="Food Likes (comma separated)"
+              fullWidth
+              variant="outlined"
+              placeholder="e.g. pizza, chicken, broccoli"
+              {...register('food_likes')}
+              sx={{ mb: 2 }}
+            />
+            
+            <TextField
+              margin="dense"
+              label="Food Dislikes (comma separated)"
+              fullWidth
+              variant="outlined"
+              placeholder="e.g. mushrooms, spicy food, fish"
+              {...register('food_dislikes')}
+              sx={{ mb: 2 }}
+            />
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Dietary Restrictions</InputLabel>
+              <Select
+                multiple
+                value={selectedDietaryRestrictions}
+                onChange={(e) => setSelectedDietaryRestrictions(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                input={<OutlinedInput label="Dietary Restrictions" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value) => (
+                      <Chip key={value} label={value} size="small" />
+                    ))}
+                  </Box>
+                )}
+              >
+                {DIETARY_RESTRICTIONS.map((restriction) => (
+                  <MenuItem key={restriction} value={restriction}>
+                    <Checkbox checked={selectedDietaryRestrictions.indexOf(restriction) > -1} />
+                    <ListItemText primary={restriction} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Preferred Cuisines</InputLabel>
+              <Select
+                multiple
+                value={selectedCuisines}
+                onChange={(e) => setSelectedCuisines(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                input={<OutlinedInput label="Preferred Cuisines" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value) => (
+                      <Chip key={value} label={value} size="small" />
+                    ))}
+                  </Box>
+                )}
+              >
+                {CUISINE_TYPES.map((cuisine) => (
+                  <MenuItem key={cuisine} value={cuisine}>
+                    <Checkbox checked={selectedCuisines.indexOf(cuisine) > -1} />
+                    <ListItemText primary={cuisine} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setIsDialogOpen(false)} disabled={loading}>
