@@ -20,7 +20,6 @@ const Layout: React.FC = () => {
   const getCurrentTab = () => {
     if (location.pathname.includes('/family')) return 1;
     if (location.pathname.includes('/pantry')) return 2;
-    if (location.pathname.includes('/meal-planning')) return 3;
     if (location.pathname.includes('/recommendations')) return 4;
     return 0; // dashboard
   };
@@ -37,7 +36,7 @@ const Layout: React.FC = () => {
         navigate('/pantry');
         break;
       case 3:
-        navigate('/meal-planning');
+        // Meal Plans - not implemented yet
         break;
       case 4:
         navigate('/recommendations');
@@ -64,7 +63,7 @@ const Layout: React.FC = () => {
             <Tab label="Dashboard" />
             <Tab label="Family" />
             <Tab label="Pantry" />
-            <Tab label="Meal Plans" />
+            <Tab label="Meal Plans" disabled />
             <Tab label="Recommendations" />
           </Tabs>
         </Box>
