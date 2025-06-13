@@ -1,1 +1,1 @@
-web: python simple_app.py
+web: python -m uvicorn simple_app:app --host 0.0.0.0 --port $PORT
