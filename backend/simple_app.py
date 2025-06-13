@@ -34,7 +34,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://food-planning-app.vercel.app",
-        "https://food-planning-app-git-master-sams-projects-c6bbe2f2.vercel.app", 
+        "https://food-planning-app-git-master-sams-projects-c6bbe2f2.vercel.app",
+        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",
         "https://*.vercel.app",
         "https://*.netlify.app"
     ],
