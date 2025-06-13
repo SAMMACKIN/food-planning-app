@@ -6,7 +6,7 @@ python-jose[cryptography]
 PyJWT
 passlib[bcrypt]
 python-multipart
-pydantic
+pydantic[email]
 pydantic-settings
 python-dotenv
 slowapi
@@ -14,3 +14,4 @@ anthropic
 httpx
 tenacity
 requests
+email-validator
