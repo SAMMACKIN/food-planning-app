@@ -112,14 +112,26 @@ class ClaudeService:
     ) -> str:
         """Build a comprehensive prompt for Claude"""
         
-        # Family information
+        # Family information with detailed preferences
         family_info = []
         for member in family_members:
             info = f"- {member['name']}"
             if member.get('age'):
                 info += f" (age {member['age']})"
+            
+            # Add dietary restrictions
             if member.get('dietary_restrictions'):
                 info += f", dietary restrictions: {', '.join(member['dietary_restrictions'])}"
+            
+            # Add food preferences
+            preferences = member.get('preferences', {})
+            if preferences.get('likes'):
+                info += f", likes: {', '.join(preferences['likes'])}"
+            if preferences.get('dislikes'):
+                info += f", dislikes: {', '.join(preferences['dislikes'])}"
+            if preferences.get('preferred_cuisines'):
+                info += f", preferred cuisines: {', '.join(preferences['preferred_cuisines'])}"
+                
             family_info.append(info)
         
         # Pantry inventory
@@ -137,17 +149,28 @@ class ClaudeService:
             pantry_info.append(f"{category}: {', '.join(items)}")
         
         prompt = f"""
-Create {num_recommendations} meal recommendations in valid JSON format:
+Create {num_recommendations} personalized meal recommendations in valid JSON format:
 
-FAMILY: {chr(10).join(family_info)}
-PANTRY: {chr(10).join(pantry_info)}
+FAMILY MEMBERS & PREFERENCES:
+{chr(10).join(family_info)}
+
+AVAILABLE PANTRY ITEMS:
+{chr(10).join(pantry_info)}
+
+INSTRUCTIONS:
+- PRIORITIZE family food likes and preferred cuisines
+- AVOID family food dislikes completely
+- RESPECT all dietary restrictions (vegetarian, vegan, gluten-free, etc.)
+- Use pantry ingredients when possible
+- Include variety in cuisines based on preferences
+- Consider age-appropriate meals for children
 
 Return ONLY valid JSON in this exact format:
 {{
   "recommendations": [
     {{
       "name": "Recipe Name",
-      "description": "Short description",
+      "description": "Short description highlighting why it fits family preferences",
       "prep_time": 30,
       "difficulty": "Easy",
       "servings": 4,
@@ -155,14 +178,12 @@ Return ONLY valid JSON in this exact format:
         {{"name": "ingredient", "quantity": "1", "unit": "cup", "have_in_pantry": true}}
       ],
       "instructions": ["Step 1", "Step 2"],
-      "tags": ["tag1"],
-      "nutrition_notes": "Brief notes",
+      "tags": ["cuisine-type", "dietary-restriction", "family-friendly"],
+      "nutrition_notes": "Brief notes mentioning dietary considerations",
       "pantry_usage_score": 80
     }}
   ]
 }}
-
-Keep responses concise. Use pantry ingredients when possible.
 """
         return prompt
 
