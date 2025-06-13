@@ -1,5 +1,4 @@
 import axios, { AxiosResponse } from 'axios';
-import { ApiResponse, AuthTokens } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 console.log('🔗 API Base URL:', API_BASE_URL);
