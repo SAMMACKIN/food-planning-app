@@ -4,7 +4,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Button,
   Chip,
   Dialog,
@@ -183,73 +182,82 @@ const MealPlanning: React.FC = () => {
       )}
 
       {/* Calendar Grid */}
-      <Grid container spacing={2}>
+      <Box 
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(3, 1fr)',
+            lg: 'repeat(7, 1fr)'
+          },
+          gap: 2
+        }}
+      >
         {DAYS_OF_WEEK.map((day, dayIndex) => (
-          <Grid item xs={12} sm={6} md={4} lg={12/7} xl={12/7} key={day}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom textAlign="center">
-                  {day}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" textAlign="center" mb={2}>
-                  {getWeekDates()[dayIndex].getDate()}
-                </Typography>
+          <Card key={day} sx={{ height: 'fit-content' }}>
+            <CardContent sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom textAlign="center">
+                {day}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" textAlign="center" mb={2}>
+                {getWeekDates()[dayIndex].getDate()}
+              </Typography>
 
-                {MEAL_TYPES.map(mealType => {
-                  const meal = getMealForSlot(day, mealType);
-                  return (
-                    <Box key={mealType} mb={2}>
-                      <Typography variant="body2" fontWeight="bold" mb={1}>
-                        {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
-                      </Typography>
-                      {meal ? (
-                        <Card variant="outlined" sx={{ p: 1, bgcolor: 'primary.50' }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="start">
-                            <Box flex={1}>
-                              <Typography variant="body2" fontWeight="bold" noWrap>
-                                {meal.meal_name}
+              {MEAL_TYPES.map(mealType => {
+                const meal = getMealForSlot(day, mealType);
+                return (
+                  <Box key={mealType} mb={2}>
+                    <Typography variant="body2" fontWeight="bold" mb={1}>
+                      {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
+                    </Typography>
+                    {meal ? (
+                      <Card variant="outlined" sx={{ p: 1, bgcolor: 'primary.50' }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="start">
+                          <Box flex={1}>
+                            <Typography variant="body2" fontWeight="bold" noWrap>
+                              {meal.meal_name}
+                            </Typography>
+                            {meal.meal_description && (
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                {meal.meal_description}
                               </Typography>
-                              {meal.meal_description && (
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {meal.meal_description}
-                                </Typography>
-                              )}
-                            </Box>
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleRemoveMeal(day, mealType)}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
+                            )}
                           </Box>
-                        </Card>
-                      ) : (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          fullWidth
-                          startIcon={<Add />}
-                          onClick={() => handleSlotClick(day, mealType)}
-                          sx={{ 
-                            minHeight: 50, 
-                            border: '2px dashed', 
-                            borderColor: 'divider',
-                            '&:hover': {
-                              borderColor: 'primary.main'
-                            }
-                          }}
-                        >
-                          Add
-                        </Button>
-                      )}
-                    </Box>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </Grid>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleRemoveMeal(day, mealType)}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Card>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        startIcon={<Add />}
+                        onClick={() => handleSlotClick(day, mealType)}
+                        sx={{ 
+                          minHeight: 50, 
+                          border: '2px dashed', 
+                          borderColor: 'divider',
+                          '&:hover': {
+                            borderColor: 'primary.main'
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
+            </CardContent>
+          </Card>
         ))}
-      </Grid>
+      </Box>
 
       {/* Meal Selection Dialog */}
       <Dialog 
