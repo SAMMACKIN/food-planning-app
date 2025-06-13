@@ -917,4 +917,6 @@ if __name__ == "__main__":
     import uvicorn
     # Railway uses PORT environment variable
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print(f"🚀 Starting Food Planning API on port {port}")
+    print(f"📊 Health check endpoint: http://0.0.0.0:{port}/health")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
