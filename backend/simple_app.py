@@ -185,9 +185,14 @@ def create_admin_user():
 def populate_test_data():
     """Populate test data only in preview environment"""
     env = os.environ.get('RAILWAY_ENVIRONMENT', 'development')
+    print(f"🔍 Environment detected: {env}")
+    print(f"🔍 Database path: {get_db_path()}")
     
     if env != 'preview':
+        print(f"❌ Skipping test data - not in preview environment (env={env})")
         return  # Only populate test data in preview
+    
+    print("📊 Starting test data population for preview environment...")
     
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
