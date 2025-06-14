@@ -24,6 +24,7 @@ const Layout: React.FC = () => {
     if (location.pathname.includes('/recommendations')) return 4;
     if (location.pathname.includes('/user-guide')) return 5;
     if (location.pathname.includes('/changes')) return 6;
+    if (location.pathname.includes('/admin')) return 7;
     return 0; // dashboard
   };
 
@@ -49,6 +50,9 @@ const Layout: React.FC = () => {
         break;
       case 6:
         navigate('/changes');
+        break;
+      case 7:
+        navigate('/admin');
         break;
     }
   };
@@ -83,6 +87,7 @@ const Layout: React.FC = () => {
             <Tab label="Recommendations" />
             <Tab label="User Guide" />
             <Tab label="Changes" />
+            {user?.is_admin && <Tab label="Admin" sx={{ color: 'error.main' }} />}
           </Tabs>
         </Box>
       </AppBar>

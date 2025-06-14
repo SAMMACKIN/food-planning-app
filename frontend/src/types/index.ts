@@ -4,6 +4,7 @@ export interface User {
   name?: string;
   timezone: string;
   is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 

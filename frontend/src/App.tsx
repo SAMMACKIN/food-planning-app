@@ -13,6 +13,7 @@ import MealRecommendations from './pages/Recommendations/MealRecommendations';
 import MealPlanning from './pages/MealPlanning/MealPlanning';
 import UserGuide from './pages/UserGuide/UserGuide';
 import Changes from './pages/Changes/Changes';
+import AdminDashboard from './pages/Admin/AdminDashboard';
 import './App.css';
 
 const theme = createTheme({
@@ -53,6 +54,11 @@ function App() {
             <Route path="meal-planning" element={<MealPlanning />} />
             <Route path="user-guide" element={<UserGuide />} />
             <Route path="changes" element={<Changes />} />
+            <Route path="admin" element={
+              isAuthenticated && useAuthStore.getState().user?.is_admin ? 
+                <AdminDashboard /> : 
+                <Navigate to="/dashboard" />
+            } />
           </Route>
         </Routes>
       </Router>

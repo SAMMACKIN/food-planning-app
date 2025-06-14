@@ -62,6 +62,7 @@ def init_db():
             name TEXT,
             timezone TEXT DEFAULT 'UTC',
             is_active BOOLEAN DEFAULT 1,
+            is_admin BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -137,6 +138,16 @@ def init_db():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', sample_ingredients)
     
+    # Create admin user if not exists
+    admin_id = 'admin-user-id'
+    admin_email = 'admin'
+    admin_password = hash_password('admin')
+    
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (id, email, hashed_password, name, is_admin)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (admin_id, admin_email, admin_password, 'Administrator', 1))
+    
     conn.commit()
     conn.close()
 
@@ -164,6 +175,7 @@ class UserResponse(BaseModel):
     name: Optional[str] = None
     timezone: str = "UTC"
     is_active: bool = True
+    is_admin: bool = False
     created_at: str
 
 class FamilyMemberCreate(BaseModel):
@@ -255,6 +267,39 @@ def verify_token(token: str):
     except:
         return None
 
+# Auth dependency
+def get_current_user(authorization: str = None):
+    if not authorization:
+        return None
+    
+    try:
+        # Extract token from "Bearer <token>"
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        user_id = verify_token(token)
+        if not user_id:
+            return None
+            
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user:
+            return None
+            
+        return {
+            'id': user[0],
+            'email': user[1], 
+            'name': user[2],
+            'timezone': user[3],
+            'is_active': bool(user[4]),
+            'is_admin': bool(user[5]),
+            'created_at': user[6]
+        }
+    except:
+        return None
+
 # Routes
 @app.get("/")
 async def root():
@@ -319,11 +364,11 @@ async def login(user_data: UserLogin):
     )
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
-async def get_current_user(authorization: str = Depends(lambda: None)):
-    # Simple auth check for demo
+async def get_current_user_endpoint():
+    # For demo purposes, return the first user or admin
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users LIMIT 1")
+    cursor.execute("SELECT id, email, hashed_password, name, timezone, is_active, is_admin, created_at FROM users LIMIT 1")
     user = cursor.fetchone()
     conn.close()
     
@@ -336,7 +381,8 @@ async def get_current_user(authorization: str = Depends(lambda: None)):
         name=user[3],
         timezone=user[4],
         is_active=bool(user[5]),
-        created_at=user[6]
+        is_admin=bool(user[6]),
+        created_at=user[7]
     )
 
 # Family Members endpoints
@@ -345,18 +391,27 @@ async def get_family_members():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
+    # Get current user (simplified for demo - for production, use proper auth)
+    cursor.execute("SELECT id, is_admin FROM users LIMIT 1")
     user = cursor.fetchone()
     if not user:
         conn.close()
         raise HTTPException(status_code=401, detail="User not found")
     
     user_id = user[0]
-    cursor.execute(
-        "SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at FROM family_members WHERE user_id = ?",
-        (user_id,)
-    )
+    is_admin = bool(user[1])
+    
+    # Admin can see all family members, regular users only see their own
+    if is_admin:
+        cursor.execute(
+            "SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at FROM family_members ORDER BY user_id, name"
+        )
+    else:
+        cursor.execute(
+            "SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at FROM family_members WHERE user_id = ?",
+            (user_id,)
+        )
+    
     members = cursor.fetchall()
     conn.close()
     
@@ -489,6 +544,99 @@ async def delete_family_member(member_id: str):
     conn.close()
     
     return {"message": "Family member deleted successfully"}
+
+# Admin endpoints
+@app.get("/api/v1/admin/users")
+async def get_all_users():
+    """Admin endpoint to view all users"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, email, name, timezone, is_active, is_admin, created_at
+        FROM users 
+        ORDER BY created_at DESC
+    ''')
+    users = cursor.fetchall()
+    conn.close()
+    
+    return [
+        {
+            'id': user[0],
+            'email': user[1],
+            'name': user[2],
+            'timezone': user[3],
+            'is_active': bool(user[4]),
+            'is_admin': bool(user[5]),
+            'created_at': user[6]
+        }
+        for user in users
+    ]
+
+@app.get("/api/v1/admin/family/all")
+async def get_all_family_members():
+    """Admin endpoint to view all family members across all users"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT fm.id, fm.user_id, fm.name, fm.age, fm.dietary_restrictions, fm.preferences, fm.created_at,
+               u.email as user_email, u.name as user_name
+        FROM family_members fm
+        JOIN users u ON fm.user_id = u.id
+        ORDER BY u.email, fm.name
+    ''')
+    family_members = cursor.fetchall()
+    conn.close()
+    
+    return [
+        {
+            'id': member[0],
+            'user_id': member[1],
+            'name': member[2],
+            'age': member[3],
+            'dietary_restrictions': eval(member[4]) if member[4] else [],
+            'preferences': eval(member[5]) if member[5] else {},
+            'created_at': member[6],
+            'user_email': member[7],
+            'user_name': member[8]
+        }
+        for member in family_members
+    ]
+
+@app.get("/api/v1/admin/stats")
+async def get_admin_stats():
+    """Admin endpoint to get platform statistics"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Get total users
+    cursor.execute("SELECT COUNT(*) FROM users WHERE is_admin = 0")
+    total_users = cursor.fetchone()[0]
+    
+    # Get total family members
+    cursor.execute("SELECT COUNT(*) FROM family_members")
+    total_family_members = cursor.fetchone()[0]
+    
+    # Get total pantry items
+    cursor.execute("SELECT COUNT(*) FROM pantry_items")
+    total_pantry_items = cursor.fetchone()[0]
+    
+    # Get recent registrations (last 30 days)
+    cursor.execute("""
+        SELECT COUNT(*) FROM users 
+        WHERE is_admin = 0 AND created_at >= datetime('now', '-30 days')
+    """)
+    recent_registrations = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return {
+        'total_users': total_users,
+        'total_family_members': total_family_members,
+        'total_pantry_items': total_pantry_items,
+        'recent_registrations': recent_registrations
+    }
 
 # Ingredients endpoints
 @app.get("/api/v1/ingredients", response_model=List[IngredientResponse])
