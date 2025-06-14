@@ -1,0 +1,15 @@
+{
+  "name": "food-planning-app",
+  "version": "1.0.0",
+  "description": "A comprehensive meal planning application with AI-powered recommendations",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && python simple_app.py",
+    "frontend": "cd frontend && npm start",
+    "install-all": "cd backend && pip install -r requirements.txt && cd ../frontend && npm install",
+    "test": "cd backend && python -m pytest && cd ../frontend && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
