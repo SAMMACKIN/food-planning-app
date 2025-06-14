@@ -50,6 +50,25 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - Ensure both frontend (3000) and backend (8001) are running
 - Backend logs are in `backend/simple_backend.log`
 
+## Deployment Workflow - CRITICAL RULE
+⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT PREVIEW TESTING** ⚠️
+
+### Required Steps for ALL Changes:
+1. **Create preview branch**: `git checkout -b preview`
+2. **Push to preview**: `git push origin preview` 
+3. **Test on preview environment**: https://food-planning-app-preview.up.railway.app/
+4. **Get user approval**: User must test and approve changes
+5. **Only then merge to master**: `git checkout master && git merge preview`
+6. **Deploy to production**: `git push origin master`
+
+### Preview Environment URLs:
+- **Frontend Preview**: https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app
+- **Backend Preview**: https://food-planning-app-preview.up.railway.app/
+
+### Production Environment URLs:
+- **Frontend Production**: https://food-planning-app.vercel.app
+- **Backend Production**: https://food-planning-app-production.up.railway.app/
+
 ## Development Notes
 - Hot reload enabled for both frontend and backend
 - Debug logging added to API calls
