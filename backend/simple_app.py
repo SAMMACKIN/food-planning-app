@@ -64,13 +64,23 @@ def get_db_path():
     """Get database path based on environment"""
     env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
     
+    print(f"🔍 DB PATH DETERMINATION:")
+    print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
+    print(f"   - Processed env: {env}")
+    
     if env == 'preview':
-        return '/app/data/preview_food_app.db'
+        db_path = '/app/data/preview_food_app.db'
+        print(f"   - Selected PREVIEW database: {db_path}")
+        return db_path
     elif env == 'production':
-        return '/app/data/production_food_app.db'
+        db_path = '/app/data/production_food_app.db'
+        print(f"   - Selected PRODUCTION database: {db_path}")
+        return db_path
     else:
         # Local development
-        return os.environ.get('DATABASE_PATH', 'simple_food_app.db')
+        db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
+        print(f"   - Selected LOCAL database: {db_path}")
+        return db_path
 
 def init_db():
     db_path = get_db_path()
@@ -217,8 +227,18 @@ def create_admin_user():
 def populate_test_data():
     """Populate test data only in preview environment"""
     env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
-    print(f"🔍 Environment detected: {env}")
-    print(f"🔍 Database path: {get_db_path()}")
+    
+    # Enhanced debugging for environment detection
+    print(f"🔍 DETAILED ENVIRONMENT ANALYSIS:")
+    print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
+    print(f"   - Processed env value: {env}")
+    print(f"   - Database path: {get_db_path()}")
+    print(f"   - All Railway env vars: {[k for k in os.environ.keys() if 'RAILWAY' in k.upper()]}")
+    
+    # Check other common environment variables
+    print(f"   - NODE_ENV: {os.environ.get('NODE_ENV', 'NOT_SET')}")
+    print(f"   - ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'NOT_SET')}")
+    print(f"   - DEPLOY_ENV: {os.environ.get('DEPLOY_ENV', 'NOT_SET')}")
     
     if env != 'preview':
         print(f"❌ Skipping test data - not in preview environment (env={env})")
