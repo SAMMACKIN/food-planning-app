@@ -138,7 +138,14 @@ def init_db():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', sample_ingredients)
     
-    # Create admin user if not exists
+    conn.commit()
+    conn.close()
+
+def create_admin_user():
+    """Create admin user after hash_password function is defined"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
     admin_id = 'admin-user-id'
     admin_email = 'admin'
     admin_password = hash_password('admin')
@@ -299,6 +306,9 @@ def get_current_user(authorization: str = None):
         }
     except:
         return None
+
+# Create admin user after functions are defined
+create_admin_user()
 
 # Routes
 @app.get("/")
