@@ -16,3 +16,4 @@ httpx
 tenacity
 requests
 email-validator
+psycopg2-binary

@@ -11,6 +11,9 @@ import os
 import logging
 from dotenv import load_dotenv
 from ai_service import ai_service
+import psycopg2
+import psycopg2.extras
+from urllib.parse import urlparse
 
 # Set up detailed logging
 logging.basicConfig(
@@ -45,6 +48,18 @@ app.add_middleware(
 )
 
 # Database setup
+def get_db_connection():
+    """Get database connection - PostgreSQL if DATABASE_URL exists, otherwise SQLite"""
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if database_url:
+        # Use PostgreSQL
+        return psycopg2.connect(database_url)
+    else:
+        # Fall back to SQLite for local development
+        db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
+        return sqlite3.connect(db_path)
+
 def get_db_path():
     return os.environ.get('DATABASE_PATH', 'simple_food_app.db')
 
