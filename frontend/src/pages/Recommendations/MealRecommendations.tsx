@@ -218,7 +218,7 @@ const MealRecommendations: React.FC = () => {
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
           <Typography variant="body1" sx={{ ml: 2 }}>
-            {claudeAvailable ? 'AI is crafting personalized recommendations...' : 'Loading recommendations...'}
+            {availableProviders.length > 0 ? `${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} AI is crafting personalized recommendations...` : 'Loading recommendations...'}
           </Typography>
         </Box>
       ) : (
