@@ -50,16 +50,26 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - Ensure both frontend (3000) and backend (8001) are running
 - Backend logs are in `backend/simple_backend.log`
 
-## Deployment Workflow - CRITICAL RULE
+## 🚨 DEPLOYMENT WORKFLOW - ABSOLUTE CRITICAL RULE 🚨
 ⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT PREVIEW TESTING** ⚠️
+⚠️ **CLAUDE MUST ALWAYS USE PREVIEW-FIRST WORKFLOW** ⚠️
+⚠️ **USER MUST APPROVE ALL CHANGES BEFORE PRODUCTION** ⚠️
 
-### Required Steps for ALL Changes:
-1. **Create preview branch**: `git checkout -b preview`
-2. **Push to preview**: `git push origin preview` 
-3. **Test on preview environment**: https://food-planning-app-preview.up.railway.app/
-4. **Get user approval**: User must test and approve changes
-5. **Only then merge to master**: `git checkout master && git merge preview`
-6. **Deploy to production**: `git push origin master`
+### MANDATORY Steps for ALL Changes (NO EXCEPTIONS):
+1. **Work on preview branch ONLY**: `git checkout preview`
+2. **Commit to preview**: `git add . && git commit -m "..."`
+3. **Push to preview**: `git push origin preview` 
+4. **Test on preview environment**: https://food-planning-app-preview.up.railway.app/
+5. **WAIT for user approval**: User must test and explicitly approve changes
+6. **Only after approval**: `git checkout master && git merge preview && git push origin master`
+
+### 🛑 CLAUDE DEPLOYMENT RULES:
+- ❌ NEVER push directly to master branch
+- ❌ NEVER deploy to production without user testing preview first
+- ❌ NEVER assume user approval - wait for explicit confirmation
+- ✅ ALWAYS work on preview branch
+- ✅ ALWAYS let user test preview environment first
+- ✅ ALWAYS wait for user to say "deploy to production"
 
 ### Preview Environment URLs:
 - **Frontend Preview**: https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app
