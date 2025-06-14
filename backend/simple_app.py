@@ -220,13 +220,13 @@ def populate_test_data():
             VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', member)
     
-    # Create test pantry items
+    # Create test pantry items (using actual ingredient IDs)
     pantry_items = [
-        (test_user_id, 'chicken-breast', 2.0, None),
-        (test_user_id, 'pasta-spaghetti', 1.0, None),
-        (test_user_id, 'tomatoes-canned', 3.0, None),
-        (test_user_id, 'cheese-mozzarella', 1.0, None),
-        (test_user_id, 'olive-oil', 1.0, None)
+        (test_user_id, 'ing-1', 2.0, None),  # Chicken Breast
+        (test_user_id, 'ing-2', 1.0, None),  # Rice
+        (test_user_id, 'ing-3', 1.0, None),  # Broccoli
+        (test_user_id, 'ing-4', 1.0, None),  # Olive Oil
+        (test_user_id, 'ing-5', 2.0, None)   # Onion
     ]
     
     for item in pantry_items:

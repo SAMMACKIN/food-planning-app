@@ -30,9 +30,10 @@ class AIService:
         # Initialize Groq
         self.groq_client = None
         groq_key = os.getenv("GROQ_API_KEY")
+        logger.info(f"Groq API key present: {'Yes' if groq_key else 'No'}")
         if groq_key:
             self.groq_client = Groq(api_key=groq_key)
-            logger.info("Groq client initialized")
+            logger.info("Groq client initialized successfully")
         else:
             logger.warning("GROQ_API_KEY not found. Groq will be disabled.")
     
