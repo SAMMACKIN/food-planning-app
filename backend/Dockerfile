@@ -14,10 +14,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create non-root user for security
+# Create non-root user for security (but don't switch to it yet)
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
-USER appuser
+
+# Create data directory with flexible permissions
+RUN mkdir -p /app/data && \
+    chmod 777 /app/data
+
+# Note: USER will be set by Railway based on RAILWAY_RUN_UID
+# If RAILWAY_RUN_UID=0, runs as root (needed for volume access)
+# If not set, will run as root by default
 
 # Expose port
 EXPOSE 8000
