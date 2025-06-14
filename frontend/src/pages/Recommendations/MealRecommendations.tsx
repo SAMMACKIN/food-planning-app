@@ -174,7 +174,7 @@ const MealRecommendations: React.FC = () => {
                   {availableProviders.map((provider) => (
                     <MenuItem key={provider} value={provider}>
                       {provider === 'claude' ? 'Claude (Anthropic)' : 
-                       provider === 'groq' ? 'Groq (Llama)' : 
+                       provider === 'groq' ? 'Groq (Qwen)' : 
                        provider.charAt(0).toUpperCase() + provider.slice(1)}
                     </MenuItem>
                   ))}
