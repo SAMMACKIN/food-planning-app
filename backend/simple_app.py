@@ -45,8 +45,14 @@ app.add_middleware(
 )
 
 # Database setup
+def get_db_path():
+    return os.environ.get('DATABASE_PATH', 'simple_food_app.db')
+
 def init_db():
-    conn = sqlite3.connect('simple_food_app.db')
+    db_path = get_db_path()
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(db_path), exist_ok=True) if os.path.dirname(db_path) else None
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -260,7 +266,7 @@ async def health():
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Check if user exists
@@ -292,7 +298,7 @@ async def register(user_data: UserCreate):
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute("SELECT id, hashed_password FROM users WHERE email = ?", (user_data.email,))
@@ -315,7 +321,7 @@ async def login(user_data: UserLogin):
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user(authorization: str = Depends(lambda: None)):
     # Simple auth check for demo
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users LIMIT 1")
     user = cursor.fetchone()
@@ -336,7 +342,7 @@ async def get_current_user(authorization: str = Depends(lambda: None)):
 # Family Members endpoints
 @app.get("/api/v1/family/members", response_model=List[FamilyMemberResponse])
 async def get_family_members():
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -369,7 +375,7 @@ async def get_family_members():
 
 @app.post("/api/v1/family/members", response_model=FamilyMemberResponse)
 async def create_family_member(member_data: FamilyMemberCreate):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -415,7 +421,7 @@ async def create_family_member(member_data: FamilyMemberCreate):
 
 @app.put("/api/v1/family/members/{member_id}", response_model=FamilyMemberResponse)
 async def update_family_member(member_id: str, member_data: FamilyMemberUpdate):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Check if member exists
@@ -469,7 +475,7 @@ async def update_family_member(member_id: str, member_data: FamilyMemberUpdate):
 
 @app.delete("/api/v1/family/members/{member_id}")
 async def delete_family_member(member_id: str):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Check if member exists
@@ -487,7 +493,7 @@ async def delete_family_member(member_id: str):
 # Ingredients endpoints
 @app.get("/api/v1/ingredients", response_model=List[IngredientResponse])
 async def get_ingredients():
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -517,7 +523,7 @@ async def get_ingredients():
 
 @app.get("/api/v1/ingredients/search")
 async def search_ingredients(q: str):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -550,7 +556,7 @@ async def search_ingredients(q: str):
 # Pantry endpoints
 @app.get("/api/v1/pantry", response_model=List[PantryItemResponse])
 async def get_pantry_items():
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -599,7 +605,7 @@ async def get_pantry_items():
 
 @app.post("/api/v1/pantry", response_model=PantryItemResponse)
 async def add_pantry_item(pantry_data: PantryItemCreate):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -659,7 +665,7 @@ async def add_pantry_item(pantry_data: PantryItemCreate):
 
 @app.put("/api/v1/pantry/{ingredient_id}", response_model=PantryItemResponse)
 async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -732,7 +738,7 @@ async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate):
 
 @app.delete("/api/v1/pantry/{ingredient_id}")
 async def remove_pantry_item(ingredient_id: str):
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
@@ -766,7 +772,7 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
     logger.info(f"Time: {datetime.datetime.now()}")
     logger.info("="*50)
     
-    conn = sqlite3.connect('simple_food_app.db')
+    conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     # Get current user (simplified for demo)
