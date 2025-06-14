@@ -1,10 +1,6 @@
-backend/
-scripts/
-*.md
-.env*
-!frontend/.env.production
-railway.json
-nixpacks.toml
-docker-compose.yml
-Procfile
-# Force rebuild
+# Ignore everything except frontend
+*
+!frontend/
+!frontend/**
+!vercel.json
+!.vercelignore
