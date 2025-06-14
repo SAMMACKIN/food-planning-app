@@ -222,17 +222,17 @@ def populate_test_data():
     
     # Create test pantry items
     pantry_items = [
-        ('pantry-1', test_user_id, 'chicken-breast', 2.0, None),
-        ('pantry-2', test_user_id, 'pasta-spaghetti', 1.0, None),
-        ('pantry-3', test_user_id, 'tomatoes-canned', 3.0, None),
-        ('pantry-4', test_user_id, 'cheese-mozzarella', 1.0, None),
-        ('pantry-5', test_user_id, 'olive-oil', 1.0, None)
+        (test_user_id, 'chicken-breast', 2.0, None),
+        (test_user_id, 'pasta-spaghetti', 1.0, None),
+        (test_user_id, 'tomatoes-canned', 3.0, None),
+        (test_user_id, 'cheese-mozzarella', 1.0, None),
+        (test_user_id, 'olive-oil', 1.0, None)
     ]
     
     for item in pantry_items:
         cursor.execute('''
-            INSERT OR IGNORE INTO pantry_items (id, user_id, ingredient_id, quantity, expiration_date, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT OR IGNORE INTO pantry_items (user_id, ingredient_id, quantity, expiration_date, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', item)
     
     conn.commit()
