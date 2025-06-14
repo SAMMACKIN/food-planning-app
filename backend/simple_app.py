@@ -87,9 +87,33 @@ def get_db_path():
 
 def init_db():
     db_path = get_db_path()
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(db_path), exist_ok=True) if os.path.dirname(db_path) else None
-    conn = sqlite3.connect(db_path)
+    
+    # Ensure directory exists with proper error handling
+    try:
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            print(f"📁 Creating directory: {db_dir}")
+            os.makedirs(db_dir, exist_ok=True)
+            # Check if directory was created successfully
+            if not os.path.exists(db_dir):
+                print(f"❌ Failed to create directory: {db_dir}")
+                raise Exception(f"Could not create database directory: {db_dir}")
+            print(f"✅ Directory exists: {db_dir}")
+    except Exception as e:
+        print(f"❌ Directory creation error: {e}")
+        raise
+    
+    # Try to connect to database
+    try:
+        print(f"🔗 Connecting to database: {db_path}")
+        conn = sqlite3.connect(db_path)
+        print(f"✅ Database connection successful")
+    except Exception as e:
+        print(f"❌ Database connection error: {e}")
+        print(f"   - Database path: {db_path}")
+        print(f"   - Directory exists: {os.path.exists(os.path.dirname(db_path))}")
+        print(f"   - Directory writable: {os.access(os.path.dirname(db_path), os.W_OK) if os.path.exists(os.path.dirname(db_path)) else 'N/A'}")
+        raise
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
