@@ -10,7 +10,7 @@ import uuid
 import os
 import logging
 from dotenv import load_dotenv
-from claude_service import claude_service
+from ai_service import ai_service
 
 # Set up detailed logging
 logging.basicConfig(
@@ -239,6 +239,7 @@ class MealRecommendationRequest(BaseModel):
     num_recommendations: Optional[int] = 5
     meal_type: Optional[str] = None  # breakfast, lunch, dinner, snack
     preferences: Optional[dict] = {}
+    ai_provider: Optional[str] = "claude"  # claude or groq
 
 class MealRecommendationResponse(BaseModel):
     name: str
@@ -252,6 +253,7 @@ class MealRecommendationResponse(BaseModel):
     nutrition_notes: str
     pantry_usage_score: int
     ai_generated: Optional[bool] = False
+    ai_provider: Optional[str] = None
 
 # Utility functions
 def hash_password(password: str) -> str:
@@ -994,16 +996,18 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
     conn.close()
     
     try:
-        # Get recommendations from Claude
-        logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations")
+        # Get recommendations from selected AI provider
+        provider = request.ai_provider or "claude"
+        logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations from {provider}")
         logger.info(f"DEBUG: Family members: {len(family_members)}")
         logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
         
-        recommendations = await claude_service.get_meal_recommendations(
+        recommendations = await ai_service.get_meal_recommendations(
             family_members=family_members,
             pantry_items=pantry_items,
             preferences=request.preferences,
-            num_recommendations=request.num_recommendations
+            num_recommendations=request.num_recommendations,
+            provider=provider
         )
         
         logger.info(f"DEBUG: Got {len(recommendations)} recommendations")
@@ -1024,7 +1028,8 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
                 tags=rec['tags'],
                 nutrition_notes=rec['nutrition_notes'],
                 pantry_usage_score=rec['pantry_usage_score'],
-                ai_generated=rec.get('ai_generated', False)
+                ai_generated=rec.get('ai_generated', False),
+                ai_provider=rec.get('ai_provider')
             )
             for rec in recommendations
         ]
@@ -1040,44 +1045,61 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
 
 @app.get("/api/v1/recommendations/status")
 async def get_recommendation_status():
-    """Check if Claude API is available for recommendations"""
-    logger.info("🔍 Frontend checking Claude status")
-    print("🔍 FRONTEND STATUS CHECK - Current time:", datetime.datetime.now())
+    """Check status of available AI providers"""
+    logger.info("🔍 Frontend checking AI provider status")
+    print("🔍 AI PROVIDER STATUS CHECK - Current time:", datetime.datetime.now())
+    
+    providers = ai_service.get_available_providers()
+    available_providers = [name for name, available in providers.items() if available]
+    
     return {
-        "claude_available": claude_service.is_available(),
-        "message": "Claude API is available for meal recommendations" if claude_service.is_available() 
-                  else "Claude API not configured - using fallback recommendations"
+        "providers": providers,
+        "available_providers": available_providers,
+        "default_provider": "claude" if providers.get("claude") else ("groq" if providers.get("groq") else None),
+        "message": f"Available AI providers: {', '.join(available_providers)}" if available_providers else "No AI providers configured"
     }
 
 @app.get("/api/v1/recommendations/test")
-async def test_ai_recommendations():
-    """Test endpoint to verify AI is working"""
+async def test_ai_recommendations(provider: str = "claude"):
+    """Test endpoint to verify AI provider is working"""
     try:
+        if not ai_service.is_provider_available(provider):
+            return {
+                "status": "PROVIDER_UNAVAILABLE",
+                "provider": provider,
+                "message": f"AI provider '{provider}' is not available or configured"
+            }
+        
         # Quick test with minimal data
-        recommendations = await claude_service.get_meal_recommendations(
+        recommendations = await ai_service.get_meal_recommendations(
             family_members=[],
             pantry_items=[],
-            num_recommendations=1
+            num_recommendations=1,
+            provider=provider
         )
         
         if recommendations and recommendations[0].get('ai_generated', False):
             return {
                 "status": "AI_WORKING",
+                "provider": provider,
                 "test_recipe": recommendations[0]['name'],
                 "ai_generated": recommendations[0].get('ai_generated', False),
-                "message": "Claude AI is generating recipes successfully"
+                "ai_provider": recommendations[0].get('ai_provider'),
+                "message": f"{provider.title()} AI is generating recipes successfully"
             }
         else:
             return {
-                "status": "FALLBACK_USED", 
+                "status": "NO_RESULTS", 
+                "provider": provider,
                 "test_recipe": recommendations[0]['name'] if recommendations else "None",
-                "message": "Using fallback recipes"
+                "message": f"{provider.title()} returned no valid recommendations"
             }
     except Exception as e:
         return {
             "status": "ERROR",
+            "provider": provider,
             "error": str(e),
-            "message": "Error testing AI recommendations"
+            "message": f"Error testing {provider} AI recommendations"
         }
 
 if __name__ == "__main__":

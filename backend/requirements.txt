@@ -11,6 +11,7 @@ pydantic-settings
 python-dotenv
 slowapi
 anthropic
+groq
 httpx
 tenacity
 requests

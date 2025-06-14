@@ -4,12 +4,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Timeline,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineConnector,
-  TimelineContent,
-  TimelineDot,
   Chip,
   List,
   ListItem,
@@ -262,64 +256,55 @@ const Changes: React.FC = () => {
         Version History
       </Typography>
       
-      <Timeline>
+      <Box>
         {changeHistory.map((entry, index) => (
-          <TimelineItem key={entry.version}>
-            <TimelineSeparator>
-              <TimelineDot color={getVersionTypeColor(entry.type) as any}>
-                <NewReleases />
-              </TimelineDot>
-              {index < changeHistory.length - 1 && <TimelineConnector />}
-            </TimelineSeparator>
-            <TimelineContent>
-              <Card sx={{ mb: 2 }}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <Typography variant="h6">
-                      Version {entry.version}
-                    </Typography>
-                    <Chip 
-                      label={entry.type.toUpperCase()} 
-                      color={getVersionTypeColor(entry.type) as any}
-                      size="small" 
-                      sx={{ ml: 2 }} 
+          <Card key={entry.version} sx={{ mb: 3, border: '2px solid', borderColor: `${getVersionTypeColor(entry.type)}.main` }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" mb={2}>
+                <NewReleases sx={{ mr: 2, color: `${getVersionTypeColor(entry.type)}.main` }} />
+                <Typography variant="h6">
+                  Version {entry.version}
+                </Typography>
+                <Chip 
+                  label={entry.type.toUpperCase()} 
+                  color={getVersionTypeColor(entry.type) as any}
+                  size="small" 
+                  sx={{ ml: 2 }} 
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {entry.date}
+              </Typography>
+              
+              <List dense>
+                {entry.changes.map((change, changeIndex) => (
+                  <ListItem key={changeIndex} disablePadding>
+                    <ListItemIcon>
+                      {getChangeTypeIcon(change.type)}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2">
+                            {change.description}
+                          </Typography>
+                          <Chip 
+                            label={change.type} 
+                            color={getChangeTypeColor(change.type) as any}
+                            size="small" 
+                            variant="outlined"
+                          />
+                        </Box>
+                      }
+                      secondary={change.icon}
                     />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" mb={2}>
-                    {entry.date}
-                  </Typography>
-                  
-                  <List dense>
-                    {entry.changes.map((change, changeIndex) => (
-                      <ListItem key={changeIndex} disablePadding>
-                        <ListItemIcon>
-                          {getChangeTypeIcon(change.type)}
-                        </ListItemIcon>
-                        <ListItemText 
-                          primary={
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Typography variant="body2">
-                                {change.description}
-                              </Typography>
-                              <Chip 
-                                label={change.type} 
-                                color={getChangeTypeColor(change.type) as any}
-                                size="small" 
-                                variant="outlined"
-                              />
-                            </Box>
-                          }
-                          secondary={change.icon}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </TimelineContent>
-          </TimelineItem>
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
         ))}
-      </Timeline>
+      </Box>
 
       {/* Upcoming Features */}
       <Card sx={{ mt: 4 }}>

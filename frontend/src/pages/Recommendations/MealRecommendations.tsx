@@ -19,6 +19,11 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
 } from '@mui/material';
 import {
   Restaurant,
@@ -29,6 +34,7 @@ import {
   ExpandMore,
   Refresh,
   AutoAwesome,
+  Settings,
 } from '@mui/icons-material';
 import { MealRecommendation, MealRecommendationRequest } from '../../types';
 import { apiRequest } from '../../services/api';
@@ -38,14 +44,23 @@ const MealRecommendations: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<MealRecommendation | null>(null);
-  const [claudeAvailable, setClaudeAvailable] = useState<boolean>(false);
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('claude');
 
-  const checkClaudeStatus = async () => {
+  const checkAIStatus = async () => {
     try {
-      const status = await apiRequest<{ claude_available: boolean; message: string }>('GET', '/recommendations/status');
-      setClaudeAvailable(status.claude_available);
+      const status = await apiRequest<{ 
+        available_providers: string[]; 
+        default_provider: string;
+        message: string 
+      }>('GET', '/recommendations/status');
+      
+      setAvailableProviders(status.available_providers);
+      if (status.default_provider) {
+        setSelectedProvider(status.default_provider);
+      }
     } catch (error) {
-      console.error('Error checking Claude status:', error);
+      console.error('Error checking AI status:', error);
     }
   };
 
@@ -54,18 +69,19 @@ const MealRecommendations: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Add timestamp to force fresh request
+      // Add timestamp and AI provider to request
       const requestWithTimestamp = {
         ...request,
+        ai_provider: selectedProvider,
         timestamp: Date.now()
       };
       
-      console.log('Fetching fresh AI recommendations...');
+      console.log(`Fetching fresh AI recommendations from ${selectedProvider}...`);
       const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
-      console.log('Received recommendations:', recs.map(r => ({ name: r.name, ai_generated: r.ai_generated })));
+      console.log('Received recommendations:', recs.map(r => ({ name: r.name, ai_generated: r.ai_generated, ai_provider: r.ai_provider })));
       setRecommendations(recs);
     } catch (error: any) {
-      setError('Failed to get meal recommendations');
+      setError(`Failed to get meal recommendations from ${selectedProvider}`);
       console.error('Error fetching recommendations:', error);
     } finally {
       setLoading(false);
@@ -73,9 +89,14 @@ const MealRecommendations: React.FC = () => {
   };
 
   useEffect(() => {
-    checkClaudeStatus();
-    fetchRecommendations();
+    checkAIStatus();
   }, []);
+
+  useEffect(() => {
+    if (availableProviders.length > 0) {
+      fetchRecommendations();
+    }
+  }, [selectedProvider, availableProviders]);
 
   const handleRefresh = () => {
     fetchRecommendations();
@@ -107,10 +128,10 @@ const MealRecommendations: React.FC = () => {
           <Typography variant="h4" component="h1" gutterBottom>
             Meal Recommendations
           </Typography>
-          {!claudeAvailable && (
-            <Alert severity="info" sx={{ mb: 2 }}>
+          {availableProviders.length === 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
               <AutoAwesome sx={{ mr: 1 }} />
-              Using fallback recommendations. Connect Claude API for AI-powered suggestions.
+              No AI providers available. Please configure Claude or Groq API keys.
             </Alert>
           )}
         </Box>
@@ -128,6 +149,45 @@ const MealRecommendations: React.FC = () => {
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
+      )}
+
+      {/* AI Provider Selection */}
+      {availableProviders.length > 1 && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item>
+                <Settings color="primary" />
+              </Grid>
+              <Grid item xs>
+                <Typography variant="h6">
+                  AI Model Selection
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Choose which AI model to generate your meal recommendations
+                </Typography>
+              </Grid>
+              <Grid item>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>AI Provider</InputLabel>
+                  <Select
+                    value={selectedProvider}
+                    label="AI Provider"
+                    onChange={(e) => setSelectedProvider(e.target.value)}
+                  >
+                    {availableProviders.map((provider) => (
+                      <MenuItem key={provider} value={provider}>
+                        {provider === 'claude' ? 'Claude (Anthropic)' : 
+                         provider === 'groq' ? 'Groq (Llama)' : 
+                         provider.charAt(0).toUpperCase() + provider.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
       )}
 
       {/* Meal Type Filters */}
@@ -178,13 +238,24 @@ const MealRecommendations: React.FC = () => {
                         {meal.name}
                       </Typography>
                       {meal.ai_generated && (
-                        <Chip
-                          icon={<AutoAwesome />}
-                          label="AI Generated"
-                          color="primary"
-                          size="small"
-                          sx={{ mr: 1 }}
-                        />
+                        <Box display="flex" gap={1} flexWrap="wrap">
+                          <Chip
+                            icon={<AutoAwesome />}
+                            label="AI Generated"
+                            color="primary"
+                            size="small"
+                          />
+                          {meal.ai_provider && (
+                            <Chip
+                              label={meal.ai_provider === 'claude' ? 'Claude' : 
+                                     meal.ai_provider === 'groq' ? 'Groq' : 
+                                     meal.ai_provider.charAt(0).toUpperCase() + meal.ai_provider.slice(1)}
+                              color="secondary"
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
                       )}
                     </Box>
                     <Chip

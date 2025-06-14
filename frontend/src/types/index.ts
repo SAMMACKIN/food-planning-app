@@ -174,6 +174,7 @@ export interface MealRecommendation {
   nutrition_notes: string;
   pantry_usage_score: number;
   ai_generated?: boolean;
+  ai_provider?: string;
 }
 
 export interface IngredientNeeded {
@@ -187,6 +188,7 @@ export interface MealRecommendationRequest {
   num_recommendations?: number;
   meal_type?: string;
   preferences?: Record<string, any>;
+  ai_provider?: string;
 }
 
 export interface ShoppingListItem {
