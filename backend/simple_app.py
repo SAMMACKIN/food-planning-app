@@ -177,8 +177,9 @@ def init_db():
         )
     ''')
     
-    # Insert sample ingredients
+    # Insert sample ingredients - comprehensive list
     sample_ingredients = [
+        # Original ingredients
         ('ing-1', 'Chicken Breast', 'Meat', 'pound', 231, 43.5, 0, 5, '[]'),
         ('ing-2', 'Rice', 'Grain', 'cup', 205, 4.3, 45, 0.4, '[]'),
         ('ing-3', 'Broccoli', 'Vegetable', 'cup', 25, 3, 5, 0.3, '[]'),
@@ -198,7 +199,105 @@ def init_db():
         ('ing-17', 'Potatoes', 'Vegetable', 'medium', 161, 4.3, 37, 0.2, '[]'),
         ('ing-18', 'Bell Pepper', 'Vegetable', 'medium', 24, 1, 7, 0.2, '[]'),
         ('ing-19', 'Mushrooms', 'Vegetable', 'cup', 15, 2.2, 2.3, 0.2, '[]'),
-        ('ing-20', 'Bread', 'Grain', 'slice', 79, 2.7, 14, 1.1, '["gluten"]')
+        ('ing-20', 'Bread', 'Grain', 'slice', 79, 2.7, 14, 1.1, '["gluten"]'),
+        
+        # Additional Vegetables
+        ('ing-21', 'Cucumber', 'Vegetable', 'medium', 16, 0.7, 4, 0.1, '[]'),
+        ('ing-22', 'Lettuce', 'Vegetable', 'cup', 5, 0.5, 1, 0.1, '[]'),
+        ('ing-23', 'Celery', 'Vegetable', 'stalk', 6, 0.3, 1.2, 0.1, '[]'),
+        ('ing-24', 'Zucchini', 'Vegetable', 'medium', 20, 1.5, 4, 0.3, '[]'),
+        ('ing-25', 'Eggplant', 'Vegetable', 'medium', 35, 1.4, 8.6, 0.2, '[]'),
+        ('ing-26', 'Asparagus', 'Vegetable', 'spear', 3, 0.3, 0.6, 0, '[]'),
+        ('ing-27', 'Green Beans', 'Vegetable', 'cup', 35, 2, 8, 0.1, '[]'),
+        ('ing-28', 'Corn', 'Vegetable', 'cup', 132, 4.7, 29, 1.8, '[]'),
+        ('ing-29', 'Sweet Potato', 'Vegetable', 'medium', 112, 2, 26, 0.1, '[]'),
+        ('ing-30', 'Cauliflower', 'Vegetable', 'cup', 25, 2, 5, 0.3, '[]'),
+        ('ing-31', 'Brussels Sprouts', 'Vegetable', 'cup', 38, 3, 8, 0.3, '[]'),
+        ('ing-32', 'Kale', 'Vegetable', 'cup', 33, 2.9, 7, 0.6, '[]'),
+        ('ing-33', 'Avocado', 'Vegetable', 'medium', 234, 2.9, 12, 21, '[]'),
+        ('ing-34', 'Beets', 'Vegetable', 'medium', 35, 1.3, 8, 0.1, '[]'),
+        ('ing-35', 'Radish', 'Vegetable', 'cup', 19, 0.8, 4, 0.1, '[]'),
+        
+        # Additional Fruits
+        ('ing-36', 'Apple', 'Fruit', 'medium', 95, 0.5, 25, 0.3, '[]'),
+        ('ing-37', 'Banana', 'Fruit', 'medium', 105, 1.3, 27, 0.4, '[]'),
+        ('ing-38', 'Orange', 'Fruit', 'medium', 62, 1.2, 15, 0.2, '[]'),
+        ('ing-39', 'Strawberries', 'Fruit', 'cup', 49, 1, 12, 0.5, '[]'),
+        ('ing-40', 'Blueberries', 'Fruit', 'cup', 84, 1.1, 21, 0.5, '[]'),
+        ('ing-41', 'Grapes', 'Fruit', 'cup', 104, 1.1, 27, 0.2, '[]'),
+        ('ing-42', 'Lemon', 'Fruit', 'medium', 17, 0.6, 5, 0.2, '[]'),
+        ('ing-43', 'Lime', 'Fruit', 'medium', 20, 0.5, 7, 0.1, '[]'),
+        ('ing-44', 'Pineapple', 'Fruit', 'cup', 82, 0.9, 22, 0.2, '[]'),
+        ('ing-45', 'Mango', 'Fruit', 'cup', 107, 1.4, 28, 0.4, '[]'),
+        
+        # Additional Meats
+        ('ing-46', 'Chicken Thighs', 'Meat', 'pound', 250, 26, 0, 15, '[]'),
+        ('ing-47', 'Turkey Breast', 'Meat', 'pound', 189, 29, 0, 7, '[]'),
+        ('ing-48', 'Pork Chops', 'Meat', 'pound', 231, 25, 0, 14, '[]'),
+        ('ing-49', 'Beef Steak', 'Meat', 'pound', 271, 26, 0, 18, '[]'),
+        ('ing-50', 'Bacon', 'Meat', 'slice', 43, 3, 0.1, 3.3, '[]'),
+        ('ing-51', 'Ham', 'Meat', 'slice', 46, 5.5, 1.5, 2, '[]'),
+        ('ing-52', 'Lamb', 'Meat', 'pound', 294, 25, 0, 21, '[]'),
+        
+        # Additional Fish & Seafood
+        ('ing-53', 'Tuna', 'Fish', 'can', 191, 25, 0, 9, '[]'),
+        ('ing-54', 'Cod', 'Fish', 'fillet', 189, 41, 0, 1.5, '[]'),
+        ('ing-55', 'Shrimp', 'Fish', 'cup', 144, 28, 1, 2, '["shellfish"]'),
+        ('ing-56', 'Crab', 'Fish', 'cup', 134, 27, 0, 2, '["shellfish"]'),
+        ('ing-57', 'Lobster', 'Fish', 'cup', 129, 27, 1, 1, '["shellfish"]'),
+        ('ing-58', 'Tilapia', 'Fish', 'fillet', 128, 26, 0, 3, '[]'),
+        ('ing-59', 'Mahi Mahi', 'Fish', 'fillet', 134, 27, 0, 1, '[]'),
+        
+        # Additional Dairy
+        ('ing-60', 'Greek Yogurt', 'Dairy', 'cup', 130, 23, 9, 0, '["lactose"]'),
+        ('ing-61', 'Butter', 'Dairy', 'tablespoon', 102, 0.1, 0, 11.5, '["lactose"]'),
+        ('ing-62', 'Cream Cheese', 'Dairy', 'ounce', 99, 2, 2, 10, '["lactose"]'),
+        ('ing-63', 'Mozzarella', 'Dairy', 'cup', 336, 25, 2.5, 25, '["lactose"]'),
+        ('ing-64', 'Parmesan', 'Dairy', 'ounce', 110, 10, 1, 7, '["lactose"]'),
+        ('ing-65', 'Heavy Cream', 'Dairy', 'cup', 821, 5, 7, 88, '["lactose"]'),
+        ('ing-66', 'Sour Cream', 'Dairy', 'cup', 444, 5, 9, 45, '["lactose"]'),
+        
+        # Additional Grains & Carbs
+        ('ing-67', 'Quinoa', 'Grain', 'cup', 222, 8, 39, 4, '[]'),
+        ('ing-68', 'Brown Rice', 'Grain', 'cup', 216, 5, 45, 2, '[]'),
+        ('ing-69', 'Oats', 'Grain', 'cup', 307, 11, 55, 6, '[]'),
+        ('ing-70', 'Barley', 'Grain', 'cup', 193, 4, 44, 1, '[]'),
+        ('ing-71', 'Couscous', 'Grain', 'cup', 176, 6, 36, 0.3, '["gluten"]'),
+        ('ing-72', 'Whole Wheat Bread', 'Grain', 'slice', 69, 4, 12, 1, '["gluten"]'),
+        ('ing-73', 'Bagel', 'Grain', 'medium', 245, 10, 48, 2, '["gluten"]'),
+        ('ing-74', 'Tortilla', 'Grain', 'medium', 159, 4, 26, 4, '["gluten"]'),
+        
+        # Legumes & Beans
+        ('ing-75', 'Black Beans', 'Legume', 'cup', 227, 15, 41, 1, '[]'),
+        ('ing-76', 'Kidney Beans', 'Legume', 'cup', 225, 15, 40, 1, '[]'),
+        ('ing-77', 'Chickpeas', 'Legume', 'cup', 269, 15, 45, 4, '[]'),
+        ('ing-78', 'Lentils', 'Legume', 'cup', 230, 18, 40, 1, '[]'),
+        ('ing-79', 'Pinto Beans', 'Legume', 'cup', 245, 15, 45, 1, '[]'),
+        ('ing-80', 'Navy Beans', 'Legume', 'cup', 255, 15, 47, 1, '[]'),
+        
+        # Nuts & Seeds
+        ('ing-81', 'Almonds', 'Nuts', 'ounce', 164, 6, 6, 14, '["tree nuts"]'),
+        ('ing-82', 'Walnuts', 'Nuts', 'ounce', 185, 4, 4, 18, '["tree nuts"]'),
+        ('ing-83', 'Peanuts', 'Nuts', 'ounce', 161, 7, 5, 14, '["peanuts"]'),
+        ('ing-84', 'Cashews', 'Nuts', 'ounce', 157, 5, 9, 12, '["tree nuts"]'),
+        ('ing-85', 'Sunflower Seeds', 'Nuts', 'ounce', 165, 6, 6, 14, '[]'),
+        ('ing-86', 'Chia Seeds', 'Nuts', 'ounce', 137, 5, 12, 9, '[]'),
+        ('ing-87', 'Flax Seeds', 'Nuts', 'tablespoon', 37, 1.3, 2, 3, '[]'),
+        
+        # Herbs & Spices
+        ('ing-88', 'Basil', 'Herb', 'tablespoon', 1, 0.1, 0.1, 0, '[]'),
+        ('ing-89', 'Oregano', 'Herb', 'tablespoon', 3, 0.1, 0.7, 0.1, '[]'),
+        ('ing-90', 'Thyme', 'Herb', 'tablespoon', 3, 0.1, 0.8, 0.1, '[]'),
+        ('ing-91', 'Rosemary', 'Herb', 'tablespoon', 2, 0.1, 0.4, 0.1, '[]'),
+        ('ing-92', 'Cilantro', 'Herb', 'tablespoon', 1, 0.1, 0.1, 0, '[]'),
+        ('ing-93', 'Parsley', 'Herb', 'tablespoon', 1, 0.1, 0.2, 0, '[]'),
+        ('ing-94', 'Cumin', 'Spice', 'tablespoon', 22, 1, 3, 1, '[]'),
+        ('ing-95', 'Paprika', 'Spice', 'tablespoon', 20, 1, 4, 1, '[]'),
+        ('ing-96', 'Black Pepper', 'Spice', 'tablespoon', 17, 0.7, 4, 0.2, '[]'),
+        ('ing-97', 'Salt', 'Spice', 'tablespoon', 0, 0, 0, 0, '[]'),
+        ('ing-98', 'Ginger', 'Spice', 'tablespoon', 4, 0.1, 1, 0, '[]'),
+        ('ing-99', 'Turmeric', 'Spice', 'tablespoon', 24, 1, 4, 1, '[]'),
+        ('ing-100', 'Cinnamon', 'Spice', 'tablespoon', 19, 0.3, 6, 0.1, '[]')
     ]
     
     cursor.executemany('''
