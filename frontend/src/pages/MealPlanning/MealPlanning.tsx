@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { Add, Delete, CalendarToday, Restaurant, RateReview, Star } from '@mui/icons-material';
 import { apiRequest } from '../../services/api';
+import { MealRecommendation as ImportedMealRecommendation } from '../../types';
 
 interface MealPlan {
   id: string;
@@ -36,21 +37,7 @@ interface MealPlan {
   ai_provider?: string;
 }
 
-interface MealRecommendation {
-  name: string;
-  description: string;
-  prep_time: number;
-  difficulty: string;
-  servings: number;
-  ingredients_needed: Array<{
-    name: string;
-    quantity: string;
-    unit: string;
-  }>;
-  instructions: string[];
-  tags: string[];
-  ai_generated?: boolean;
-}
+type MealRecommendation = ImportedMealRecommendation;
 
 interface MealReview {
   id: string;
