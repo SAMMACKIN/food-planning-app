@@ -61,7 +61,16 @@ def get_db_connection():
         return sqlite3.connect(db_path)
 
 def get_db_path():
-    return os.environ.get('DATABASE_PATH', 'simple_food_app.db')
+    """Get database path based on environment"""
+    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development')
+    
+    if env == 'preview':
+        return '/app/data/preview_food_app.db'
+    elif env == 'production':
+        return '/app/data/production_food_app.db'
+    else:
+        # Local development
+        return os.environ.get('DATABASE_PATH', 'simple_food_app.db')
 
 def init_db():
     db_path = get_db_path()
@@ -172,6 +181,58 @@ def create_admin_user():
     
     conn.commit()
     conn.close()
+
+def populate_test_data():
+    """Populate test data only in preview environment"""
+    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development')
+    
+    if env != 'preview':
+        return  # Only populate test data in preview
+    
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Create test user
+    test_user_id = 'test-user-123'
+    test_email = 'test@example.com'
+    test_password = hash_password('password123')
+    
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (id, email, hashed_password, name, timezone, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (test_user_id, test_email, test_password, 'Test User', 'UTC', 1))
+    
+    # Create test family members
+    family_members = [
+        ('family-1', test_user_id, 'John Doe', 35, '["Vegetarian"]', '{"likes": ["pasta", "salad"], "dislikes": ["spicy food"], "preferred_cuisines": ["Italian", "Mediterranean"]}'),
+        ('family-2', test_user_id, 'Jane Doe', 32, '["Gluten-Free"]', '{"likes": ["chicken", "vegetables"], "dislikes": ["seafood"], "preferred_cuisines": ["American", "Asian"]}'),
+        ('family-3', test_user_id, 'Little Bobby', 8, '["Nut-Free"]', '{"likes": ["pizza", "chicken nuggets"], "dislikes": ["vegetables"], "preferred_cuisines": ["American"]}')
+    ]
+    
+    for member in family_members:
+        cursor.execute('''
+            INSERT OR IGNORE INTO family_members (id, user_id, name, age, dietary_restrictions, preferences, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', member)
+    
+    # Create test pantry items
+    pantry_items = [
+        ('pantry-1', test_user_id, 'chicken-breast', 2.0, None),
+        ('pantry-2', test_user_id, 'pasta-spaghetti', 1.0, None),
+        ('pantry-3', test_user_id, 'tomatoes-canned', 3.0, None),
+        ('pantry-4', test_user_id, 'cheese-mozzarella', 1.0, None),
+        ('pantry-5', test_user_id, 'olive-oil', 1.0, None)
+    ]
+    
+    for item in pantry_items:
+        cursor.execute('''
+            INSERT OR IGNORE INTO pantry_items (id, user_id, ingredient_id, quantity, expiration_date, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ''', item)
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ Test data populated for {env} environment")
 
 init_db()
 
@@ -324,8 +385,9 @@ def get_current_user(authorization: str = None):
     except:
         return None
 
-# Create admin user after functions are defined
+# Create admin user and populate test data after functions are defined
 create_admin_user()
+populate_test_data()
 
 # Routes
 @app.get("/")
