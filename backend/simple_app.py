@@ -132,6 +132,38 @@ def init_db():
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_plans (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            date DATE NOT NULL,
+            meal_type TEXT NOT NULL CHECK (meal_type IN ('breakfast', 'lunch', 'dinner', 'snack')),
+            meal_name TEXT NOT NULL,
+            meal_description TEXT,
+            recipe_data TEXT,
+            ai_generated BOOLEAN DEFAULT 0,
+            ai_provider TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            UNIQUE(user_id, date, meal_type)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_reviews (
+            id TEXT PRIMARY KEY,
+            meal_plan_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            would_make_again BOOLEAN DEFAULT 1,
+            preparation_notes TEXT,
+            reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (meal_plan_id) REFERENCES meal_plans (id),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Insert sample ingredients
     sample_ingredients = [
         ('ing-1', 'Chicken Breast', 'Meat', 'pound', 231, 43.5, 0, 5, '[]'),
@@ -335,6 +367,54 @@ class MealRecommendationResponse(BaseModel):
     pantry_usage_score: int
     ai_generated: Optional[bool] = False
     ai_provider: Optional[str] = None
+
+class MealPlanCreate(BaseModel):
+    date: str  # YYYY-MM-DD format
+    meal_type: str  # breakfast, lunch, dinner, snack
+    meal_name: str
+    meal_description: Optional[str] = None
+    recipe_data: Optional[dict] = None
+    ai_generated: Optional[bool] = False
+    ai_provider: Optional[str] = None
+
+class MealPlanUpdate(BaseModel):
+    meal_name: Optional[str] = None
+    meal_description: Optional[str] = None
+    recipe_data: Optional[dict] = None
+
+class MealPlanResponse(BaseModel):
+    id: str
+    user_id: str
+    date: str
+    meal_type: str
+    meal_name: str
+    meal_description: Optional[str] = None
+    recipe_data: Optional[dict] = None
+    ai_generated: bool = False
+    ai_provider: Optional[str] = None
+    created_at: str
+
+class MealReviewCreate(BaseModel):
+    rating: int  # 1-5 stars
+    review_text: Optional[str] = None
+    would_make_again: Optional[bool] = True
+    preparation_notes: Optional[str] = None
+
+class MealReviewUpdate(BaseModel):
+    rating: Optional[int] = None
+    review_text: Optional[str] = None
+    would_make_again: Optional[bool] = None
+    preparation_notes: Optional[str] = None
+
+class MealReviewResponse(BaseModel):
+    id: str
+    meal_plan_id: str
+    user_id: str
+    rating: int
+    review_text: Optional[str] = None
+    would_make_again: bool = True
+    preparation_notes: Optional[str] = None
+    reviewed_at: str
 
 # Utility functions
 def hash_password(password: str) -> str:
@@ -1183,6 +1263,313 @@ async def test_ai_recommendations(provider: str = "claude"):
             "error": str(e),
             "message": f"Error testing {provider} AI recommendations"
         }
+
+# Meal Plan endpoints
+@app.get("/api/v1/meal-plans", response_model=List[MealPlanResponse])
+async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[str] = None):
+    """Get meal plans for current user, optionally filtered by date range"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Get current user (simplified for demo)
+    cursor.execute("SELECT id FROM users LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    user_id = user[0]
+    
+    # Build query with optional date filtering
+    if start_date and end_date:
+        cursor.execute('''
+            SELECT id, user_id, date, meal_type, meal_name, meal_description, 
+                   recipe_data, ai_generated, ai_provider, created_at
+            FROM meal_plans 
+            WHERE user_id = ? AND date BETWEEN ? AND ?
+            ORDER BY date, 
+                CASE meal_type 
+                    WHEN 'breakfast' THEN 1 
+                    WHEN 'lunch' THEN 2 
+                    WHEN 'dinner' THEN 3 
+                    WHEN 'snack' THEN 4 
+                END
+        ''', (user_id, start_date, end_date))
+    else:
+        cursor.execute('''
+            SELECT id, user_id, date, meal_type, meal_name, meal_description, 
+                   recipe_data, ai_generated, ai_provider, created_at
+            FROM meal_plans 
+            WHERE user_id = ?
+            ORDER BY date DESC, 
+                CASE meal_type 
+                    WHEN 'breakfast' THEN 1 
+                    WHEN 'lunch' THEN 2 
+                    WHEN 'dinner' THEN 3 
+                    WHEN 'snack' THEN 4 
+                END
+        ''', (user_id,))
+    
+    meal_plans = cursor.fetchall()
+    conn.close()
+    
+    return [
+        MealPlanResponse(
+            id=plan[0],
+            user_id=plan[1],
+            date=plan[2],
+            meal_type=plan[3],
+            meal_name=plan[4],
+            meal_description=plan[5],
+            recipe_data=eval(plan[6]) if plan[6] else None,
+            ai_generated=bool(plan[7]),
+            ai_provider=plan[8],
+            created_at=plan[9]
+        )
+        for plan in meal_plans
+    ]
+
+@app.post("/api/v1/meal-plans", response_model=MealPlanResponse)
+async def create_meal_plan(meal_plan_data: MealPlanCreate):
+    """Create a new meal plan"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Get current user (simplified for demo)
+    cursor.execute("SELECT id FROM users LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    user_id = user[0]
+    meal_plan_id = str(uuid.uuid4())
+    
+    # Check if meal already exists for this slot
+    cursor.execute(
+        "SELECT id FROM meal_plans WHERE user_id = ? AND date = ? AND meal_type = ?",
+        (user_id, meal_plan_data.date, meal_plan_data.meal_type)
+    )
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Meal already planned for this time slot")
+    
+    # Insert new meal plan
+    cursor.execute('''
+        INSERT INTO meal_plans 
+        (id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        meal_plan_id,
+        user_id,
+        meal_plan_data.date,
+        meal_plan_data.meal_type,
+        meal_plan_data.meal_name,
+        meal_plan_data.meal_description,
+        str(meal_plan_data.recipe_data) if meal_plan_data.recipe_data else None,
+        meal_plan_data.ai_generated,
+        meal_plan_data.ai_provider
+    ))
+    conn.commit()
+    
+    # Get the created meal plan
+    cursor.execute('''
+        SELECT id, user_id, date, meal_type, meal_name, meal_description, 
+               recipe_data, ai_generated, ai_provider, created_at
+        FROM meal_plans WHERE id = ?
+    ''', (meal_plan_id,))
+    meal_plan = cursor.fetchone()
+    conn.close()
+    
+    return MealPlanResponse(
+        id=meal_plan[0],
+        user_id=meal_plan[1],
+        date=meal_plan[2],
+        meal_type=meal_plan[3],
+        meal_name=meal_plan[4],
+        meal_description=meal_plan[5],
+        recipe_data=eval(meal_plan[6]) if meal_plan[6] else None,
+        ai_generated=bool(meal_plan[7]),
+        ai_provider=meal_plan[8],
+        created_at=meal_plan[9]
+    )
+
+@app.put("/api/v1/meal-plans/{meal_plan_id}", response_model=MealPlanResponse)
+async def update_meal_plan(meal_plan_id: str, meal_plan_data: MealPlanUpdate):
+    """Update an existing meal plan"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Check if meal plan exists
+    cursor.execute("SELECT user_id FROM meal_plans WHERE id = ?", (meal_plan_id,))
+    meal_plan = cursor.fetchone()
+    if not meal_plan:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+    
+    # Build update query dynamically
+    updates = []
+    values = []
+    
+    if meal_plan_data.meal_name is not None:
+        updates.append("meal_name = ?")
+        values.append(meal_plan_data.meal_name)
+    if meal_plan_data.meal_description is not None:
+        updates.append("meal_description = ?")
+        values.append(meal_plan_data.meal_description)
+    if meal_plan_data.recipe_data is not None:
+        updates.append("recipe_data = ?")
+        values.append(str(meal_plan_data.recipe_data))
+    
+    if updates:
+        values.append(meal_plan_id)
+        cursor.execute(
+            f"UPDATE meal_plans SET {', '.join(updates)} WHERE id = ?",
+            values
+        )
+        conn.commit()
+    
+    # Get updated meal plan
+    cursor.execute('''
+        SELECT id, user_id, date, meal_type, meal_name, meal_description, 
+               recipe_data, ai_generated, ai_provider, created_at
+        FROM meal_plans WHERE id = ?
+    ''', (meal_plan_id,))
+    meal_plan = cursor.fetchone()
+    conn.close()
+    
+    return MealPlanResponse(
+        id=meal_plan[0],
+        user_id=meal_plan[1],
+        date=meal_plan[2],
+        meal_type=meal_plan[3],
+        meal_name=meal_plan[4],
+        meal_description=meal_plan[5],
+        recipe_data=eval(meal_plan[6]) if meal_plan[6] else None,
+        ai_generated=bool(meal_plan[7]),
+        ai_provider=meal_plan[8],
+        created_at=meal_plan[9]
+    )
+
+@app.delete("/api/v1/meal-plans/{meal_plan_id}")
+async def delete_meal_plan(meal_plan_id: str):
+    """Delete a meal plan"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Check if meal plan exists
+    cursor.execute("SELECT id FROM meal_plans WHERE id = ?", (meal_plan_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+    
+    # Delete meal plan and its reviews
+    cursor.execute("DELETE FROM meal_reviews WHERE meal_plan_id = ?", (meal_plan_id,))
+    cursor.execute("DELETE FROM meal_plans WHERE id = ?", (meal_plan_id,))
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Meal plan deleted successfully"}
+
+# Meal Review endpoints
+@app.get("/api/v1/meal-plans/{meal_plan_id}/reviews", response_model=List[MealReviewResponse])
+async def get_meal_reviews(meal_plan_id: str):
+    """Get reviews for a specific meal plan"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, meal_plan_id, user_id, rating, review_text, 
+               would_make_again, preparation_notes, reviewed_at
+        FROM meal_reviews 
+        WHERE meal_plan_id = ?
+        ORDER BY reviewed_at DESC
+    ''', (meal_plan_id,))
+    
+    reviews = cursor.fetchall()
+    conn.close()
+    
+    return [
+        MealReviewResponse(
+            id=review[0],
+            meal_plan_id=review[1],
+            user_id=review[2],
+            rating=review[3],
+            review_text=review[4],
+            would_make_again=bool(review[5]),
+            preparation_notes=review[6],
+            reviewed_at=review[7]
+        )
+        for review in reviews
+    ]
+
+@app.post("/api/v1/meal-plans/{meal_plan_id}/reviews", response_model=MealReviewResponse)
+async def create_meal_review(meal_plan_id: str, review_data: MealReviewCreate):
+    """Create a review for a meal plan"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Get current user (simplified for demo)
+    cursor.execute("SELECT id FROM users LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    user_id = user[0]
+    
+    # Check if meal plan exists
+    cursor.execute("SELECT id FROM meal_plans WHERE id = ?", (meal_plan_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Meal plan not found")
+    
+    # Check if user already reviewed this meal
+    cursor.execute(
+        "SELECT id FROM meal_reviews WHERE meal_plan_id = ? AND user_id = ?",
+        (meal_plan_id, user_id)
+    )
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="You have already reviewed this meal")
+    
+    review_id = str(uuid.uuid4())
+    
+    # Insert new review
+    cursor.execute('''
+        INSERT INTO meal_reviews 
+        (id, meal_plan_id, user_id, rating, review_text, would_make_again, preparation_notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        review_id,
+        meal_plan_id,
+        user_id,
+        review_data.rating,
+        review_data.review_text,
+        review_data.would_make_again,
+        review_data.preparation_notes
+    ))
+    conn.commit()
+    
+    # Get the created review
+    cursor.execute('''
+        SELECT id, meal_plan_id, user_id, rating, review_text, 
+               would_make_again, preparation_notes, reviewed_at
+        FROM meal_reviews WHERE id = ?
+    ''', (review_id,))
+    review = cursor.fetchone()
+    conn.close()
+    
+    return MealReviewResponse(
+        id=review[0],
+        meal_plan_id=review[1],
+        user_id=review[2],
+        rating=review[3],
+        review_text=review[4],
+        would_make_again=bool(review[5]),
+        preparation_notes=review[6],
+        reviewed_at=review[7]
+    )
 
 if __name__ == "__main__":
     import uvicorn

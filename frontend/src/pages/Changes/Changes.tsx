@@ -65,8 +65,23 @@ const changeHistory: ChangeEntry[] = [
       },
       {
         type: "bugfix",
-        description: "Fixed Groq model compatibility - switched to llama-3.1-8b-instant",
+        description: "Fixed Groq model compatibility - switched to qwen-qwq-32b",
         icon: <BugReport />
+      },
+      {
+        type: "feature",
+        description: "Meal plan persistence - Save AI recommendations directly to meal plans",
+        icon: <CalendarToday />
+      },
+      {
+        type: "feature",
+        description: "Meal review system - Rate and review tried meals with 5-star ratings",
+        icon: <Restaurant />
+      },
+      {
+        type: "improvement",
+        description: "Increased AI recommendations from 5 to 10 per request",
+        icon: <AutoAwesome />
       },
       {
         type: "security",

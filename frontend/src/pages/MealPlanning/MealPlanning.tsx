@@ -16,8 +16,13 @@ import {
   ListItemButton,
   IconButton,
   Alert,
+  TextField,
+  Rating,
+  FormControlLabel,
+  Checkbox,
+  Divider,
 } from '@mui/material';
-import { Add, Delete, CalendarToday, Restaurant } from '@mui/icons-material';
+import { Add, Delete, CalendarToday, Restaurant, RateReview, Star } from '@mui/icons-material';
 import { apiRequest } from '../../services/api';
 
 interface MealPlan {
@@ -26,6 +31,9 @@ interface MealPlan {
   meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   meal_name: string;
   meal_description?: string;
+  recipe_data?: any;
+  ai_generated?: boolean;
+  ai_provider?: string;
 }
 
 interface MealRecommendation {
@@ -44,6 +52,16 @@ interface MealRecommendation {
   ai_generated?: boolean;
 }
 
+interface MealReview {
+  id: string;
+  meal_plan_id: string;
+  rating: number;
+  review_text?: string;
+  would_make_again: boolean;
+  preparation_notes?: string;
+  reviewed_at: string;
+}
+
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -54,6 +72,14 @@ const MealPlanning: React.FC = () => {
   const [recommendations, setRecommendations] = useState<MealRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewMeal, setReviewMeal] = useState<MealPlan | null>(null);
+  const [reviews, setReviews] = useState<MealReview[]>([]);
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    review_text: '',
+    would_make_again: true,
+    preparation_notes: ''
+  });
 
   // Get Monday of current week
   function getMonday(date: Date) {
@@ -90,12 +116,27 @@ const MealPlanning: React.FC = () => {
     );
   };
 
+  // Fetch meal plans for current week
+  const fetchMealPlans = async () => {
+    try {
+      const weekDates = getWeekDates();
+      const startDate = formatDate(weekDates[0]);
+      const endDate = formatDate(weekDates[6]);
+      
+      const response = await apiRequest<MealPlan[]>('GET', `/meal-plans?start_date=${startDate}&end_date=${endDate}`);
+      setMealPlans(response);
+    } catch (error: any) {
+      setError('Failed to fetch meal plans');
+      console.error('Error fetching meal plans:', error);
+    }
+  };
+
   // Fetch recommendations for meal selection
   const fetchRecommendations = async () => {
     try {
       setLoading(true);
       const response = await apiRequest<MealRecommendation[]>('POST', '/recommendations', {
-        num_recommendations: 5
+        num_recommendations: 10
       });
       setRecommendations(response);
     } catch (error: any) {
@@ -105,6 +146,10 @@ const MealPlanning: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMealPlans();
+  }, [currentWeekStart]);
 
   useEffect(() => {
     if (selectedSlot) {
@@ -124,34 +169,96 @@ const MealPlanning: React.FC = () => {
       const dayIndex = DAYS_OF_WEEK.indexOf(selectedSlot.day);
       const date = formatDate(weekDates[dayIndex]);
 
-      const newMealPlan: MealPlan = {
-        id: `temp-${Date.now()}`,
+      const mealPlanData = {
         date,
-        meal_type: selectedSlot.mealType as any,
+        meal_type: selectedSlot.mealType,
         meal_name: recommendation.name,
-        meal_description: recommendation.description
+        meal_description: recommendation.description,
+        recipe_data: {
+          prep_time: recommendation.prep_time,
+          difficulty: recommendation.difficulty,
+          servings: recommendation.servings,
+          ingredients_needed: recommendation.ingredients_needed,
+          instructions: recommendation.instructions,
+          tags: recommendation.tags,
+          nutrition_notes: recommendation.nutrition_notes,
+          pantry_usage_score: recommendation.pantry_usage_score
+        },
+        ai_generated: recommendation.ai_generated,
+        ai_provider: recommendation.ai_provider
       };
 
-      // Store locally for now (TODO: Save to backend)
+      const newMealPlan = await apiRequest<MealPlan>('POST', '/meal-plans', mealPlanData);
+      
+      // Update local state
       setMealPlans(prev => [...prev.filter(p => !(p.date === date && p.meal_type === selectedSlot.mealType)), newMealPlan]);
       setSelectedSlot(null);
     } catch (error: any) {
       setError('Failed to assign meal');
+      console.error('Error assigning meal:', error);
     }
   };
 
-  const handleRemoveMeal = (day: string, mealType: string) => {
+  const handleRemoveMeal = async (day: string, mealType: string) => {
     const weekDates = getWeekDates();
     const dayIndex = DAYS_OF_WEEK.indexOf(day);
     const date = formatDate(weekDates[dayIndex]);
 
-    setMealPlans(prev => prev.filter(p => !(p.date === date && p.meal_type === mealType)));
+    const meal = mealPlans.find(p => p.date === date && p.meal_type === mealType);
+    if (!meal) return;
+
+    try {
+      await apiRequest('DELETE', `/meal-plans/${meal.id}`);
+      setMealPlans(prev => prev.filter(p => !(p.date === date && p.meal_type === mealType)));
+    } catch (error: any) {
+      setError('Failed to remove meal');
+      console.error('Error removing meal:', error);
+    }
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentWeekStart);
     newDate.setDate(currentWeekStart.getDate() + (direction === 'next' ? 7 : -7));
     setCurrentWeekStart(newDate);
+  };
+
+  const handleReviewMeal = async (meal: MealPlan) => {
+    setReviewMeal(meal);
+    try {
+      const response = await apiRequest<MealReview[]>('GET', `/meal-plans/${meal.id}/reviews`);
+      setReviews(response);
+    } catch (error: any) {
+      console.error('Error fetching reviews:', error);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewMeal) return;
+
+    try {
+      const newReview = await apiRequest<MealReview>('POST', `/meal-plans/${reviewMeal.id}/reviews`, reviewForm);
+      setReviews(prev => [newReview, ...prev]);
+      setReviewForm({
+        rating: 5,
+        review_text: '',
+        would_make_again: true,
+        preparation_notes: ''
+      });
+    } catch (error: any) {
+      setError('Failed to submit review');
+      console.error('Error submitting review:', error);
+    }
+  };
+
+  const closeReviewModal = () => {
+    setReviewMeal(null);
+    setReviews([]);
+    setReviewForm({
+      rating: 5,
+      review_text: '',
+      would_make_again: true,
+      preparation_notes: ''
+    });
   };
 
   return (
@@ -223,13 +330,31 @@ const MealPlanning: React.FC = () => {
                                 {meal.meal_description}
                               </Typography>
                             )}
+                            {meal.ai_generated && (
+                              <Chip 
+                                label={meal.ai_provider || 'AI'} 
+                                size="small" 
+                                color="primary" 
+                                sx={{ mt: 0.5, height: 16, fontSize: '0.7rem' }}
+                              />
+                            )}
                           </Box>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleRemoveMeal(day, mealType)}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
+                          <Box display="flex" flexDirection="column" gap={0.5}>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleReviewMeal(meal)}
+                              title="Review this meal"
+                            >
+                              <RateReview fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleRemoveMeal(day, mealType)}
+                              title="Remove meal"
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
                         </Box>
                       </Card>
                     ) : (
@@ -308,6 +433,147 @@ const MealPlanning: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedSlot(null)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Meal Review Dialog */}
+      <Dialog 
+        open={!!reviewMeal} 
+        onClose={closeReviewModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <RateReview />
+            Review: {reviewMeal?.meal_name}
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {reviewMeal && (
+            <Box>
+              {/* Meal Details */}
+              <Card variant="outlined" sx={{ mb: 3, p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  {reviewMeal.meal_name}
+                </Typography>
+                {reviewMeal.meal_description && (
+                  <Typography variant="body2" color="text.secondary" mb={2}>
+                    {reviewMeal.meal_description}
+                  </Typography>
+                )}
+                {reviewMeal.recipe_data && (
+                  <Box>
+                    <Box display="flex" gap={1} mb={1}>
+                      <Chip label={`${reviewMeal.recipe_data.prep_time} min`} size="small" />
+                      <Chip label={reviewMeal.recipe_data.difficulty} size="small" />
+                      <Chip label={`${reviewMeal.recipe_data.servings} servings`} size="small" />
+                    </Box>
+                    {reviewMeal.ai_generated && (
+                      <Chip 
+                        label={`AI Generated (${reviewMeal.ai_provider})`} 
+                        size="small" 
+                        color="primary"
+                      />
+                    )}
+                  </Box>
+                )}
+              </Card>
+
+              {/* Existing Reviews */}
+              {reviews.length > 0 && (
+                <Box mb={3}>
+                  <Typography variant="h6" gutterBottom>
+                    Previous Reviews
+                  </Typography>
+                  {reviews.map((review) => (
+                    <Card key={review.id} variant="outlined" sx={{ mb: 2, p: 2 }}>
+                      <Box display="flex" alignItems="center" gap={1} mb={1}>
+                        <Rating value={review.rating} readOnly size="small" />
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(review.reviewed_at).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                      {review.review_text && (
+                        <Typography variant="body2" mb={1}>
+                          {review.review_text}
+                        </Typography>
+                      )}
+                      <Box display="flex" gap={1}>
+                        <Chip 
+                          label={review.would_make_again ? "Would make again" : "Wouldn't make again"} 
+                          size="small" 
+                          color={review.would_make_again ? "success" : "default"}
+                        />
+                      </Box>
+                      {review.preparation_notes && (
+                        <Typography variant="caption" color="text.secondary" mt={1} display="block">
+                          Notes: {review.preparation_notes}
+                        </Typography>
+                      )}
+                    </Card>
+                  ))}
+                  <Divider sx={{ my: 2 }} />
+                </Box>
+              )}
+
+              {/* New Review Form */}
+              <Typography variant="h6" gutterBottom>
+                Add Your Review
+              </Typography>
+              <Box component="form">
+                <Box mb={2}>
+                  <Typography component="legend" gutterBottom>
+                    Rating
+                  </Typography>
+                  <Rating
+                    value={reviewForm.rating}
+                    onChange={(event, newValue) => 
+                      setReviewForm(prev => ({ ...prev, rating: newValue || 1 }))
+                    }
+                  />
+                </Box>
+
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Review"
+                  placeholder="How was this meal? What did you like or dislike?"
+                  value={reviewForm.review_text}
+                  onChange={(e) => setReviewForm(prev => ({ ...prev, review_text: e.target.value }))}
+                  sx={{ mb: 2 }}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={reviewForm.would_make_again}
+                      onChange={(e) => setReviewForm(prev => ({ ...prev, would_make_again: e.target.checked }))}
+                    />
+                  }
+                  label="I would make this meal again"
+                  sx={{ mb: 2 }}
+                />
+
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Preparation Notes"
+                  placeholder="Any tips or modifications you made while cooking..."
+                  value={reviewForm.preparation_notes}
+                  onChange={(e) => setReviewForm(prev => ({ ...prev, preparation_notes: e.target.value }))}
+                />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeReviewModal}>Cancel</Button>
+          <Button onClick={handleSubmitReview} variant="contained">
+            Submit Review
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
