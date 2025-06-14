@@ -62,10 +62,13 @@ def get_db_connection():
 
 def get_db_path():
     """Get database path based on environment"""
-    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
+    # Check both possible Railway environment variable names
+    env = (os.environ.get('RAILWAY_ENVIRONMENT_NAME') or 
+           os.environ.get('RAILWAY_ENVIRONMENT', 'development')).lower()
     
     print(f"🔍 DB PATH DETERMINATION:")
     print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
+    print(f"   - RAILWAY_ENVIRONMENT_NAME: {os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')}")
     print(f"   - Processed env: {env}")
     
     if env == 'preview':
@@ -226,19 +229,31 @@ def create_admin_user():
 
 def populate_test_data():
     """Populate test data only in preview environment"""
-    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
+    # Check both possible Railway environment variable names
+    env = (os.environ.get('RAILWAY_ENVIRONMENT_NAME') or 
+           os.environ.get('RAILWAY_ENVIRONMENT', 'development')).lower()
     
     # Enhanced debugging for environment detection
     print(f"🔍 DETAILED ENVIRONMENT ANALYSIS:")
     print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
     print(f"   - Processed env value: {env}")
     print(f"   - Database path: {get_db_path()}")
-    print(f"   - All Railway env vars: {[k for k in os.environ.keys() if 'RAILWAY' in k.upper()]}")
     
-    # Check other common environment variables
-    print(f"   - NODE_ENV: {os.environ.get('NODE_ENV', 'NOT_SET')}")
-    print(f"   - ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'NOT_SET')}")
-    print(f"   - DEPLOY_ENV: {os.environ.get('DEPLOY_ENV', 'NOT_SET')}")
+    # Log all environment variables to understand Railway's naming
+    railway_vars = {k: v for k, v in os.environ.items() if 'railway' in k.lower()}
+    print(f"   - All Railway env vars: {railway_vars}")
+    
+    # Check common environment variables
+    env_vars = {
+        'NODE_ENV': os.environ.get('NODE_ENV', 'NOT_SET'),
+        'ENVIRONMENT': os.environ.get('ENVIRONMENT', 'NOT_SET'),
+        'DEPLOY_ENV': os.environ.get('DEPLOY_ENV', 'NOT_SET'),
+        'RAILWAY_SERVICE_NAME': os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET'),
+        'RAILWAY_PROJECT_NAME': os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET'),
+        'RAILWAY_ENVIRONMENT_NAME': os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
+    }
+    for key, value in env_vars.items():
+        print(f"   - {key}: {value}")
     
     if env != 'preview':
         print(f"❌ Skipping test data - not in preview environment (env={env})")
