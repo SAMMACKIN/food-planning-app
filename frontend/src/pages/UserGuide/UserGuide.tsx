@@ -22,7 +22,7 @@ import {
   CalendarToday,
   Restaurant,
   PlayArrow,
-  Tips,
+  Lightbulb,
   Security,
 } from '@mui/icons-material';
 
@@ -91,21 +91,21 @@ const UserGuide: React.FC = () => {
           </Typography>
           <List>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Recent Activity" 
                 secondary="See your latest pantry additions and meal plans"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Quick Stats" 
                 secondary="View family members count, pantry items, and upcoming meals"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Expiring Items" 
                 secondary="Get alerts for ingredients nearing expiration"
@@ -195,21 +195,21 @@ const UserGuide: React.FC = () => {
           </Typography>
           <List>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Expiration Tracking" 
                 secondary="Color-coded expiration dates (red=expired, yellow=soon, green=fresh)"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Category Organization" 
                 secondary="Ingredients grouped by category (Meat, Dairy, Vegetables, etc.)"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Nutritional Info" 
                 secondary="View calories and nutritional details for each ingredient"
@@ -299,21 +299,21 @@ const UserGuide: React.FC = () => {
           </Typography>
           <List>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Prep Time & Difficulty" 
                 secondary="Each recipe shows cooking time and skill level required"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Ingredients List" 
                 secondary="Complete ingredient list with quantities"
               />
             </ListItem>
             <ListItem>
-              <ListItemIcon><Tips /></ListItemIcon>
+              <ListItemIcon><Lightbulb /></ListItemIcon>
               <ListItemText 
                 primary="Step-by-Step Instructions" 
                 secondary="Detailed cooking instructions for each recipe"
@@ -327,7 +327,7 @@ const UserGuide: React.FC = () => {
       <Card sx={{ mt: 4 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
-            <Tips sx={{ mr: 1, verticalAlign: 'middle' }} />
+            <Lightbulb sx={{ mr: 1, verticalAlign: 'middle' }} />
             Tips & Best Practices
           </Typography>
           <Divider sx={{ mb: 2 }} />
