@@ -62,7 +62,7 @@ def get_db_connection():
 
 def get_db_path():
     """Get database path based on environment"""
-    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development')
+    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
     
     if env == 'preview':
         return '/app/data/preview_food_app.db'
@@ -184,7 +184,7 @@ def create_admin_user():
 
 def populate_test_data():
     """Populate test data only in preview environment"""
-    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development')
+    env = os.environ.get('RAILWAY_ENVIRONMENT', 'development').lower()
     print(f"🔍 Environment detected: {env}")
     print(f"🔍 Database path: {get_db_path()}")
     
