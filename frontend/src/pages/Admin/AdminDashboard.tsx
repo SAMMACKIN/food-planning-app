@@ -17,6 +17,19 @@ import {
   Tab,
   Avatar,
   LinearProgress,
+  IconButton,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  TextField,
+  Snackbar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   AdminPanelSettings,
@@ -26,6 +39,10 @@ import {
   Security,
   Group,
   Restaurant,
+  MoreVert as MoreVertIcon,
+  Delete as DeleteIcon,
+  Lock as LockIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { apiRequest } from '../../services/api';
 
@@ -65,6 +82,17 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // User management states
+  const [userMenuAnchor, setUserMenuAnchor] = useState<{ [key: string]: HTMLElement | null }>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const fetchAdminData = async () => {
     try {
@@ -110,6 +138,74 @@ const AdminDashboard: React.FC = () => {
       return name.split(' ').map(n => n[0]).join('').toUpperCase();
     }
     return email ? email[0].toUpperCase() : '?';
+  };
+
+  // User management functions
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>, userId: string) => {
+    setUserMenuAnchor({ ...userMenuAnchor, [userId]: event.currentTarget });
+  };
+
+  const handleUserMenuClose = (userId: string) => {
+    setUserMenuAnchor({ ...userMenuAnchor, [userId]: null });
+  };
+
+  const openDeleteDialog = (user: User) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+    handleUserMenuClose(user.id);
+  };
+
+  const openResetPasswordDialog = (user: User) => {
+    setSelectedUser(user);
+    setResetPasswordDialogOpen(true);
+    setNewPassword('');
+    setConfirmPassword('');
+    handleUserMenuClose(user.id);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    setActionLoading(true);
+    try {
+      await apiRequest('DELETE', `/admin/users/${selectedUser.id}`);
+      setSnackbarMessage(`User ${selectedUser.email} deleted successfully`);
+      setSnackbarOpen(true);
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      fetchAdminData(); // Refresh data
+    } catch (error: any) {
+      setSnackbarMessage(error.response?.data?.detail || 'Failed to delete user');
+      setSnackbarOpen(true);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser || !newPassword || newPassword !== confirmPassword) {
+      setSnackbarMessage('Please ensure passwords match and are not empty');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await apiRequest('POST', `/admin/users/${selectedUser.id}/reset-password`, {
+        new_password: newPassword
+      });
+      setSnackbarMessage(`Password reset successfully for ${selectedUser.email}`);
+      setSnackbarOpen(true);
+      setResetPasswordDialogOpen(false);
+      setSelectedUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      setSnackbarMessage(error.response?.data?.detail || 'Failed to reset password');
+      setSnackbarOpen(true);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   if (loading) {
@@ -232,6 +328,7 @@ const AdminDashboard: React.FC = () => {
                       <TableCell>Role</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registered</TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -272,6 +369,33 @@ const AdminDashboard: React.FC = () => {
                           <Typography variant="body2">
                             {formatDate(user.created_at)}
                           </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={(event) => handleUserMenuOpen(event, user.id)}
+                            disabled={user.is_admin}
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                          <Menu
+                            anchorEl={userMenuAnchor[user.id]}
+                            open={Boolean(userMenuAnchor[user.id])}
+                            onClose={() => handleUserMenuClose(user.id)}
+                          >
+                            <MenuItem onClick={() => openResetPasswordDialog(user)}>
+                              <ListItemIcon>
+                                <LockIcon fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText>Reset Password</ListItemText>
+                            </MenuItem>
+                            <MenuItem onClick={() => openDeleteDialog(user)} sx={{ color: 'error.main' }}>
+                              <ListItemIcon>
+                                <DeleteIcon fontSize="small" color="error" />
+                              </ListItemIcon>
+                              <ListItemText>Delete User</ListItemText>
+                            </MenuItem>
+                          </Menu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -372,6 +496,151 @@ const AdminDashboard: React.FC = () => {
         </Typography>
         You are viewing sensitive user data. Please ensure this information is handled according to privacy policies and data protection regulations.
       </Alert>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'error.main' }}>
+          <WarningIcon />
+          <Typography variant="h6" component="span" fontWeight="bold">
+            Delete User Account
+          </Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            <strong>⚠️ This action cannot be undone!</strong>
+          </DialogContentText>
+          
+          {selectedUser && (
+            <DialogContentText sx={{ mb: 3 }}>
+              Are you sure you want to permanently delete the account for <strong>{selectedUser.email}</strong>?
+            </DialogContentText>
+          )}
+          
+          <DialogContentText sx={{ mb: 2 }}>
+            This will permanently remove:
+          </DialogContentText>
+          
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              User profile and personal information
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              All family members and dietary preferences
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Pantry inventory and meal plans
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Reviews and user-generated content
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteUser}
+            variant="contained"
+            color="error"
+            disabled={actionLoading}
+            startIcon={<DeleteIcon />}
+          >
+            {actionLoading ? 'Deleting...' : 'Delete User'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog
+        open={resetPasswordDialogOpen}
+        onClose={() => setResetPasswordDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <LockIcon />
+          <Typography variant="h6" component="span" fontWeight="bold">
+            Reset User Password
+          </Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          {selectedUser && (
+            <DialogContentText sx={{ mb: 3 }}>
+              Reset password for <strong>{selectedUser.email}</strong>
+            </DialogContentText>
+          )}
+          
+          <TextField
+            autoFocus
+            margin="dense"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          
+          <TextField
+            margin="dense"
+            label="Confirm Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            error={confirmPassword !== '' && newPassword !== confirmPassword}
+            helperText={confirmPassword !== '' && newPassword !== confirmPassword ? 'Passwords do not match' : ''}
+          />
+        </DialogContent>
+        
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={() => setResetPasswordDialogOpen(false)}
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleResetPassword}
+            variant="contained"
+            disabled={actionLoading || !newPassword || newPassword !== confirmPassword}
+            startIcon={<LockIcon />}
+          >
+            {actionLoading ? 'Resetting...' : 'Reset Password'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarMessage.includes('successfully') ? 'success' : 'error'}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

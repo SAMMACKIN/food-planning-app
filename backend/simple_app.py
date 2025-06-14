@@ -718,19 +718,21 @@ async def get_current_user_endpoint():
     )
 
 @app.delete("/api/v1/auth/delete-account")
-async def delete_user_account():
+async def delete_user_account(authorization: str = None):
     """Delete current user account and all associated data"""
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user_id = current_user['id']
+    
+    # Prevent admin account deletion for safety
+    if current_user.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="Cannot delete admin account. Use admin panel to manage accounts.")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
     
     try:
         # Delete user data in order (foreign key constraints)
@@ -1002,6 +1004,90 @@ async def get_admin_stats():
         'total_pantry_items': total_pantry_items,
         'recent_registrations': recent_registrations
     }
+
+# Admin User Management endpoints
+@app.delete("/api/v1/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, authorization: str = None):
+    """Admin endpoint to delete any user account"""
+    # Check if current user is admin
+    current_user = get_current_user(authorization)
+    if not current_user or not current_user.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Prevent admin from deleting themselves
+    if current_user['id'] == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Check if user exists
+    cursor.execute("SELECT id, email, is_admin FROM users WHERE id = ?", (user_id,))
+    target_user = cursor.fetchone()
+    if not target_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent deleting other admin accounts for safety
+    if target_user[2]:  # is_admin
+        conn.close()
+        raise HTTPException(status_code=400, detail="Cannot delete other admin accounts")
+    
+    try:
+        # Delete user data in order (foreign key constraints)
+        cursor.execute("DELETE FROM meal_reviews WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM meal_plans WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM pantry_items WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM family_members WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": f"User account deleted successfully", "deleted_user_email": target_user[1]}
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Error deleting user account: {str(e)}")
+
+class PasswordResetRequest(BaseModel):
+    new_password: str
+
+@app.post("/api/v1/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(user_id: str, request: PasswordResetRequest, authorization: str = None):
+    """Admin endpoint to reset a user's password"""
+    # Check if current user is admin
+    current_user = get_current_user(authorization)
+    if not current_user or not current_user.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Check if user exists
+    cursor.execute("SELECT id, email FROM users WHERE id = ?", (user_id,))
+    target_user = cursor.fetchone()
+    if not target_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        # Hash the new password
+        hashed_password = hash_password(request.new_password)
+        
+        # Update user's password
+        cursor.execute("UPDATE users SET hashed_password = ? WHERE id = ?", (hashed_password, user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": f"Password reset successfully for user", "user_email": target_user[1]}
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Error resetting password: {str(e)}")
 
 # Ingredients endpoints
 @app.get("/api/v1/ingredients", response_model=List[IngredientResponse])
