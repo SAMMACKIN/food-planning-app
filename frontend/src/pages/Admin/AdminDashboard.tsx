@@ -27,7 +27,7 @@ import {
 import {
   AdminPanelSettings,
   People,
-  Family,
+  Groups,
   TrendingUp,
   PersonAdd,
   DataUsage,
@@ -168,7 +168,7 @@ const AdminDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
-                <Family sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+                <Groups sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
                 <Typography variant="h4" component="div">
                   {stats.total_family_members}
                 </Typography>
