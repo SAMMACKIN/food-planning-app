@@ -23,7 +23,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
 } from '@mui/material';
 import {
   Restaurant,
@@ -96,7 +95,7 @@ const MealRecommendations: React.FC = () => {
     if (availableProviders.length > 0) {
       fetchRecommendations();
     }
-  }, [selectedProvider, availableProviders]);
+  }, [selectedProvider, availableProviders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = () => {
     fetchRecommendations();
@@ -155,37 +154,33 @@ const MealRecommendations: React.FC = () => {
       {availableProviders.length > 1 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item>
-                <Settings color="primary" />
-              </Grid>
-              <Grid item xs>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Settings color="primary" />
+              <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="h6">
                   AI Model Selection
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Choose which AI model to generate your meal recommendations
                 </Typography>
-              </Grid>
-              <Grid item>
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <InputLabel>AI Provider</InputLabel>
-                  <Select
-                    value={selectedProvider}
-                    label="AI Provider"
-                    onChange={(e) => setSelectedProvider(e.target.value)}
-                  >
-                    {availableProviders.map((provider) => (
-                      <MenuItem key={provider} value={provider}>
-                        {provider === 'claude' ? 'Claude (Anthropic)' : 
-                         provider === 'groq' ? 'Groq (Llama)' : 
-                         provider.charAt(0).toUpperCase() + provider.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
+              </Box>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>AI Provider</InputLabel>
+                <Select
+                  value={selectedProvider}
+                  label="AI Provider"
+                  onChange={(e) => setSelectedProvider(e.target.value)}
+                >
+                  {availableProviders.map((provider) => (
+                    <MenuItem key={provider} value={provider}>
+                      {provider === 'claude' ? 'Claude (Anthropic)' : 
+                       provider === 'groq' ? 'Groq (Llama)' : 
+                       provider.charAt(0).toUpperCase() + provider.slice(1)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
           </CardContent>
         </Card>
       )}
