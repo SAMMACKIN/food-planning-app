@@ -39,8 +39,45 @@ interface ChangeEntry {
 
 const changeHistory: ChangeEntry[] = [
   {
+    version: "1.4.0",
+    date: "June 2025",
+    type: "major",
+    changes: [
+      {
+        type: "feature",
+        description: "Admin Dashboard with user management and system statistics",
+        icon: <Security />
+      },
+      {
+        type: "feature",
+        description: "Multi-provider AI support - Added Groq alongside Claude AI",
+        icon: <AutoAwesome />
+      },
+      {
+        type: "improvement", 
+        description: "Environment-specific database separation (preview vs production)",
+        icon: <DataObject />
+      },
+      {
+        type: "improvement",
+        description: "Automated test data population for preview environment",
+        icon: <Build />
+      },
+      {
+        type: "bugfix",
+        description: "Fixed Groq model compatibility - switched to llama-3.1-8b-instant",
+        icon: <BugReport />
+      },
+      {
+        type: "security",
+        description: "Secure API key management via environment variables only",
+        icon: <Security />
+      }
+    ]
+  },
+  {
     version: "1.3.0",
-    date: "December 2024",
+    date: "June 2025",
     type: "major",
     changes: [
       {
@@ -67,7 +104,7 @@ const changeHistory: ChangeEntry[] = [
   },
   {
     version: "1.2.0",
-    date: "December 2024",
+    date: "May 2025",
     type: "major",
     changes: [
       {
@@ -94,7 +131,7 @@ const changeHistory: ChangeEntry[] = [
   },
   {
     version: "1.1.0",
-    date: "December 2024",
+    date: "April 2025",
     type: "major",
     changes: [
       {
@@ -121,7 +158,7 @@ const changeHistory: ChangeEntry[] = [
   },
   {
     version: "1.0.0",
-    date: "December 2024",
+    date: "March 2025",
     type: "major",
     changes: [
       {
@@ -178,9 +215,9 @@ const upcomingFeatures = [
     status: "Planned"
   },
   {
-    title: "Admin Dashboard",
-    description: "Administrative interface for user management and system monitoring",
-    priority: "Low",
+    title: "Push Notifications",
+    description: "Meal reminders, expiring ingredient alerts, and meal planning notifications",
+    priority: "Medium",
     status: "Planned"
   },
   {
