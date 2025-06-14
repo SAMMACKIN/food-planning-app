@@ -29,7 +29,7 @@ class AIService:
         
         # Initialize Groq
         self.groq_client = None
-        groq_key = os.getenv("GROQ_API_KEY", "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")
+        groq_key = os.getenv("GROQ_API_KEY")
         if groq_key:
             self.groq_client = Groq(api_key=groq_key)
             logger.info("Groq client initialized")
