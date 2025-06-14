@@ -123,7 +123,7 @@ class AIService:
             
             logger.info("Calling Groq API for meal recommendations...")
             response = self.groq_client.chat.completions.create(
-                model="llama-3.1-70b-versatile",  # Fast, capable model
+                model="llama-3.1-8b-instant",  # Fast, reliable model
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=4096,
                 temperature=0.7
