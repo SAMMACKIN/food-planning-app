@@ -1,0 +1,9 @@
+backend/
+scripts/
+*.md
+.env*
+!frontend/.env.production
+railway.json
+nixpacks.toml
+docker-compose.yml
+Procfile
