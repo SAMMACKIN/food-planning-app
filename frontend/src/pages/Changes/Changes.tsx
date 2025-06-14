@@ -65,7 +65,7 @@ const changeHistory: ChangeEntry[] = [
       },
       {
         type: "bugfix",
-        description: "Fixed Groq model compatibility - switched to qwen-qwq-32b",
+        description: "Fixed Groq model compatibility - using llama-3.1-8b-instant",
         icon: <BugReport />
       },
       {
