@@ -7,3 +7,4 @@ railway.json
 nixpacks.toml
 docker-compose.yml
 Procfile
+# Force rebuild
