@@ -30,13 +30,13 @@ import { PantryItem, PantryItemCreate, Ingredient } from '../../types';
 import { apiRequest } from '../../services/api';
 
 const pantryItemSchema = z.object({
-  ingredient_id: z.string().min(1, 'Please select an ingredient'),
+  ingredient_ids: z.array(z.string()).min(1, 'Please select at least one ingredient'),
   quantity: z.number().min(0.1, 'Quantity must be greater than 0'),
   expiration_date: z.string().optional().or(z.literal('')),
 });
 
 type PantryItemFormData = {
-  ingredient_id: string;
+  ingredient_ids: string[];
   quantity: number;
   expiration_date?: string;
 };
@@ -49,6 +49,7 @@ const PantryManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [ingredientSearchTerm, setIngredientSearchTerm] = useState('');
 
   const {
     control,
@@ -74,9 +75,12 @@ const PantryManagement: React.FC = () => {
     }
   };
 
-  const fetchIngredients = async () => {
+  const fetchIngredients = async (search = '') => {
     try {
-      const allIngredients = await apiRequest<Ingredient[]>('GET', '/ingredients');
+      const endpoint = search.trim() 
+        ? `/ingredients/search?q=${encodeURIComponent(search.trim())}`
+        : '/ingredients';
+      const allIngredients = await apiRequest<Ingredient[]>('GET', endpoint);
       setIngredients(allIngredients);
     } catch (error: any) {
       console.error('Error fetching ingredients:', error);
@@ -88,16 +92,29 @@ const PantryManagement: React.FC = () => {
     fetchIngredients();
   }, []);
 
+  // Search ingredients when search term changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (ingredientSearchTerm.trim()) {
+        fetchIngredients(ingredientSearchTerm);
+      } else {
+        fetchIngredients();
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [ingredientSearchTerm]);
+
   const handleAddItem = () => {
     setEditingItem(null);
-    reset({ ingredient_id: '', quantity: 1, expiration_date: '' });
+    reset({ ingredient_ids: [], quantity: 1, expiration_date: '' });
     setIsDialogOpen(true);
   };
 
   const handleEditItem = (item: PantryItem) => {
     setEditingItem(item);
     reset({
-      ingredient_id: item.ingredient_id,
+      ingredient_ids: [item.ingredient_id],
       quantity: item.quantity,
       expiration_date: item.expiration_date || '',
     });
@@ -121,19 +138,25 @@ const PantryManagement: React.FC = () => {
   const onSubmit = async (data: PantryItemFormData) => {
     try {
       setLoading(true);
-      const itemData: PantryItemCreate = {
-        ingredient_id: data.ingredient_id,
-        quantity: data.quantity,
-        expiration_date: data.expiration_date || undefined,
-      };
-
+      
       if (editingItem) {
+        // For editing, we only update the single item
         await apiRequest('PUT', `/pantry/${editingItem.ingredient_id}`, {
-          quantity: itemData.quantity,
-          expiration_date: itemData.expiration_date,
+          quantity: data.quantity,
+          expiration_date: data.expiration_date || undefined,
         });
       } else {
-        await apiRequest('POST', '/pantry', itemData);
+        // For adding new items, create multiple items if multiple ingredients selected
+        const promises = data.ingredient_ids.map(ingredientId => {
+          const itemData: PantryItemCreate = {
+            ingredient_id: ingredientId,
+            quantity: data.quantity,
+            expiration_date: data.expiration_date || undefined,
+          };
+          return apiRequest('POST', '/pantry', itemData);
+        });
+        
+        await Promise.all(promises);
       }
 
       await fetchPantryItems();
@@ -141,8 +164,8 @@ const PantryManagement: React.FC = () => {
       reset();
       setError(null);
     } catch (error: any) {
-      setError(editingItem ? 'Failed to update pantry item' : 'Failed to add pantry item');
-      console.error('Error saving pantry item:', error);
+      setError(editingItem ? 'Failed to update pantry item' : 'Failed to add pantry items');
+      console.error('Error saving pantry items:', error);
     } finally {
       setLoading(false);
     }
@@ -311,41 +334,93 @@ const PantryManagement: React.FC = () => {
       <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogTitle>
-            {editingItem ? 'Edit Pantry Item' : 'Add Pantry Item'}
+            {editingItem ? 'Edit Pantry Item' : 'Add Pantry Items'}
           </DialogTitle>
           <DialogContent>
             <Controller
-              name="ingredient_id"
+              name="ingredient_ids"
               control={control}
               render={({ field }) => (
                 <Autocomplete
-                  {...field}
+                  multiple={!editingItem}
                   options={ingredients}
                   getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
-                  value={ingredients.find(ing => ing.id === field.value) || null}
-                  onChange={(_, value) => field.onChange(value?.id || '')}
+                  value={editingItem 
+                    ? ingredients.filter(ing => field.value.includes(ing.id))
+                    : ingredients.filter(ing => field.value.includes(ing.id))
+                  }
+                  onChange={(_, value) => {
+                    const ids = Array.isArray(value) 
+                      ? value.map(v => typeof v === 'string' ? v : v.id)
+                      : [typeof value === 'string' ? value : value?.id || ''];
+                    field.onChange(ids.filter(Boolean));
+                  }}
                   disabled={!!editingItem}
+                  filterSelectedOptions
+                  loading={loading}
+                  onInputChange={(_, newInputValue, reason) => {
+                    if (reason === 'input') {
+                      setIngredientSearchTerm(newInputValue);
+                    }
+                  }}
+                  groupBy={(option) => option.category}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Ingredient"
+                      label={editingItem ? "Ingredient" : "Ingredients (select multiple)"}
                       fullWidth
                       margin="dense"
                       variant="outlined"
-                      error={!!errors.ingredient_id}
-                      helperText={errors.ingredient_id?.message}
+                      error={!!errors.ingredient_ids}
+                      helperText={errors.ingredient_ids?.message || (!editingItem ? "Type to search ingredients, select multiple with checkboxes" : "")}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                            {params.InputProps.startAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
-                  renderOption={(props, option) => (
+                  renderOption={(props, option, { selected }) => (
                     <li {...props}>
-                      <Box>
-                        <Typography variant="body1">{option.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.category} • {option.unit}
-                        </Typography>
+                      <Box display="flex" alignItems="center" width="100%">
+                        {!editingItem && (
+                          <Box component="span" sx={{ width: 17, height: 17, mr: 1, flexShrink: 0 }}>
+                            {selected ? '✓' : ''}
+                          </Box>
+                        )}
+                        <Box flex={1}>
+                          <Typography variant="body1">{option.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.category} • {option.unit} • {option.calories_per_unit} cal/{option.unit}
+                          </Typography>
+                        </Box>
                       </Box>
                     </li>
                   )}
+                  renderGroup={(params) => (
+                    <Box key={params.key}>
+                      <Typography variant="subtitle2" sx={{ px: 2, py: 1, fontWeight: 'bold', color: 'primary.main' }}>
+                        {params.group}
+                      </Typography>
+                      {params.children}
+                    </Box>
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        variant="outlined"
+                        label={option.name}
+                        {...getTagProps({ index })}
+                        key={option.id}
+                        size="small"
+                        color="primary"
+                      />
+                    ))
+                  }
                 />
               )}
             />
