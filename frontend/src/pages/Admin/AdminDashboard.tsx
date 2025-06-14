@@ -150,8 +150,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Stats Overview */}
       {stats && (
-        <Grid container spacing={3} mb={4}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
+          <Box>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <People sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
@@ -163,9 +163,9 @@ const AdminDashboard: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Groups sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
@@ -177,9 +177,9 @@ const AdminDashboard: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Restaurant sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
@@ -191,9 +191,9 @@ const AdminDashboard: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Card>
               <CardContent sx={{ textAlign: 'center' }}>
                 <PersonAdd sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
@@ -205,8 +205,8 @@ const AdminDashboard: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       )}
 
       {/* Data Tables */}
