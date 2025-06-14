@@ -22,6 +22,14 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  TextField,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -34,8 +42,11 @@ import {
   AdminPanelSettings as AdminIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  DeleteForever as DeleteIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
+import { apiRequest } from '../../services/api';
 
 const Layout: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -44,6 +55,13 @@ const Layout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  
+  // Delete account states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const getCurrentTab = () => {
     if (location.pathname.includes('/family')) return 1;
@@ -98,6 +116,41 @@ const Layout: React.FC = () => {
 
   const handleDrawerNavigation = (path: string) => {
     navigate(path);
+    setMobileDrawerOpen(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (confirmationText.toLowerCase() !== 'delete my account') {
+      setSnackbarMessage('Please type "delete my account" to confirm');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      await apiRequest('DELETE', '/auth/delete-account');
+      setSnackbarMessage('Account deleted successfully. Goodbye!');
+      setSnackbarOpen(true);
+      
+      // Wait a moment to show the message, then logout
+      setTimeout(() => {
+        logout();
+        navigate('/login');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      setSnackbarMessage(error.response?.data?.detail || 'Failed to delete account');
+      setSnackbarOpen(true);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+      setConfirmationText('');
+    }
+  };
+
+  const openDeleteDialog = () => {
+    setDeleteDialogOpen(true);
     setMobileDrawerOpen(false);
   };
 
@@ -166,13 +219,30 @@ const Layout: React.FC = () => {
       
       <Divider sx={{ my: 1 }} />
       
-      {/* Logout */}
+      {/* Account Actions */}
       <List>
-        <ListItemButton onClick={logout} sx={{ py: 1.5, color: 'error.main' }}>
-          <ListItemIcon sx={{ color: 'error.main' }}>
+        <ListItemButton onClick={logout} sx={{ py: 1.5, color: 'warning.main' }}>
+          <ListItemIcon sx={{ color: 'warning.main' }}>
             <CloseIcon />
           </ListItemIcon>
           <ListItemText primary="Logout" />
+        </ListItemButton>
+        
+        <ListItemButton 
+          onClick={openDeleteDialog} 
+          sx={{ 
+            py: 1.5, 
+            color: 'error.main',
+            '&:hover': {
+              backgroundColor: 'error.light',
+              color: 'error.contrastText',
+            }
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <DeleteIcon />
+          </ListItemIcon>
+          <ListItemText primary="Delete Account" />
         </ListItemButton>
       </List>
     </Box>
@@ -218,6 +288,23 @@ const Layout: React.FC = () => {
               <Typography variant="body2" sx={{ mr: 2, opacity: 0.8 }}>
                 Welcome, {user?.name || user?.email}
               </Typography>
+              <Button 
+                color="inherit" 
+                onClick={openDeleteDialog}
+                variant="text"
+                size="small"
+                startIcon={<DeleteIcon />}
+                sx={{ 
+                  mr: 1,
+                  color: 'error.light',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    color: 'error.main'
+                  }
+                }}
+              >
+                Delete Account
+              </Button>
               <Button 
                 color="inherit" 
                 onClick={logout}
@@ -343,6 +430,130 @@ const Layout: React.FC = () => {
           </BottomNavigation>
         </Paper>
       )}
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            ...(isMobile && {
+              margin: 2,
+              width: 'calc(100% - 32px)',
+            }),
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2,
+          color: 'error.main',
+          pb: 1
+        }}>
+          <WarningIcon />
+          <Typography variant="h6" component="span" fontWeight="bold">
+            Delete Account
+          </Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          <DialogContentText sx={{ mb: 3 }}>
+            <strong>⚠️ This action cannot be undone!</strong>
+          </DialogContentText>
+          
+          <DialogContentText sx={{ mb: 3 }}>
+            Deleting your account will permanently remove:
+          </DialogContentText>
+          
+          <Box component="ul" sx={{ pl: 2, mb: 3 }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Your profile and personal information
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              All family members and their dietary preferences
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Your entire pantry inventory
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              All meal plans and recommendations
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Meal reviews and ratings
+            </Typography>
+          </Box>
+          
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <strong>Warning:</strong> This will permanently delete all your data. 
+            This action cannot be reversed.
+          </Alert>
+          
+          <DialogContentText sx={{ mb: 2, fontWeight: 'medium' }}>
+            To confirm, please type <strong>"delete my account"</strong> below:
+          </DialogContentText>
+          
+          <TextField
+            fullWidth
+            value={confirmationText}
+            onChange={(e) => setConfirmationText(e.target.value)}
+            placeholder="delete my account"
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&.Mui-focused fieldset': {
+                  borderColor: 'error.main',
+                },
+              },
+            }}
+          />
+        </DialogContent>
+        
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setConfirmationText('');
+            }}
+            variant="outlined"
+            size={isMobile ? "large" : "medium"}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading || confirmationText.toLowerCase() !== 'delete my account'}
+            size={isMobile ? "large" : "medium"}
+            startIcon={deleteLoading ? undefined : <DeleteIcon />}
+            sx={{ minWidth: 140 }}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ mb: isMobile ? 8 : 0 }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarMessage.includes('successfully') ? 'success' : 'error'}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

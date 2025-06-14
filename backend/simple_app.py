@@ -717,6 +717,39 @@ async def get_current_user_endpoint():
         created_at=user[7]
     )
 
+@app.delete("/api/v1/auth/delete-account")
+async def delete_user_account():
+    """Delete current user account and all associated data"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Get current user (simplified for demo)
+    cursor.execute("SELECT id FROM users LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    user_id = user[0]
+    
+    try:
+        # Delete user data in order (foreign key constraints)
+        cursor.execute("DELETE FROM meal_reviews WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM meal_plans WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM pantry_items WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM family_members WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Account deleted successfully"}
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Error deleting account: {str(e)}")
+
 # Family Members endpoints
 @app.get("/api/v1/family/members", response_model=List[FamilyMemberResponse])
 async def get_family_members():
