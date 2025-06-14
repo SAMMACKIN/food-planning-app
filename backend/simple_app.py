@@ -516,7 +516,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "timestamp": datetime.datetime.utcnow().isoformat(), "db_separation": "fixed"}
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
