@@ -11,6 +11,8 @@ import FamilyManagement from './pages/Family/FamilyManagement';
 import PantryManagement from './pages/Pantry/PantryManagement';
 import MealRecommendations from './pages/Recommendations/MealRecommendations';
 import MealPlanning from './pages/MealPlanning/MealPlanning';
+import UserGuide from './pages/UserGuide/UserGuide';
+import Changes from './pages/Changes/Changes';
 import './App.css';
 
 const theme = createTheme({
@@ -49,6 +51,8 @@ function App() {
             <Route path="pantry" element={<PantryManagement />} />
             <Route path="recommendations" element={<MealRecommendations />} />
             <Route path="meal-planning" element={<MealPlanning />} />
+            <Route path="user-guide" element={<UserGuide />} />
+            <Route path="changes" element={<Changes />} />
           </Route>
         </Routes>
       </Router>

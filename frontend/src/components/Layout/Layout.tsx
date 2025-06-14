@@ -22,6 +22,8 @@ const Layout: React.FC = () => {
     if (location.pathname.includes('/pantry')) return 2;
     if (location.pathname.includes('/meal-planning')) return 3;
     if (location.pathname.includes('/recommendations')) return 4;
+    if (location.pathname.includes('/user-guide')) return 5;
+    if (location.pathname.includes('/changes')) return 6;
     return 0; // dashboard
   };
 
@@ -42,6 +44,12 @@ const Layout: React.FC = () => {
       case 4:
         navigate('/recommendations');
         break;
+      case 5:
+        navigate('/user-guide');
+        break;
+      case 6:
+        navigate('/changes');
+        break;
     }
   };
 
@@ -60,12 +68,21 @@ const Layout: React.FC = () => {
           </Button>
         </Toolbar>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={getCurrentTab()} onChange={handleTabChange} textColor="inherit" indicatorColor="secondary">
+          <Tabs 
+            value={getCurrentTab()} 
+            onChange={handleTabChange} 
+            textColor="inherit" 
+            indicatorColor="secondary"
+            variant="scrollable"
+            scrollButtons="auto"
+          >
             <Tab label="Dashboard" />
             <Tab label="Family" />
             <Tab label="Pantry" />
             <Tab label="Meal Plans" />
             <Tab label="Recommendations" />
+            <Tab label="User Guide" />
+            <Tab label="Changes" />
           </Tabs>
         </Box>
       </AppBar>
