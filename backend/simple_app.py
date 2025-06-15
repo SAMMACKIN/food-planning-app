@@ -876,7 +876,7 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Authentication failed")
 
 @app.delete("/api/v1/auth/delete-account")
-async def delete_user_account(authorization: str = None):
+async def delete_user_account(authorization: str = Header(None)):
     """Delete current user account and all associated data"""
     # Get the current authenticated user
     current_user = get_current_user(authorization)
@@ -977,7 +977,7 @@ async def get_family_members(authorization: str = Header(None)):
     ]
 
 @app.post("/api/v1/family/members", response_model=FamilyMemberResponse)
-async def create_family_member(member_data: FamilyMemberCreate, authorization: str = None):
+async def create_family_member(member_data: FamilyMemberCreate, authorization: str = Header(None)):
     # Get the current authenticated user
     current_user = get_current_user(authorization)
     if not current_user:
@@ -1186,7 +1186,7 @@ async def get_admin_stats():
 
 # Admin User Management endpoints
 @app.delete("/api/v1/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, authorization: str = None):
+async def admin_delete_user(user_id: str, authorization: str = Header(None)):
     """Admin endpoint to delete any user account"""
     # Check if current user is admin
     current_user = get_current_user(authorization)
@@ -1234,7 +1234,7 @@ class PasswordResetRequest(BaseModel):
     new_password: str
 
 @app.post("/api/v1/admin/users/{user_id}/reset-password")
-async def admin_reset_user_password(user_id: str, request: PasswordResetRequest, authorization: str = None):
+async def admin_reset_user_password(user_id: str, request: PasswordResetRequest, authorization: str = Header(None)):
     """Admin endpoint to reset a user's password"""
     # Check if current user is admin
     current_user = get_current_user(authorization)
@@ -1403,7 +1403,7 @@ async def get_pantry_items(authorization: str = Header(None)):
     ]
 
 @app.post("/api/v1/pantry", response_model=PantryItemResponse)
-async def add_pantry_item(pantry_data: PantryItemCreate, authorization: str = None):
+async def add_pantry_item(pantry_data: PantryItemCreate, authorization: str = Header(None)):
     # Get the current authenticated user
     current_user = get_current_user(authorization)
     if not current_user:
@@ -1461,7 +1461,7 @@ async def add_pantry_item(pantry_data: PantryItemCreate, authorization: str = No
     )
 
 @app.put("/api/v1/pantry/{ingredient_id}", response_model=PantryItemResponse)
-async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate, authorization: str = None):
+async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate, authorization: str = Header(None)):
     # Get the current authenticated user
     current_user = get_current_user(authorization)
     if not current_user:
@@ -1532,7 +1532,7 @@ async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate, 
     )
 
 @app.delete("/api/v1/pantry/{ingredient_id}")
-async def remove_pantry_item(ingredient_id: str, authorization: str = None):
+async def remove_pantry_item(ingredient_id: str, authorization: str = Header(None)):
     # Get the current authenticated user
     current_user = get_current_user(authorization)
     if not current_user:
@@ -1557,7 +1557,7 @@ async def remove_pantry_item(ingredient_id: str, authorization: str = None):
 
 # Meal Recommendations endpoints
 @app.post("/api/v1/recommendations", response_model=List[MealRecommendationResponse])
-async def get_meal_recommendations(request: MealRecommendationRequest, authorization: str = None):
+async def get_meal_recommendations(request: MealRecommendationRequest, authorization: str = Header(None)):
     # Get the current authenticated user
     current_user = get_current_user(authorization)
     if not current_user:
@@ -1735,7 +1735,7 @@ async def test_ai_recommendations(provider: str = "claude"):
 
 # Meal Plan endpoints
 @app.get("/api/v1/meal-plans", response_model=List[MealPlanResponse])
-async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[str] = None, authorization: str = None):
+async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[str] = None, authorization: str = Header(None)):
     """Get meal plans for current user, optionally filtered by date range"""
     # Get the current authenticated user
     current_user = get_current_user(authorization)
@@ -1797,7 +1797,7 @@ async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[st
     ]
 
 @app.post("/api/v1/meal-plans", response_model=MealPlanResponse)
-async def create_meal_plan(meal_plan_data: MealPlanCreate, authorization: str = None):
+async def create_meal_plan(meal_plan_data: MealPlanCreate, authorization: str = Header(None)):
     """Create a new meal plan"""
     # Get the current authenticated user
     current_user = get_current_user(authorization)
@@ -1969,7 +1969,7 @@ async def get_meal_reviews(meal_plan_id: str):
     ]
 
 @app.post("/api/v1/meal-plans/{meal_plan_id}/reviews", response_model=MealReviewResponse)
-async def create_meal_review(meal_plan_id: str, review_data: MealReviewCreate, authorization: str = None):
+async def create_meal_review(meal_plan_id: str, review_data: MealReviewCreate, authorization: str = Header(None)):
     """Create a review for a meal plan"""
     # Get the current authenticated user
     current_user = get_current_user(authorization)
