@@ -147,8 +147,14 @@ const FamilyManagement: React.FC = () => {
       reset();
       setError(null);
     } catch (error: any) {
-      setError(editingMember ? 'Failed to update family member' : 'Failed to add family member');
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+      setError(`${editingMember ? 'Failed to update' : 'Failed to add'} family member: ${errorMessage}`);
       console.error('Error saving family member:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
     } finally {
       setLoading(false);
     }

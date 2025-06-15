@@ -29,7 +29,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('access_token', tokens.access_token);
       localStorage.setItem('refresh_token', tokens.refresh_token);
       
-      await get().checkAuth();
+      // Get user info after storing tokens
+      const user = await apiRequest<User>('GET', '/auth/me');
+      set({ 
+        user, 
+        isAuthenticated: true, 
+        isLoading: false, 
+        error: null 
+      });
+      
+      // Navigate based on user role
+      if (user?.is_admin) {
+        window.location.href = '/admin';
+      } else {
+        window.location.href = '/dashboard';
+      }
     } catch (error: any) {
       set({ 
         error: error.response?.data?.detail || 'Login failed',
