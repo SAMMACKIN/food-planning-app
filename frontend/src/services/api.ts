@@ -1,7 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 
-// Force preview URL for debugging
-const API_BASE_URL = 'https://food-planning-app-preview.up.railway.app';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 console.log('🔗 API Base URL:', API_BASE_URL);
 
 export const api = axios.create({
