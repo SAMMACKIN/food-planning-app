@@ -382,14 +382,9 @@ def create_admin_user():
     admin_password = hash_password('admin123')  # Changed to 8 characters
     
     cursor.execute('''
-        INSERT OR IGNORE INTO users (id, email, hashed_password, name, is_admin)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (admin_id, admin_email, admin_password, 'Administrator', 1))
-    
-    # Update existing admin user password if it exists
-    cursor.execute('''
-        UPDATE users SET hashed_password = ? WHERE email = 'admin'
-    ''', (admin_password,))
+        INSERT OR REPLACE INTO users (id, email, hashed_password, name, is_admin, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (admin_id, admin_email, admin_password, 'Administrator', 1, 1))
     
     conn.commit()
     conn.close()
