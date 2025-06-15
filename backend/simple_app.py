@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -62,23 +62,36 @@ def get_db_connection():
 
 def get_db_path():
     """Get database path based on environment"""
-    # Check both possible Railway environment variable names
-    env = (os.environ.get('RAILWAY_ENVIRONMENT_NAME') or 
-           os.environ.get('RAILWAY_ENVIRONMENT', 'development')).lower()
+    # Enhanced environment detection for Railway
+    railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', '').lower()
+    railway_service = os.environ.get('RAILWAY_SERVICE_NAME', '')
+    railway_project = os.environ.get('RAILWAY_PROJECT_NAME', '')
     
-    print(f"🔍 DB PATH DETERMINATION:")
-    print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
+    # Check if we're on Railway
+    is_railway = any([railway_env, railway_service, railway_project])
+    
+    print(f"🔍 ENHANCED DB PATH DETERMINATION:")
     print(f"   - RAILWAY_ENVIRONMENT_NAME: {os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')}")
-    print(f"   - Processed env: {env}")
+    print(f"   - RAILWAY_SERVICE_NAME: {os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET')}")
+    print(f"   - RAILWAY_PROJECT_NAME: {os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET')}")
+    print(f"   - Is Railway: {is_railway}")
+    print(f"   - Processed env: {railway_env}")
     
-    if env == 'preview':
-        db_path = '/app/data/preview_food_app.db'
-        print(f"   - Selected PREVIEW database: {db_path}")
-        return db_path
-    elif env == 'production':
-        db_path = '/app/data/production_food_app.db'
-        print(f"   - Selected PRODUCTION database: {db_path}")
-        return db_path
+    # Railway environment detection
+    if is_railway:
+        if railway_env == 'preview' or 'preview' in railway_service.lower():
+            db_path = '/app/data/preview_food_app.db'
+            print(f"   - Selected PREVIEW database: {db_path}")
+            return db_path
+        elif railway_env == 'production' or 'production' in railway_service.lower():
+            db_path = '/app/data/production_food_app.db'
+            print(f"   - Selected PRODUCTION database: {db_path}")
+            return db_path
+        else:
+            # Default Railway environment
+            db_path = '/app/data/railway_food_app.db'
+            print(f"   - Selected DEFAULT RAILWAY database: {db_path}")
+            return db_path
     else:
         # Local development
         db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
@@ -352,34 +365,23 @@ def create_admin_user():
 
 def populate_test_data():
     """Populate test data only in preview environment"""
-    # Check both possible Railway environment variable names
-    env = (os.environ.get('RAILWAY_ENVIRONMENT_NAME') or 
-           os.environ.get('RAILWAY_ENVIRONMENT', 'development')).lower()
+    # Enhanced environment detection for Railway
+    railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', '').lower()
+    railway_service = os.environ.get('RAILWAY_SERVICE_NAME', '')
+    is_preview = railway_env == 'preview' or 'preview' in railway_service.lower()
     
-    # Enhanced debugging for environment detection
-    print(f"🔍 DETAILED ENVIRONMENT ANALYSIS:")
-    print(f"   - RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
-    print(f"   - Processed env value: {env}")
+    print(f"🔍 TEST DATA POPULATION ANALYSIS:")
+    print(f"   - RAILWAY_ENVIRONMENT_NAME: {os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')}")
+    print(f"   - RAILWAY_SERVICE_NAME: {os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET')}")
+    print(f"   - Is Preview: {is_preview}")
     print(f"   - Database path: {get_db_path()}")
     
-    # Log all environment variables to understand Railway's naming
+    # Log all Railway environment variables
     railway_vars = {k: v for k, v in os.environ.items() if 'railway' in k.lower()}
     print(f"   - All Railway env vars: {railway_vars}")
     
-    # Check common environment variables
-    env_vars = {
-        'NODE_ENV': os.environ.get('NODE_ENV', 'NOT_SET'),
-        'ENVIRONMENT': os.environ.get('ENVIRONMENT', 'NOT_SET'),
-        'DEPLOY_ENV': os.environ.get('DEPLOY_ENV', 'NOT_SET'),
-        'RAILWAY_SERVICE_NAME': os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET'),
-        'RAILWAY_PROJECT_NAME': os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET'),
-        'RAILWAY_ENVIRONMENT_NAME': os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
-    }
-    for key, value in env_vars.items():
-        print(f"   - {key}: {value}")
-    
-    if env != 'preview':
-        print(f"❌ Skipping test data - not in preview environment (env={env})")
+    if not is_preview:
+        print(f"❌ Skipping test data - not in preview environment")
         return  # Only populate test data in preview
     
     print("📊 Starting test data population for preview environment...")
@@ -596,7 +598,43 @@ def verify_token(token: str):
         return None
 
 # Auth dependency
+def get_current_user_dependency(authorization: str = Header(None)):
+    """FastAPI dependency for getting current authenticated user"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    try:
+        # Extract token from "Bearer <token>"
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        user_id = verify_token(token)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+            
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+            
+        return {
+            'id': user[0],
+            'email': user[1], 
+            'name': user[2],
+            'timezone': user[3],
+            'is_active': bool(user[4]),
+            'is_admin': bool(user[5]),
+            'created_at': user[6]
+        }
+    except HTTPException:
+        raise
+    except:
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
 def get_current_user(authorization: str = None):
+    """Helper function for legacy endpoints"""
     if not authorization:
         return None
     
@@ -639,7 +677,23 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "timestamp": datetime.datetime.utcnow().isoformat(), "db_separation": "fixed"}
+    railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
+    railway_service = os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET')
+    railway_project = os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET')
+    db_path = get_db_path()
+    
+    return {
+        "status": "healthy", 
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "environment": {
+            "railway_environment_name": railway_env,
+            "railway_service_name": railway_service,
+            "railway_project_name": railway_project,
+            "detected_db_path": db_path,
+            "is_railway": any([railway_env != 'NOT_SET', railway_service != 'NOT_SET', railway_project != 'NOT_SET'])
+        },
+        "db_separation": "enhanced"
+    }
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
@@ -696,25 +750,15 @@ async def login(user_data: UserLogin):
     )
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
-async def get_current_user_endpoint():
-    # For demo purposes, return the first user or admin
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, email, hashed_password, name, timezone, is_active, is_admin, created_at FROM users LIMIT 1")
-    user = cursor.fetchone()
-    conn.close()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
+async def get_current_user_endpoint(current_user: dict = Depends(get_current_user_dependency)):
     return UserResponse(
-        id=user[0],
-        email=user[1],
-        name=user[3],
-        timezone=user[4],
-        is_active=bool(user[5]),
-        is_admin=bool(user[6]),
-        created_at=user[7]
+        id=current_user['id'],
+        email=current_user['email'],
+        name=current_user['name'],
+        timezone=current_user['timezone'],
+        is_active=current_user['is_active'],
+        is_admin=current_user['is_admin'],
+        created_at=current_user['created_at']
     )
 
 @app.delete("/api/v1/auth/delete-account")
@@ -754,19 +798,12 @@ async def delete_user_account(authorization: str = None):
 
 # Family Members endpoints
 @app.get("/api/v1/family/members", response_model=List[FamilyMemberResponse])
-async def get_family_members():
+async def get_family_members(current_user: dict = Depends(get_current_user_dependency)):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo - for production, use proper auth)
-    cursor.execute("SELECT id, is_admin FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
-    is_admin = bool(user[1])
+    user_id = current_user['id']
+    is_admin = current_user.get('is_admin', False)
     
     # Admin can see all family members, regular users only see their own
     if is_admin:
@@ -796,18 +833,16 @@ async def get_family_members():
     ]
 
 @app.post("/api/v1/family/members", response_model=FamilyMemberResponse)
-async def create_family_member(member_data: FamilyMemberCreate):
+async def create_family_member(member_data: FamilyMemberCreate, authorization: str = None):
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     member_id = str(uuid.uuid4())
     
     cursor.execute(
@@ -1154,18 +1189,11 @@ async def search_ingredients(q: str):
 
 # Pantry endpoints
 @app.get("/api/v1/pantry", response_model=List[PantryItemResponse])
-async def get_pantry_items():
+async def get_pantry_items(current_user: dict = Depends(get_current_user_dependency)):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     cursor.execute('''
         SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
                i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
@@ -1203,18 +1231,16 @@ async def get_pantry_items():
     ]
 
 @app.post("/api/v1/pantry", response_model=PantryItemResponse)
-async def add_pantry_item(pantry_data: PantryItemCreate):
+async def add_pantry_item(pantry_data: PantryItemCreate, authorization: str = None):
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Check if ingredient exists
     cursor.execute("SELECT * FROM ingredients WHERE id = ?", (pantry_data.ingredient_id,))
@@ -1263,18 +1289,16 @@ async def add_pantry_item(pantry_data: PantryItemCreate):
     )
 
 @app.put("/api/v1/pantry/{ingredient_id}", response_model=PantryItemResponse)
-async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate):
+async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate, authorization: str = None):
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Check if pantry item exists
     cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
@@ -1336,18 +1360,16 @@ async def update_pantry_item(ingredient_id: str, pantry_data: PantryItemUpdate):
     )
 
 @app.delete("/api/v1/pantry/{ingredient_id}")
-async def remove_pantry_item(ingredient_id: str):
+async def remove_pantry_item(ingredient_id: str, authorization: str = None):
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Check if pantry item exists
     cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
@@ -1363,7 +1385,12 @@ async def remove_pantry_item(ingredient_id: str):
 
 # Meal Recommendations endpoints
 @app.post("/api/v1/recommendations", response_model=List[MealRecommendationResponse])
-async def get_meal_recommendations(request: MealRecommendationRequest):
+async def get_meal_recommendations(request: MealRecommendationRequest, authorization: str = None):
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     print(f"🎯 RECOMMENDATIONS REQUEST - {datetime.datetime.now()}")
     print(f"📝 Request: {request}")
     logger.info("=== RECOMMENDATIONS REQUEST RECEIVED ===")
@@ -1374,14 +1401,7 @@ async def get_meal_recommendations(request: MealRecommendationRequest):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Get family members
     cursor.execute('''
@@ -1543,19 +1563,17 @@ async def test_ai_recommendations(provider: str = "claude"):
 
 # Meal Plan endpoints
 @app.get("/api/v1/meal-plans", response_model=List[MealPlanResponse])
-async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[str] = None):
+async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[str] = None, authorization: str = None):
     """Get meal plans for current user, optionally filtered by date range"""
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Build query with optional date filtering
     if start_date and end_date:
@@ -1607,19 +1625,17 @@ async def get_meal_plans(start_date: Optional[str] = None, end_date: Optional[st
     ]
 
 @app.post("/api/v1/meal-plans", response_model=MealPlanResponse)
-async def create_meal_plan(meal_plan_data: MealPlanCreate):
+async def create_meal_plan(meal_plan_data: MealPlanCreate, authorization: str = None):
     """Create a new meal plan"""
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     meal_plan_id = str(uuid.uuid4())
     
     # Check if meal already exists for this slot
@@ -1781,19 +1797,17 @@ async def get_meal_reviews(meal_plan_id: str):
     ]
 
 @app.post("/api/v1/meal-plans/{meal_plan_id}/reviews", response_model=MealReviewResponse)
-async def create_meal_review(meal_plan_id: str, review_data: MealReviewCreate):
+async def create_meal_review(meal_plan_id: str, review_data: MealReviewCreate, authorization: str = None):
     """Create a review for a meal plan"""
+    # Get the current authenticated user
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    # Get current user (simplified for demo)
-    cursor.execute("SELECT id FROM users LIMIT 1")
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    user_id = user[0]
+    user_id = current_user['id']
     
     # Check if meal plan exists
     cursor.execute("SELECT id FROM meal_plans WHERE id = ?", (meal_plan_id,))
