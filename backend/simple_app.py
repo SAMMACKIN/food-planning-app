@@ -682,6 +682,9 @@ async def health():
     railway_project = os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET')
     db_path = get_db_path()
     
+    # Get all environment variables for debugging
+    all_env_vars = {k: v for k, v in os.environ.items() if any(keyword in k.lower() for keyword in ['railway', 'env', 'prod', 'preview'])}
+    
     return {
         "status": "healthy", 
         "timestamp": datetime.datetime.utcnow().isoformat(),
@@ -690,9 +693,14 @@ async def health():
             "railway_service_name": railway_service,
             "railway_project_name": railway_project,
             "detected_db_path": db_path,
-            "is_railway": any([railway_env != 'NOT_SET', railway_service != 'NOT_SET', railway_project != 'NOT_SET'])
+            "is_railway": any([railway_env != 'NOT_SET', railway_service != 'NOT_SET', railway_project != 'NOT_SET']),
+            "all_relevant_env_vars": all_env_vars
         },
-        "db_separation": "enhanced"
+        "db_separation": "enhanced_v2",
+        "deployment_info": {
+            "git_commit": os.environ.get('RAILWAY_GIT_COMMIT_SHA', 'unknown')[:8],
+            "deployment_id": os.environ.get('RAILWAY_DEPLOYMENT_ID', 'unknown')
+        }
     }
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
