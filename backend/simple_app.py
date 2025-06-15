@@ -386,6 +386,11 @@ def create_admin_user():
         VALUES (?, ?, ?, ?, ?)
     ''', (admin_id, admin_email, admin_password, 'Administrator', 1))
     
+    # Update existing admin user password if it exists
+    cursor.execute('''
+        UPDATE users SET hashed_password = ? WHERE email = 'admin'
+    ''', (admin_password,))
+    
     conn.commit()
     conn.close()
 
@@ -811,10 +816,14 @@ async def login(user_data: UserLogin):
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_endpoint(authorization: str = Header(None)):
+    # Debug logging
+    print(f"🔍 /auth/me called with authorization: {authorization}")
+    
     # Try to get authenticated user first
-    try:
-        if authorization:
+    if authorization:
+        try:
             current_user = get_current_user_dependency(authorization)
+            print(f"✅ Authentication successful for user: {current_user['email']}")
             return UserResponse(
                 id=current_user['id'],
                 email=current_user['email'],
@@ -824,10 +833,12 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
                 is_admin=current_user['is_admin'],
                 created_at=current_user['created_at']
             )
-    except:
-        pass
+        except Exception as e:
+            print(f"❌ Authentication failed: {e}")
+            # Continue to fallback
     
     # Fallback: return admin user if no authentication (for backward compatibility)
+    print("🔄 Using fallback to admin user")
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE email = 'admin' LIMIT 1")
@@ -835,8 +846,10 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
     conn.close()
     
     if not user:
+        print("❌ Admin user not found in database")
         raise HTTPException(status_code=401, detail="User not found")
     
+    print(f"✅ Returning admin user: {user[1]}")
     return UserResponse(
         id=user[0],
         email=user[1],
