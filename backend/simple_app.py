@@ -61,42 +61,68 @@ def get_db_connection():
         return sqlite3.connect(db_path)
 
 def get_db_path():
-    """Get database path based on environment"""
-    # Enhanced environment detection for Railway
+    """Get database path based on environment with multiple detection methods"""
+    # Enhanced environment detection for Railway with fallback methods
     railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', '').lower()
     railway_service = os.environ.get('RAILWAY_SERVICE_NAME', '')
     railway_project = os.environ.get('RAILWAY_PROJECT_NAME', '')
+    railway_deployment_id = os.environ.get('RAILWAY_DEPLOYMENT_ID', '')
+    
+    # Additional detection methods
+    port = os.environ.get('PORT', '')
     
     # Check if we're on Railway
-    is_railway = any([railway_env, railway_service, railway_project])
+    is_railway = any([railway_env, railway_service, railway_project, railway_deployment_id])
     
-    print(f"🔍 ENHANCED DB PATH DETERMINATION:")
+    # Create a unique database identifier based on multiple factors
+    env_identifier = 'local'
+    
+    print(f"🔍 ROBUST DB PATH DETERMINATION:")
     print(f"   - RAILWAY_ENVIRONMENT_NAME: {os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')}")
     print(f"   - RAILWAY_SERVICE_NAME: {os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET')}")
     print(f"   - RAILWAY_PROJECT_NAME: {os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET')}")
+    print(f"   - RAILWAY_DEPLOYMENT_ID: {os.environ.get('RAILWAY_DEPLOYMENT_ID', 'NOT_SET')}")
+    print(f"   - PORT: {port}")
     print(f"   - Is Railway: {is_railway}")
-    print(f"   - Processed env: {railway_env}")
     
-    # Railway environment detection
     if is_railway:
-        if railway_env == 'preview' or 'preview' in railway_service.lower():
-            db_path = '/app/data/preview_food_app.db'
-            print(f"   - Selected PREVIEW database: {db_path}")
-            return db_path
-        elif railway_env == 'production' or 'production' in railway_service.lower():
-            db_path = '/app/data/production_food_app.db'
-            print(f"   - Selected PRODUCTION database: {db_path}")
-            return db_path
+        # Method 1: Direct environment name
+        if railway_env == 'preview':
+            env_identifier = 'preview'
+        elif railway_env == 'production':
+            env_identifier = 'production'
+        # Method 2: Service name contains environment
+        elif 'preview' in railway_service.lower():
+            env_identifier = 'preview'
+        elif 'production' in railway_service.lower():
+            env_identifier = 'production'
+        # Method 3: Deployment ID pattern (if Railway uses patterns)
+        elif railway_deployment_id:
+            if 'preview' in railway_deployment_id.lower():
+                env_identifier = 'preview'
+            elif 'prod' in railway_deployment_id.lower():
+                env_identifier = 'production'
+            else:
+                # Use deployment ID as part of path to ensure uniqueness
+                env_identifier = f"railway_{railway_deployment_id[:8]}"
         else:
-            # Default Railway environment
-            db_path = '/app/data/railway_food_app.db'
-            print(f"   - Selected DEFAULT RAILWAY database: {db_path}")
-            return db_path
-    else:
-        # Local development
+            # Fallback: create unique identifier from service name
+            env_identifier = f"railway_{railway_service.lower()}" if railway_service else 'railway_unknown'
+    
+    # Generate database path
+    if env_identifier == 'preview':
+        db_path = '/app/data/preview_food_app.db'
+    elif env_identifier == 'production':
+        db_path = '/app/data/production_food_app.db'
+    elif env_identifier == 'local':
         db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
-        print(f"   - Selected LOCAL database: {db_path}")
-        return db_path
+    else:
+        # Railway environment with unique identifier
+        db_path = f'/app/data/{env_identifier}_food_app.db'
+    
+    print(f"   - Environment identifier: {env_identifier}")
+    print(f"   - Selected database path: {db_path}")
+    return db_path
 
 def init_db():
     db_path = get_db_path()
