@@ -49,16 +49,10 @@ app.add_middleware(
 
 # Database setup
 def get_db_connection():
-    """Get database connection - PostgreSQL if DATABASE_URL exists, otherwise SQLite"""
-    database_url = os.environ.get('DATABASE_URL')
-    
-    if database_url:
-        # Use PostgreSQL
-        return psycopg2.connect(database_url)
-    else:
-        # Fall back to SQLite for local development
-        db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
-        return sqlite3.connect(db_path)
+    """Get database connection using environment-aware path"""
+    # Always use SQLite with environment-specific database path
+    db_path = get_db_path()
+    return sqlite3.connect(db_path)
 
 def get_db_path():
     """Get database path based on environment with multiple detection methods"""
@@ -1193,8 +1187,11 @@ async def delete_family_member(member_id: str):
 
 # Admin endpoints
 @app.get("/api/v1/admin/users")
-async def get_all_users():
+async def get_all_users(authorization: str = Header(None)):
     """Admin endpoint to view all users"""
+    current_user = get_current_user(authorization)
+    if not current_user or not current_user.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin access required")
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
