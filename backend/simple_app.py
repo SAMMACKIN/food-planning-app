@@ -379,7 +379,7 @@ def create_admin_user():
     
     admin_id = 'admin-user-id'
     admin_email = 'admin'
-    admin_password = hash_password('admin')
+    admin_password = hash_password('admin123')  # Changed to 8 characters
     
     cursor.execute('''
         INSERT OR IGNORE INTO users (id, email, hashed_password, name, is_admin)
