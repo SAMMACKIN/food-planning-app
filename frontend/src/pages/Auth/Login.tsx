@@ -43,7 +43,13 @@ const Login: React.FC = () => {
     clearError();
     await login(data);
     if (!error) {
-      navigate('/dashboard');
+      // Check if user is admin after successful login
+      const { user } = useAuthStore.getState();
+      if (user?.is_admin) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     }
   };
 

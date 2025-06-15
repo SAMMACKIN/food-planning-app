@@ -241,7 +241,7 @@ const theme = createTheme({
 });
 
 function App() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, checkAuth, user } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
@@ -276,7 +276,7 @@ function App() {
             <Route path="user-guide" element={<UserGuide />} />
             <Route path="changes" element={<Changes />} />
             <Route path="admin" element={
-              isAuthenticated && useAuthStore.getState().user?.is_admin ? 
+              isAuthenticated && user?.is_admin ? 
                 <AdminDashboard /> : 
                 <Navigate to="/dashboard" />
             } />
