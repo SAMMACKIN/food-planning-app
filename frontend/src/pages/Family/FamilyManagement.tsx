@@ -31,7 +31,7 @@ import { apiRequest } from '../../services/api';
 
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  age: z.number().min(0, 'Age must be 0 or greater').max(120, 'Age must be 120 or less').optional(),
+  age: z.coerce.number().min(0, 'Age must be 0 or greater').max(120, 'Age must be 120 or less').optional().or(z.literal('')),
   dietary_restrictions: z.array(z.string()).optional(),
   food_likes: z.string().optional(),
   food_dislikes: z.string().optional(),
@@ -126,7 +126,7 @@ const FamilyManagement: React.FC = () => {
       setLoading(true);
       const memberData: FamilyMemberCreate = {
         name: data.name,
-        age: data.age,
+        age: data.age === '' || data.age === undefined ? undefined : Number(data.age),
         dietary_restrictions: selectedDietaryRestrictions,
         preferences: {
           likes: data.food_likes ? data.food_likes.split(',').map(s => s.trim()) : [],
@@ -306,13 +306,15 @@ const FamilyManagement: React.FC = () => {
               type="number"
               fullWidth
               variant="outlined"
-              {...register('age', { 
-                valueAsNumber: true,
-                setValueAs: (value) => value === '' ? undefined : Number(value)
-              })}
+              {...register('age')}
               error={!!errors.age}
               helperText={errors.age?.message}
               sx={{ mb: 2 }}
+              inputProps={{
+                min: 0,
+                max: 120,
+                step: 1
+              }}
             />
             
             <TextField
