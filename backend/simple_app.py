@@ -766,6 +766,42 @@ async def check_admin():
     
     conn.close()
 
+@app.post("/api/v1/debug/test-admin-login")
+async def test_admin_login():
+    """Test the complete admin login flow"""
+    # Test login
+    login_data = UserLogin(email="admin", password="admin123")
+    try:
+        token_response = await login(login_data)
+        
+        # Test token verification
+        test_user_id = verify_token(token_response.access_token)
+        
+        # Get user details
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, is_admin, is_active FROM users WHERE id = ?", (test_user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        return {
+            "login_success": True,
+            "token_created": bool(token_response.access_token),
+            "token_valid": bool(test_user_id),
+            "user_found": bool(user),
+            "user_details": {
+                "id": user[0] if user else None,
+                "email": user[1] if user else None,
+                "is_admin": bool(user[2]) if user else None,
+                "is_active": bool(user[3]) if user else None
+            } if user else None
+        }
+    except Exception as e:
+        return {
+            "login_success": False,
+            "error": str(e)
+        }
+
 @app.get("/api/v1/debug/admin-test")
 async def debug_admin_test():
     """Debug endpoint to test admin user existence and authentication"""
@@ -860,19 +896,41 @@ async def register(user_data: UserCreate):
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
+    print(f"🔐 LOGIN ATTEMPT - Email: {user_data.email}")
+    
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id, hashed_password FROM users WHERE email = ?", (user_data.email,))
+    cursor.execute("SELECT id, hashed_password, is_active, is_admin FROM users WHERE email = ?", (user_data.email,))
     user = cursor.fetchone()
-    conn.close()
     
-    if not user or not verify_password(user_data.password, user[1]):
+    if not user:
+        print(f"❌ LOGIN FAILED - User not found: {user_data.email}")
+        conn.close()
         raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    print(f"📋 User found - ID: {user[0]}, Active: {user[2]}, Admin: {user[3]}")
+    
+    password_valid = verify_password(user_data.password, user[1])
+    print(f"🔑 Password verification: {password_valid}")
+    
+    if not password_valid:
+        print(f"❌ LOGIN FAILED - Invalid password for: {user_data.email}")
+        conn.close()
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    if not user[2]:  # Check is_active
+        print(f"❌ LOGIN FAILED - Inactive user: {user_data.email}")
+        conn.close()
+        raise HTTPException(status_code=401, detail="Account is inactive")
+    
+    conn.close()
     
     # Create tokens
     access_token = create_token(user[0])
     refresh_token = create_token(user[0])
+    
+    print(f"✅ LOGIN SUCCESS - User: {user_data.email}, Token created")
     
     return TokenResponse(
         access_token=access_token,
@@ -883,7 +941,11 @@ async def login(user_data: UserLogin):
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_endpoint(authorization: str = Header(None)):
     # Debug logging
-    print(f"🔍 /auth/me called with authorization: {authorization}")
+    print(f"🔍 /auth/me called")
+    print(f"📋 Authorization header present: {bool(authorization)}")
+    
+    if authorization:
+        print(f"🔐 Auth header value (first 20 chars): {authorization[:20]}...")
     
     # If no authorization header, return 401
     if not authorization:
@@ -893,6 +955,8 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
     try:
         current_user = get_current_user_dependency(authorization)
         print(f"✅ Authentication successful for user: {current_user['email']}")
+        print(f"👤 User details - Admin: {current_user['is_admin']}, Active: {current_user['is_active']}")
+        
         return UserResponse(
             id=current_user['id'],
             email=current_user['email'],
@@ -907,6 +971,8 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
         raise e
     except Exception as e:
         print(f"❌ Authentication failed with unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=401, detail="Authentication failed")
 
 @app.delete("/api/v1/auth/delete-account")

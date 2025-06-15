@@ -99,7 +99,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     
     try {
+      console.log('🔍 Checking authentication...');
       const user = await apiRequest<User>('GET', '/auth/me');
+      console.log('✅ Auth check successful:', user);
+      console.log('👤 Is admin?', user.is_admin);
+      
       set({ 
         user, 
         isAuthenticated: true, 
