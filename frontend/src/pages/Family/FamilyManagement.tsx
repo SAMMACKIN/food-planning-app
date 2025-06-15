@@ -31,21 +31,14 @@ import { apiRequest } from '../../services/api';
 
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  age: z.union([z.string(), z.number(), z.undefined()]).optional(),
+  age: z.number().min(0, 'Age must be 0 or greater').max(120, 'Age must be 120 or less').optional(),
   dietary_restrictions: z.array(z.string()).optional(),
   food_likes: z.string().optional(),
   food_dislikes: z.string().optional(),
   preferred_cuisines: z.array(z.string()).optional(),
 });
 
-type FamilyMemberFormData = {
-  name: string;
-  age?: number | undefined;
-  dietary_restrictions?: string[];
-  food_likes?: string;
-  food_dislikes?: string;
-  preferred_cuisines?: string[];
-};
+type FamilyMemberFormData = z.infer<typeof familyMemberSchema>;
 
 const DIETARY_RESTRICTIONS = [
   'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 
@@ -129,21 +122,11 @@ const FamilyManagement: React.FC = () => {
   };
 
   const onSubmit = async (data: FamilyMemberFormData) => {
-    // Validate age if provided
-    if (data.age !== undefined && data.age !== null) {
-      const ageNum = Number(data.age);
-      if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
-        setError('Age must be a number between 0 and 120');
-        setLoading(false);
-        return;
-      }
-    }
-
     try {
       setLoading(true);
       const memberData: FamilyMemberCreate = {
         name: data.name,
-        age: data.age ? Number(data.age) : undefined,
+        age: data.age,
         dietary_restrictions: selectedDietaryRestrictions,
         preferences: {
           likes: data.food_likes ? data.food_likes.split(',').map(s => s.trim()) : [],
@@ -323,7 +306,10 @@ const FamilyManagement: React.FC = () => {
               type="number"
               fullWidth
               variant="outlined"
-              {...register('age')}
+              {...register('age', { 
+                valueAsNumber: true,
+                setValueAs: (value) => value === '' ? undefined : Number(value)
+              })}
               error={!!errors.age}
               helperText={errors.age?.message}
               sx={{ mb: 2 }}
