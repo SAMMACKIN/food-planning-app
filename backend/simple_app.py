@@ -429,7 +429,7 @@ def populate_test_data():
     
     conn.commit()
     conn.close()
-    print(f"✅ Test data populated for {env} environment")
+    print(f"✅ Test data populated for preview environment")
 
 init_db()
 
