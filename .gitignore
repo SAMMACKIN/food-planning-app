@@ -36,4 +36,4 @@ frontend/.env.local
 backend/simple_food_app.db
 backend/food_planning.db
 backend/*.log
-EOF < /dev/null
+EOF < /dev/null*.txt

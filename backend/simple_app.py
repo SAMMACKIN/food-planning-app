@@ -420,6 +420,18 @@ def populate_test_data():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
+    # Create admin user for preview
+    admin_id = 'admin-user-id'
+    admin_email = 'admin'
+    admin_password = hash_password('admin123')
+    
+    cursor.execute('''
+        INSERT OR REPLACE INTO users (id, email, hashed_password, name, is_admin, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (admin_id, admin_email, admin_password, 'Administrator', 1, 1))
+    
+    print("✅ Admin user created/updated in preview environment")
+    
     # Create test user
     test_user_id = 'test-user-123'
     test_email = 'test@example.com'
@@ -731,6 +743,33 @@ populate_test_data()
 @app.get("/")
 async def root():
     return {"message": "Food Planning App API"}
+
+@app.get("/api/v1/debug/check-admin")
+async def check_admin():
+    """Debug endpoint to check admin user status"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id, email, hashed_password, is_admin, is_active FROM users WHERE email = 'admin'")
+    admin = cursor.fetchone()
+    
+    if admin:
+        test_password = hash_password('admin123')
+        return {
+            "admin_exists": True,
+            "admin_id": admin[0],
+            "is_admin": bool(admin[3]),
+            "is_active": bool(admin[4]),
+            "password_match": admin[2] == test_password,
+            "db_path": get_db_path()
+        }
+    else:
+        return {
+            "admin_exists": False,
+            "db_path": get_db_path()
+        }
+    
+    conn.close()
 
 @app.get("/api/v1/debug/admin-test")
 async def debug_admin_test():
