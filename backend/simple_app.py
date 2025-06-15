@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 import sqlite3
 import hashlib
@@ -461,13 +461,39 @@ init_db()
 
 # Models
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     name: Optional[str] = None
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        # Allow 'admin' as a special case
+        if v == 'admin':
+            return v
+        # Otherwise validate as email using simple regex
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(email_pattern, v):
+            return v
+        raise ValueError('Invalid email format')
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        # Allow 'admin' as a special case
+        if v == 'admin':
+            return v
+        # Otherwise validate as email using simple regex
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(email_pattern, v):
+            return v
+        raise ValueError('Invalid email format')
 
 class TokenResponse(BaseModel):
     access_token: str

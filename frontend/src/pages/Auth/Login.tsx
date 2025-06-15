@@ -17,7 +17,13 @@ import { useAuthStore } from '../../store/authStore';
 import { LoginRequest } from '../../types';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().refine((val) => {
+    // Allow 'admin' as special case
+    if (val === 'admin') return true;
+    // Otherwise validate as email
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(val);
+  }, 'Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
