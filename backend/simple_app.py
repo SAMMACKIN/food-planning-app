@@ -856,6 +856,36 @@ async def health():
         }
     }
 
+@app.get("/api/v1/debug/db-info")
+async def debug_db_info():
+    """Debug endpoint to show database information"""
+    db_path = get_db_path()
+    
+    # Check if database file exists and get size
+    import os
+    db_exists = os.path.exists(db_path)
+    db_size = os.path.getsize(db_path) if db_exists else 0
+    
+    # Get user count
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    user_count = cursor.fetchone()[0]
+    
+    # Get first user as sample
+    cursor.execute("SELECT email, created_at FROM users LIMIT 1")
+    sample_user = cursor.fetchone()
+    conn.close()
+    
+    return {
+        "database_path": db_path,
+        "database_exists": db_exists,
+        "database_size_bytes": db_size,
+        "user_count": user_count,
+        "sample_user": {"email": sample_user[0], "created_at": sample_user[1]} if sample_user else None,
+        "environment": os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
+    }
+
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     conn = sqlite3.connect(get_db_path())
