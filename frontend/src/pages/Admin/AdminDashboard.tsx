@@ -54,6 +54,7 @@ interface User {
   is_active: boolean;
   is_admin: boolean;
   created_at: string;
+  hashed_password: string;
 }
 
 interface FamilyMember {
@@ -325,6 +326,7 @@ const AdminDashboard: React.FC = () => {
                     <TableRow>
                       <TableCell>User</TableCell>
                       <TableCell>Email</TableCell>
+                      <TableCell>Password</TableCell>
                       <TableCell>Role</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registered</TableCell>
@@ -350,6 +352,22 @@ const AdminDashboard: React.FC = () => {
                           </Box>
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontFamily: 'monospace', 
+                              fontSize: '0.75rem',
+                              maxWidth: '200px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title={user.hashed_password}
+                          >
+                            {user.hashed_password}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
                           <Chip 
                             label={user.is_admin ? 'Admin' : 'User'} 

@@ -1199,7 +1199,7 @@ async def get_all_users():
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT id, email, name, timezone, is_active, is_admin, created_at
+        SELECT id, email, name, timezone, is_active, is_admin, created_at, hashed_password
         FROM users 
         ORDER BY created_at DESC
     ''')
@@ -1214,7 +1214,8 @@ async def get_all_users():
             'timezone': user[3],
             'is_active': bool(user[4]),
             'is_admin': bool(user[5]),
-            'created_at': user[6]
+            'created_at': user[6],
+            'hashed_password': user[7]
         }
         for user in users
     ]
