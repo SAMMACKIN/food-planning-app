@@ -80,10 +80,10 @@ def get_db_path():
     print(f"   - Is Railway: {is_railway}")
     
     if is_railway:
-        # Method 1: Direct environment name
-        if railway_env == 'preview':
+        # Method 1: Direct environment name (case insensitive)
+        if railway_env.lower() in ['preview', 'pre']:
             env_identifier = 'preview'
-        elif railway_env == 'production':
+        elif railway_env.lower() in ['production', 'prod']:
             env_identifier = 'production'
         # Method 2: Service name contains environment
         elif 'preview' in railway_service.lower():
