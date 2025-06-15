@@ -31,14 +31,14 @@ import { apiRequest } from '../../services/api';
 
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  age: z.preprocess(
-    (val) => {
-      if (val === '' || val === null || val === undefined) return undefined;
-      const num = Number(val);
-      return isNaN(num) ? undefined : num;
-    },
-    z.number().min(0).max(120).optional()
-  ),
+  age: z.string().optional().transform((val) => {
+    if (!val || val === '') return undefined;
+    const num = Number(val);
+    if (isNaN(num) || num < 0 || num > 120) {
+      throw new Error('Age must be between 0 and 120');
+    }
+    return num;
+  }),
   dietary_restrictions: z.array(z.string()).optional(),
   food_likes: z.string().optional(),
   food_dislikes: z.string().optional(),
@@ -133,7 +133,7 @@ const FamilyManagement: React.FC = () => {
       setLoading(true);
       const memberData: FamilyMemberCreate = {
         name: data.name,
-        age: data.age || undefined,
+        age: data.age,
         dietary_restrictions: selectedDietaryRestrictions,
         preferences: {
           likes: data.food_likes ? data.food_likes.split(',').map(s => s.trim()) : [],
