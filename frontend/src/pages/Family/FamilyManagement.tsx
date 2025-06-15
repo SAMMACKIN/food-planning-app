@@ -31,7 +31,14 @@ import { apiRequest } from '../../services/api';
 
 const familyMemberSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  age: z.union([z.number().min(0).max(120), z.literal('')]).optional(),
+  age: z.preprocess(
+    (val) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const num = Number(val);
+      return isNaN(num) ? undefined : num;
+    },
+    z.number().min(0).max(120).optional()
+  ),
   dietary_restrictions: z.array(z.string()).optional(),
   food_likes: z.string().optional(),
   food_dislikes: z.string().optional(),
@@ -126,7 +133,7 @@ const FamilyManagement: React.FC = () => {
       setLoading(true);
       const memberData: FamilyMemberCreate = {
         name: data.name,
-        age: data.age === '' ? undefined : Number(data.age),
+        age: data.age || undefined,
         dietary_restrictions: selectedDietaryRestrictions,
         preferences: {
           likes: data.food_likes ? data.food_likes.split(',').map(s => s.trim()) : [],
@@ -306,7 +313,7 @@ const FamilyManagement: React.FC = () => {
               type="number"
               fullWidth
               variant="outlined"
-              {...register('age', { valueAsNumber: true })}
+              {...register('age')}
               error={!!errors.age}
               helperText={errors.age?.message}
               sx={{ mb: 2 }}

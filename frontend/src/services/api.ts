@@ -14,6 +14,9 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('🔑 Adding Authorization header to request:', config.url);
+  } else {
+    console.log('⚠️ No access token found for request:', config.url);
   }
   return config;
 });
@@ -21,25 +24,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-
-          const { access_token } = response.data;
-          localStorage.setItem('access_token', access_token);
-
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
+    console.error('🔥 API Response Error:', error.response?.status, error.response?.data);
+    
+    // Don't redirect to login on every 401 - let the calling code handle it
+    if (error.response?.status === 401) {
+      console.warn('🚫 401 Unauthorized - token may be invalid');
+      // Only clear tokens and redirect if this is a critical auth failure
+      if (error.response?.data?.detail === 'Invalid token' || 
+          error.response?.data?.detail === 'User not found') {
+        console.log('🧹 Clearing invalid tokens and redirecting to login');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';
@@ -58,6 +51,8 @@ export const apiRequest = async <T>(
   try {
     console.log(`🚀 Making ${method} request to ${api.defaults.baseURL}${url}`, data);
     console.log('🔗 Full URL:', `${api.defaults.baseURL}${url}`);
+    console.log('🔑 Authorization header:', api.defaults.headers?.Authorization || 'Not set');
+    
     const response: AxiosResponse<T> = await api.request({
       method,
       url,
@@ -65,8 +60,14 @@ export const apiRequest = async <T>(
     });
     console.log('✅ API Response received:', response.data);
     return response.data;
-  } catch (error) {
-    console.error('❌ API Error:', error);
+  } catch (error: any) {
+    console.error('❌ API Error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      url: error.config?.url,
+      method: error.config?.method
+    });
     throw error;
   }
 };

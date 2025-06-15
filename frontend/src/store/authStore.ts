@@ -92,8 +92,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false, 
         error: null 
       });
-    } catch (error) {
-      get().logout();
+    } catch (error: any) {
+      console.error('❌ checkAuth failed:', error);
+      
+      // Only logout on specific auth failures, not network errors
+      if (error.response?.status === 401 && 
+          (error.response?.data?.detail === 'Invalid token' || 
+           error.response?.data?.detail === 'User not found' ||
+           error.response?.data?.detail === 'Authorization header missing')) {
+        console.log('🚪 Logging out due to invalid authentication');
+        get().logout();
+      } else {
+        // For other errors, just set loading to false but keep user logged in
+        console.log('⚠️ Authentication check failed but not logging out - might be temporary network issue');
+        set({ isLoading: false, error: 'Connection issue - please refresh' });
+      }
     }
   },
 }));

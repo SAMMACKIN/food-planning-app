@@ -732,6 +732,38 @@ populate_test_data()
 async def root():
     return {"message": "Food Planning App API"}
 
+@app.get("/api/v1/debug/admin-test")
+async def debug_admin_test():
+    """Debug endpoint to test admin user existence and authentication"""
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    # Check if admin user exists
+    cursor.execute("SELECT id, email, hashed_password, name, is_admin FROM users WHERE email = 'admin'")
+    admin_user = cursor.fetchone()
+    
+    if not admin_user:
+        conn.close()
+        return {"status": "ADMIN_NOT_FOUND", "message": "Admin user does not exist in database"}
+    
+    # Test password verification
+    test_password = "admin123"
+    password_valid = verify_password(test_password, admin_user[2])
+    
+    conn.close()
+    
+    return {
+        "status": "SUCCESS",
+        "admin_exists": True,
+        "admin_id": admin_user[0],
+        "admin_email": admin_user[1],
+        "admin_name": admin_user[3],
+        "is_admin": bool(admin_user[4]),
+        "password_valid": password_valid,
+        "test_password": test_password,
+        "db_path": get_db_path()
+    }
+
 @app.get("/health")
 async def health():
     railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
@@ -819,46 +851,29 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
     # Debug logging
     print(f"🔍 /auth/me called with authorization: {authorization}")
     
-    # Try to get authenticated user first
-    if authorization:
-        try:
-            current_user = get_current_user_dependency(authorization)
-            print(f"✅ Authentication successful for user: {current_user['email']}")
-            return UserResponse(
-                id=current_user['id'],
-                email=current_user['email'],
-                name=current_user['name'],
-                timezone=current_user['timezone'],
-                is_active=current_user['is_active'],
-                is_admin=current_user['is_admin'],
-                created_at=current_user['created_at']
-            )
-        except Exception as e:
-            print(f"❌ Authentication failed: {e}")
-            # Continue to fallback
+    # If no authorization header, return 401
+    if not authorization:
+        print("❌ No authorization header provided")
+        raise HTTPException(status_code=401, detail="Authorization header missing")
     
-    # Fallback: return admin user if no authentication (for backward compatibility)
-    print("🔄 Using fallback to admin user")
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE email = 'admin' LIMIT 1")
-    user = cursor.fetchone()
-    conn.close()
-    
-    if not user:
-        print("❌ Admin user not found in database")
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    print(f"✅ Returning admin user: {user[1]}")
-    return UserResponse(
-        id=user[0],
-        email=user[1],
-        name=user[2],
-        timezone=user[3],
-        is_active=bool(user[4]),
-        is_admin=bool(user[5]),
-        created_at=user[6]
-    )
+    try:
+        current_user = get_current_user_dependency(authorization)
+        print(f"✅ Authentication successful for user: {current_user['email']}")
+        return UserResponse(
+            id=current_user['id'],
+            email=current_user['email'],
+            name=current_user['name'],
+            timezone=current_user['timezone'],
+            is_active=current_user['is_active'],
+            is_admin=current_user['is_admin'],
+            created_at=current_user['created_at']
+        )
+    except HTTPException as e:
+        print(f"❌ Authentication failed with HTTP exception: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"❌ Authentication failed with unexpected error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 @app.delete("/api/v1/auth/delete-account")
 async def delete_user_account(authorization: str = None):
