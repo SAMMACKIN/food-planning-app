@@ -70,6 +70,50 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - ✅ ALWAYS work on preview branch
 - ✅ ALWAYS let user test preview environment first
 - ✅ ALWAYS wait for user to say "deploy to production"
+- ✅ ALWAYS make sure the testing rules are followed
+
+### 🛑 CLAUDE TESTING RULES:
+
+1. **Test Scope and Structure**
+   - Create one test file per source file, with matching folder structure.
+   - Name test files clearly (e.g. `test_create_order.py` for `create_order.py`).
+   - Write focused, readable tests that check a single behaviour or outcome.
+
+2. **Test Content**
+   - Cover:
+     - Normal/happy path
+     - Edge cases
+     - Invalid inputs and expected errors
+   - Use real data types and meaningful inputs, not generic placeholders.
+   - Write descriptive test function names (e.g. `test_returns_error_on_invalid_quantity`).
+
+3. **Coverage and Assertions**
+   - Ensure all new code is covered by tests unless explicitly excluded.
+   - Focus on logical paths and business-critical logic.
+   - Use clear, specific assertions (e.g. `assert response.status == "confirmed"` not just `assert response`).
+   - Avoid over-mocking — prefer testing real behaviour when practical.
+
+4. **Maintainability**
+   - Keep tests short, isolated, and fast.
+   - Reuse setup with fixtures or factories where helpful, but don’t over-abstract.
+   - When code is refactored, update or regenerate the corresponding tests.
+   - When code is deleted, remove obsolete tests.
+
+5. **CI Compatibility**
+   - All test code should be runnable via CLI using the designated test runner (e.g. `pytest`, `jest`, `vitest`).
+   - Generated tests must not rely on local-only state or environments unless clearly noted.
+
+6. **Test Naming and Reporting**
+   - Make test names self-explanatory. Avoid comments explaining what a test does — the name should make it obvious.
+   - Ensure failing tests provide meaningful error messages and easy-to-debug failures.
+
+7. **Test Output Format**
+   - Do not inline test code with production code.
+   - Place tests in a separate `tests/` folder with the same structure as the `src/` folder.
+
+Always regenerate or update tests when code is changed. Do not write or return new code without corresponding test coverage unless explicitly told to.
+
+
 
 ### Preview Environment URLs:
 - **Frontend Preview**: https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app

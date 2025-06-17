@@ -1,0 +1,25 @@
+[run]
+source = app
+omit = 
+    */tests/*
+    */venv/*
+    */env/*
+    */__pycache__/*
+    */alembic/*
+    simple_app.py
+    minimal_app.py
+    create_db.py
+    ai_service.py
+    claude_service.py
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov
+title = Food Planning App Coverage Report
+
+[xml]
+output = coverage.xml

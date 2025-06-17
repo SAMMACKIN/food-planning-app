@@ -56,70 +56,98 @@ def get_db_connection():
 
 def get_db_path():
     """Get database path based on environment with multiple detection methods"""
-    # Enhanced environment detection for Railway with fallback methods
+    # Method 1: Check RAILWAY_ENVIRONMENT_NAME (might not be set)
     railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', '').lower()
-    railway_service = os.environ.get('RAILWAY_SERVICE_NAME', '')
-    railway_project = os.environ.get('RAILWAY_PROJECT_NAME', '')
-    railway_deployment_id = os.environ.get('RAILWAY_DEPLOYMENT_ID', '')
     
-    # Additional detection methods
-    port = os.environ.get('PORT', '')
+    # Method 2: Check RAILWAY_PUBLIC_DOMAIN (more reliable)
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').lower()
     
-    # Check if we're on Railway
-    is_railway = any([railway_env, railway_service, railway_project, railway_deployment_id])
+    # Method 3: Check for any Railway environment indication
+    railway_static_url = os.environ.get('RAILWAY_STATIC_URL', '').lower()
     
-    # Create a unique database identifier based on multiple factors
+    # Determine environment
     env_identifier = 'local'
     
-    print(f"🔍 ROBUST DB PATH DETERMINATION:")
+    print(f"🔍 DATABASE PATH DETERMINATION:")
     print(f"   - RAILWAY_ENVIRONMENT_NAME: {os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')}")
-    print(f"   - RAILWAY_SERVICE_NAME: {os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET')}")
-    print(f"   - RAILWAY_PROJECT_NAME: {os.environ.get('RAILWAY_PROJECT_NAME', 'NOT_SET')}")
-    print(f"   - RAILWAY_DEPLOYMENT_ID: {os.environ.get('RAILWAY_DEPLOYMENT_ID', 'NOT_SET')}")
-    print(f"   - PORT: {port}")
-    print(f"   - Is Railway: {is_railway}")
+    print(f"   - RAILWAY_PUBLIC_DOMAIN: {os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'NOT_SET')}")
+    print(f"   - RAILWAY_STATIC_URL: {os.environ.get('RAILWAY_STATIC_URL', 'NOT_SET')}")
+    
+    # Check if we're on Railway at all
+    is_railway = bool(railway_domain or os.environ.get('RAILWAY_PROJECT_ID'))
     
     if is_railway:
-        # Method 1: Direct environment name (case insensitive)
-        if railway_env.lower() in ['preview', 'pre']:
+        # Use domain-based detection (most reliable)
+        if 'preview' in railway_domain or 'preview' in railway_env:
             env_identifier = 'preview'
-        elif railway_env.lower() in ['production', 'prod']:
+        elif 'production' in railway_domain or railway_env == 'production':
             env_identifier = 'production'
-        # Method 2: Service name contains environment
-        elif 'preview' in railway_service.lower():
-            env_identifier = 'preview'
-        elif 'production' in railway_service.lower():
-            env_identifier = 'production'
-        # Method 3: Deployment ID pattern (if Railway uses patterns)
-        elif railway_deployment_id:
-            if 'preview' in railway_deployment_id.lower():
-                env_identifier = 'preview'
-            elif 'prod' in railway_deployment_id.lower():
-                env_identifier = 'production'
-            else:
-                # Use deployment ID as part of path to ensure uniqueness
-                env_identifier = f"railway_{railway_deployment_id[:8]}"
         else:
-            # Fallback: create unique identifier from service name
-            env_identifier = f"railway_{railway_service.lower()}" if railway_service else 'railway_unknown'
+            # Fallback: if neither preview nor production detected, assume production
+            env_identifier = 'production'
     
     # Generate database path
     if env_identifier == 'preview':
         db_path = '/app/data/preview_food_app.db'
     elif env_identifier == 'production':
         db_path = '/app/data/production_food_app.db'
-    elif env_identifier == 'local':
-        db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
     else:
-        # Railway environment with unique identifier
-        db_path = f'/app/data/{env_identifier}_food_app.db'
+        db_path = os.environ.get('DATABASE_PATH', 'simple_food_app.db')
     
     print(f"   - Environment identifier: {env_identifier}")
     print(f"   - Selected database path: {db_path}")
+    
+    return db_path
+
+def ensure_separate_databases():
+    """Ensure preview and production databases are separate"""
+    db_path = get_db_path()
+    
+    # Create a marker table to identify which environment owns this database
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Create environment marker table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS environment_marker (
+            env_name TEXT PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Check current marker
+    cursor.execute("SELECT env_name FROM environment_marker")
+    marker = cursor.fetchone()
+    
+    # Determine current environment
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').lower()
+    railway_env = os.environ.get('RAILWAY_ENVIRONMENT_NAME', '').lower()
+    current_env = 'preview' if ('preview' in railway_domain or 'preview' in railway_env) else 'production'
+    
+    if marker and marker[0] != current_env:
+        conn.close()
+        # Wrong database for this environment!
+        print(f"⚠️  WARNING: Database mismatch! Database is marked as {marker[0]} but we're in {current_env}")
+        print(f"⚠️  This indicates the databases are not properly separated!")
+        
+        # Create new database path with timestamp to force separation
+        import datetime
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        new_db_path = db_path.replace('.db', f'_{current_env}_{timestamp}.db')
+        print(f"🔄 Creating new database at: {new_db_path}")
+        return new_db_path
+    
+    if not marker:
+        # Mark this database
+        cursor.execute("INSERT INTO environment_marker (env_name) VALUES (?)", (current_env,))
+        conn.commit()
+        print(f"✅ Database marked for environment: {current_env}")
+    
+    conn.close()
     return db_path
 
 def init_db():
-    db_path = get_db_path()
+    db_path = ensure_separate_databases()  # Use the new function
     
     # Ensure directory exists with proper error handling
     try:
@@ -884,6 +912,22 @@ async def debug_db_info():
         "user_count": user_count,
         "sample_user": {"email": sample_user[0], "created_at": sample_user[1]} if sample_user else None,
         "environment": os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET')
+    }
+
+@app.get("/api/v1/debug/environment")
+async def debug_environment():
+    """Debug endpoint to see all Railway environment variables"""
+    railway_vars = {k: v for k, v in os.environ.items() if 'RAILWAY' in k.upper()}
+    
+    return {
+        "all_railway_vars": railway_vars,
+        "detected_db_path": get_db_path(),
+        "specific_vars": {
+            "RAILWAY_ENVIRONMENT_NAME": os.environ.get('RAILWAY_ENVIRONMENT_NAME', 'NOT_SET'),
+            "RAILWAY_SERVICE_NAME": os.environ.get('RAILWAY_SERVICE_NAME', 'NOT_SET'),
+            "RAILWAY_ENVIRONMENT": os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET'),
+            "RAILWAY_PUBLIC_DOMAIN": os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'NOT_SET'),
+        }
     }
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
