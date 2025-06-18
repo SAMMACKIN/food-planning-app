@@ -131,10 +131,23 @@ jobs:
         echo "BACKEND_PID=$!" >> $GITHUB_ENV
       env:
         DATABASE_URL: sqlite:///./test_e2e.db
+        PORT: 8000
     
     - name: Wait for backend to be ready
       run: |
-        timeout 30 bash -c 'until curl -f http://localhost:8001/health; do sleep 1; done'
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health; do sleep 1; done'
+    
+    - name: Start frontend server
+      working-directory: ./frontend
+      run: |
+        npm start &
+        echo "FRONTEND_PID=$!" >> $GITHUB_ENV
+      env:
+        REACT_APP_API_URL: http://localhost:8000
+    
+    - name: Wait for frontend to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 1; done'
     
     - name: Run Playwright tests
       working-directory: ./frontend
@@ -151,11 +164,14 @@ jobs:
         path: ./frontend/playwright-report/
         retention-days: 30
     
-    - name: Stop backend server
+    - name: Stop servers
       if: always()
       run: |
         if [ ! -z "$BACKEND_PID" ]; then
           kill $BACKEND_PID || true
+        fi
+        if [ ! -z "$FRONTEND_PID" ]; then
+          kill $FRONTEND_PID || true
         fi
 
   type-check:
