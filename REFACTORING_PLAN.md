@@ -21,21 +21,20 @@ Based on comprehensive analysis, the codebase has significant technical debt wit
 ## Phase 2: Remove Redundant/Obsolete Files (Day 2)
 
 ### Files to Delete:
-- [ ] `backend/minimal_app.py` - Early prototype (18 lines)
-- [ ] `backend/create_db.py` - Auto-creation now handled
-- [ ] `backend/start.sh` - Not needed with Railway
-- [ ] `backend/Procfile` - Incorrect app reference
-- [ ] `Procfile` - Points to wrong minimal_app
-- [ ] `railway-preview.json` - Superseded by railway.json
-- [ ] `nixpacks.toml` - Not needed with current setup
-- [ ] `DEPLOY_NOW.md` - Outdated deployment instructions
-- [ ] `scripts/start-dev.sh` - Mac-specific, not portable
-- [ ] `scripts/stop-dev.sh` - Mac-specific, not portable
-- [ ] `frontend/src/App.css` - Unused CSS
+- [x] `backend/minimal_app.py` - Early prototype (18 lines) ✅ DELETED
+- [x] `backend/create_db.py` - Auto-creation now handled ✅ DELETED
+- [x] `backend/start.sh` - Not needed with Railway ✅ DELETED
+- [x] `backend/Procfile` - Incorrect app reference ✅ DELETED
+- [x] `railway-preview.json` - Superseded by railway.json ✅ DELETED
+- [x] `nixpacks.toml` - Not needed with current setup ✅ DELETED
+- [x] `DEPLOY_NOW.md` - Outdated deployment instructions ✅ DELETED
+- [x] `scripts/start-dev.sh` - Mac-specific, not portable ✅ DELETED
+- [x] `scripts/stop-dev.sh` - Mac-specific, not portable ✅ DELETED
+- [x] `frontend/src/App.css` - Unused CSS ✅ DELETED
 
 ### Configuration Consolidation:
-- [ ] Fix root `Procfile` to point to `simple_app:app`
-- [ ] Consolidate to single `railway.json` configuration
+- [x] Fix root `Procfile` to point to `simple_app:app` ✅ COMPLETED
+- [x] Consolidate to single `railway.json` configuration ✅ COMPLETED
 - [ ] Update deployment documentation
 
 ## Phase 3: Comprehensive Test Suite (Days 3-4)

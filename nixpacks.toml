@@ -1,9 +1,0 @@
-[phases.build]
-nixPkgs = ["python39"]
-
-[start]
-cmd = "mkdir -p /app/data && cd backend && DATABASE_PATH=/app/data/simple_food_app.db python -m uvicorn simple_app:app --host 0.0.0.0 --port $PORT"
-
-# Preview environment configuration
-[variables]
-RAILWAY_ENVIRONMENT_NAME = "preview"
