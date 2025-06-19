@@ -1,31 +1,28 @@
 import pytest
 import tempfile
 import os
+import sqlite3
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from unittest.mock import Mock, patch
 
-from app.db.database import Base, get_db
-from simple_app import app
+import simple_app
 
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a temporary test database"""
+    """Create a temporary test database for simple_app"""
     # Create a temporary file for the test database
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     
-    # Create engine for test database
-    test_engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False}
-    )
+    # Initialize the database with the schema from simple_app
+    conn = sqlite3.connect(db_path)
     
-    # Create all tables
-    Base.metadata.create_all(bind=test_engine)
+    # Create the tables and admin user
+    simple_app.init_database_with_connection(conn)
     
-    yield test_engine, db_path
+    conn.close()
+    
+    yield db_path
     
     # Cleanup
     os.close(db_fd)
@@ -33,63 +30,30 @@ def test_db():
 
 
 @pytest.fixture
-def db_session(test_db):
-    """Create a database session for testing"""
-    engine, _ = test_db
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-@pytest.fixture
 def client(test_db):
-    """Create a test client with a test database"""
-    engine, _ = test_db
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
-    def override_get_db():
-        try:
-            db = TestingSessionLocal()
-            yield db
-        finally:
-            db.close()
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    with TestClient(app) as test_client:
-        yield test_client
-    
-    # Clean up
-    app.dependency_overrides.clear()
+    """Create a test client with test database"""
+    # Mock the get_db_path function to use test database
+    with patch.object(simple_app, 'get_db_path', return_value=test_db):
+        yield TestClient(simple_app.app)
 
 
 @pytest.fixture
-def mock_claude_api():
-    """Mock Claude API responses"""
-    with patch('simple_app.claude_available', True):
-        with patch('simple_app.get_claude_recommendations') as mock_claude:
-            mock_claude.return_value = [
-                {
-                    "name": "Mock AI Recipe",
-                    "description": "AI generated test recipe",
-                    "prep_time": 30,
-                    "difficulty": "Easy",
-                    "servings": 4,
-                    "ingredients_needed": [
-                        {"name": "Test Ingredient", "quantity": "1", "unit": "cup", "have_in_pantry": True}
-                    ],
-                    "instructions": ["Step 1: Test instruction"],
-                    "tags": ["AI-Generated", "test"],
-                    "nutrition_notes": "Test nutrition info",
-                    "pantry_usage_score": 90,
-                    "ai_generated": True
-                }
-            ]
-            yield mock_claude
+def admin_token(client):
+    """Get admin authentication token"""
+    response = client.post("/api/v1/auth/login", json={
+        "email": "admin",
+        "password": "admin123"
+    })
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        pytest.fail(f"Failed to get admin token: {response.status_code} - {response.text}")
+
+
+@pytest.fixture
+def admin_headers(admin_token):
+    """Get authorization headers with admin token"""
+    return {"Authorization": f"Bearer {admin_token}"}
 
 
 @pytest.fixture
@@ -123,6 +87,32 @@ def auth_headers(authenticated_user):
 
 
 @pytest.fixture
+def mock_claude_api():
+    """Mock Claude API responses"""
+    with patch('simple_app.claude_available', True):
+        with patch('simple_app.get_claude_recommendations') as mock_claude:
+            mock_claude.return_value = [
+                {
+                    "name": "Mock AI Recipe",
+                    "description": "AI generated test recipe",
+                    "prep_time": 30,
+                    "difficulty": "Easy",
+                    "servings": 4,
+                    "ingredients_needed": [
+                        {"name": "test ingredient", "amount": "1 cup", "category": "test"}
+                    ],
+                    "instructions": ["Step 1: Test", "Step 2: Verify"],
+                    "tags": ["test", "mock"],
+                    "nutrition_notes": "Test nutrition",
+                    "pantry_usage_score": 0.8,
+                    "ai_generated": True,
+                    "ai_provider": "claude"
+                }
+            ]
+            yield mock_claude
+
+
+@pytest.fixture
 def sample_ingredient():
     """Sample ingredient data for testing"""
     return {
@@ -135,17 +125,17 @@ def sample_ingredient():
 
 
 @pytest.fixture
-def sample_meal():
-    """Sample meal data for testing"""
+def sample_family_member():
+    """Sample family member data for testing"""
     return {
-        "name": "Test Meal",
-        "description": "A test meal",
-        "prep_time": 30,
-        "difficulty": "Easy",
-        "servings": 4,
-        "meal_type": "dinner",
-        "instructions": ["Step 1", "Step 2"],
-        "tags": ["test", "healthy"]
+        "name": "Test Family Member",
+        "age": 25,
+        "dietary_restrictions": ["vegetarian"],
+        "preferences": {
+            "favorite_cuisines": ["italian"],
+            "disliked_ingredients": ["mushrooms"],
+            "spice_tolerance": "medium"
+        }
     }
 
 
@@ -176,18 +166,18 @@ class IngredientFactory:
         }
 
 
-class MealFactory:
-    """Factory for creating test meals"""
+class FamilyMemberFactory:
+    """Factory for creating test family members"""
     
     @staticmethod
-    def create_meal_data(name="Test Meal", meal_type="dinner"):
+    def create_family_member_data(name="Test Member", age=25):
         return {
             "name": name,
-            "description": f"A test {meal_type} meal",
-            "prep_time": 30,
-            "difficulty": "Easy",
-            "servings": 4,
-            "meal_type": meal_type,
-            "instructions": ["Step 1", "Step 2"],
-            "tags": ["test", "healthy"]
+            "age": age,
+            "dietary_restrictions": [],
+            "preferences": {
+                "favorite_cuisines": ["italian"],
+                "disliked_ingredients": [],
+                "spice_tolerance": "medium"
+            }
         }

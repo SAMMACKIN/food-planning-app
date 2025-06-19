@@ -407,6 +407,110 @@ def init_db():
     conn.commit()
     conn.close()
 
+def init_database_with_connection(conn):
+    """Initialize database schema using an existing connection - for testing"""
+    cursor = conn.cursor()
+    
+    # Create all the tables with the same schema as init_db()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            hashed_password TEXT NOT NULL,
+            name TEXT,
+            timezone TEXT DEFAULT 'UTC',
+            is_active BOOLEAN DEFAULT 1,
+            is_admin BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS family_members (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            age INTEGER,
+            dietary_restrictions TEXT DEFAULT '[]',
+            preferences TEXT DEFAULT '{}',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ingredients (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            category TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            calories_per_unit REAL DEFAULT 0,
+            protein_per_unit REAL DEFAULT 0,
+            carbs_per_unit REAL DEFAULT 0,
+            fat_per_unit REAL DEFAULT 0,
+            allergens TEXT DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pantry_items (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            ingredient_id TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            expiration_date DATE,
+            purchase_date DATE DEFAULT CURRENT_DATE,
+            location TEXT DEFAULT 'pantry',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (ingredient_id) REFERENCES ingredients (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_plans (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            date DATE NOT NULL,
+            meal_type TEXT NOT NULL,
+            recipe_name TEXT NOT NULL,
+            servings INTEGER DEFAULT 1,
+            ingredients_used TEXT DEFAULT '[]',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_reviews (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            meal_plan_id TEXT NOT NULL,
+            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            would_make_again BOOLEAN DEFAULT 1,
+            preparation_notes TEXT,
+            reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (meal_plan_id) REFERENCES meal_plans (id)
+        )
+    ''')
+    
+    # Create admin user with bcrypt password
+    admin_id = 'admin-user-id'
+    admin_email = 'admin'
+    admin_password = hash_password('admin123')
+    
+    cursor.execute('''
+        INSERT OR REPLACE INTO users (id, email, hashed_password, name, is_admin, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (admin_id, admin_email, admin_password, 'Administrator', 1, 1))
+    
+    conn.commit()
+
 def create_admin_user():
     """Create admin user after hash_password function is defined"""
     conn = sqlite3.connect(get_db_path())
