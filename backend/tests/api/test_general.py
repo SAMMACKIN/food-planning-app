@@ -11,7 +11,11 @@ class TestGeneralAPI:
         assert response.status_code == 200
         
         data = response.json()
-        assert data == {"status": "healthy"}
+        assert "status" in data
+        assert data["status"] == "healthy"
+        # The health endpoint returns additional diagnostic info
+        assert "environment" in data
+        assert "deployment_info" in data
     
     def test_root_endpoint(self, client):
         """Test the root endpoint"""
