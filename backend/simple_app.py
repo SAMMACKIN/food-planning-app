@@ -3,13 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 import sqlite3
-import hashlib
 import jwt
 import datetime
 import uuid
 import os
 import logging
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 from ai_service import ai_service
 import psycopg2
 import psycopg2.extras
@@ -29,22 +29,35 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Security configuration
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production-" + str(uuid.uuid4()))
+JWT_ALGORITHM = "HS256"
+
+if JWT_SECRET.startswith("your-secret-key-change-in-production"):
+    logger.warning("⚠️  Using default JWT secret! Set JWT_SECRET environment variable in production!")
+
 app = FastAPI(title="Food Planning API")
 
-# CORS middleware
+# CORS middleware - restrict to specific domains
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Local development
+    "https://food-planning-app.vercel.app",  # Production frontend
+    "https://food-planning-app-git-master-sams-projects-c6bbe2f2.vercel.app",  # Production
+    "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Preview
+]
+
+# Add additional origins from environment variable (comma-separated)
+additional_origins = os.getenv("ADDITIONAL_CORS_ORIGINS", "")
+if additional_origins:
+    ALLOWED_ORIGINS.extend([origin.strip() for origin in additional_origins.split(",")])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://food-planning-app.vercel.app",
-        "https://food-planning-app-git-master-sams-projects-c6bbe2f2.vercel.app",
-        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",
-        "https://*.vercel.app",
-        "https://*.netlify.app"
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
 
 # Database setup
@@ -399,6 +412,23 @@ def create_admin_user():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
+    # First, ensure the users table has all required columns
+    try:
+        # Try to add is_admin column if it doesn't exist
+        cursor.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        logger.info("Added is_admin column to users table")
+    except sqlite3.OperationalError:
+        # Column already exists, which is fine
+        pass
+    
+    try:
+        # Try to add is_active column if it doesn't exist
+        cursor.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
+        logger.info("Added is_active column to users table")
+    except sqlite3.OperationalError:
+        # Column already exists, which is fine
+        pass
+    
     admin_id = 'admin-user-id'
     admin_email = 'admin'
     admin_password = hash_password('admin123')  # Changed to 8 characters
@@ -410,6 +440,7 @@ def create_admin_user():
     
     conn.commit()
     conn.close()
+    logger.info("✅ Admin user created/updated successfully")
 
 def populate_test_data():
     """Populate test data only in preview environment"""
@@ -662,25 +693,34 @@ class MealReviewResponse(BaseModel):
     preparation_notes: Optional[str] = None
     reviewed_at: str
 
-# Utility functions
+# Security utility functions
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt"""
+    return pwd_context.hash(password)
 
 def verify_password(password: str, hashed: str) -> bool:
-    return hash_password(password) == hashed
+    """Verify password against bcrypt hash"""
+    return pwd_context.verify(password, hashed)
 
 def create_token(user_id: str) -> str:
+    """Create JWT token with environment-based secret"""
     payload = {
         'sub': user_id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.utcnow()
     }
-    return jwt.encode(payload, 'secret', algorithm='HS256')
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def verify_token(token: str):
+    """Verify JWT token with environment-based secret"""
     try:
-        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload['sub']
-    except:
+    except jwt.ExpiredSignatureError:
+        logger.warning("Token expired")
+        return None
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid token: {e}")
         return None
 
 # Auth dependency
@@ -752,9 +792,17 @@ def get_current_user(authorization: str = None):
     except:
         return None
 
-# Create admin user and populate test data after functions are defined
-create_admin_user()
-populate_test_data()
+# Startup event to initialize data
+@app.on_event("startup")
+async def startup_event():
+    """Initialize admin user and test data on startup"""
+    try:
+        create_admin_user()
+        populate_test_data()
+        logger.info("✅ Application startup completed successfully")
+    except Exception as e:
+        logger.error(f"❌ Startup initialization failed: {e}")
+        # Don't crash the app, just log the error
 
 # Routes
 @app.get("/")
