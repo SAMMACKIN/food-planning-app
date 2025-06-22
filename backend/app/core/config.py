@@ -14,7 +14,7 @@ class Settings:
     
     @property
     def DB_PATH(self) -> str:
-        """Get environment-specific database path"""
+        """Get environment-specific database path with deployment isolation"""
         # Check if DB_PATH is explicitly set
         if os.getenv("DB_PATH"):
             return os.getenv("DB_PATH")
@@ -22,7 +22,21 @@ class Settings:
         # Use environment-specific database files
         env_lower = self.ENVIRONMENT.lower()
         
-        # Handle Railway's specific environment names
+        # Get Railway deployment ID for absolute isolation
+        deployment_id = self.RAILWAY_DEPLOYMENT_ID
+        if deployment_id:
+            # Use deployment ID in filename for guaranteed separation
+            deployment_suffix = deployment_id[:8]  # First 8 chars for brevity
+            if "production" in env_lower or env_lower == "prod":
+                return f"production_{deployment_suffix}_food_app.db"
+            elif "preview" in env_lower or "staging" in env_lower:
+                return f"preview_{deployment_suffix}_food_app.db"
+            elif "test" in env_lower:
+                return f"test_{deployment_suffix}_food_app.db"
+            else:
+                return f"{env_lower}_{deployment_suffix}_food_app.db"
+        
+        # Fallback to environment-only naming
         if "production" in env_lower or env_lower == "prod":
             return "production_food_app.db"
         elif "preview" in env_lower or "staging" in env_lower:
@@ -30,7 +44,6 @@ class Settings:
         elif "test" in env_lower:
             return "test_food_app.db"
         else:
-            # Fallback: use environment name as prefix
             return f"{env_lower}_food_app.db"
     
     # Security
