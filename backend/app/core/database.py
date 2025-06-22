@@ -15,7 +15,15 @@ settings = get_settings()
 def get_db_path() -> str:
     """Get the database file path"""
     db_path = settings.DB_PATH
-    logger.info(f"🗄️ Using database: {db_path} (Environment: {settings.ENVIRONMENT})")
+    deployment_id = settings.RAILWAY_DEPLOYMENT_ID
+    environment = settings.ENVIRONMENT
+    
+    logger.info(f"🗄️ Database Configuration:")
+    logger.info(f"   Environment: {environment}")
+    logger.info(f"   Deployment ID: {deployment_id}")
+    logger.info(f"   Database Path: {db_path}")
+    logger.info(f"   Full Path: {os.path.join(os.getcwd(), db_path)}")
+    
     return db_path
 
 
