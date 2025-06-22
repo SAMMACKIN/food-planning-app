@@ -139,9 +139,17 @@ const getDesignTokens = (mode: PaletteMode) => ({
       styleOverrides: {
         root: {
           borderRadius: 12,
+          backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
           boxShadow: mode === 'light' 
             ? '0 2px 8px rgba(0,0,0,0.1)' 
             : '0 2px 8px rgba(0,0,0,0.3)',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
         },
       },
     },
@@ -165,6 +173,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
       styleOverrides: {
         paper: {
           borderRadius: 12,
+          backgroundColor: mode === 'light' ? '#ffffff' : '#1e1e1e',
         },
       },
     },
