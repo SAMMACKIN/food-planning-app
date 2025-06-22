@@ -19,29 +19,19 @@ class Settings:
         if os.getenv("DB_PATH"):
             return os.getenv("DB_PATH")
         
-        # Debug: Log all environment variables for diagnosis
-        railway_env = os.getenv("RAILWAY_ENVIRONMENT_NAME")
-        regular_env = os.getenv("ENVIRONMENT")
-        print(f"🐛 DEBUG - RAILWAY_ENVIRONMENT_NAME: '{railway_env}'")
-        print(f"🐛 DEBUG - ENVIRONMENT: '{regular_env}'")
-        print(f"🐛 DEBUG - Final ENVIRONMENT: '{self.ENVIRONMENT}'")
-        
         # Use environment-specific database files
         env_lower = self.ENVIRONMENT.lower()
         
         # Handle Railway's specific environment names
         if "production" in env_lower or env_lower == "prod":
-            db_name = "production_food_app.db"
+            return "production_food_app.db"
         elif "preview" in env_lower or "staging" in env_lower:
-            db_name = "preview_food_app.db"
+            return "preview_food_app.db"
         elif "test" in env_lower:
-            db_name = "test_food_app.db"
+            return "test_food_app.db"
         else:
             # Fallback: use environment name as prefix
-            db_name = f"{env_lower}_food_app.db"
-        
-        print(f"🐛 DEBUG - Database file: '{db_name}'")
-        return db_name
+            return f"{env_lower}_food_app.db"
     
     # Security
     JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback-secret-change-in-production")
