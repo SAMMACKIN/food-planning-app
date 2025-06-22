@@ -53,16 +53,13 @@ def create_app() -> FastAPI:
     )
     
     # Import and include routers
-    from .api import auth, family, pantry, recommendations, meal_plans
+    from .api import auth, family, pantry, recommendations, meal_plans, admin
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
     app.include_router(family.router, prefix="/api/v1", tags=["family"])
     app.include_router(pantry.router, prefix="/api/v1", tags=["pantry"])
     app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
     app.include_router(meal_plans.router, prefix="/api/v1", tags=["meal-plans"])
-    
-    # TODO: Include other routers when they are created
-    # from .api import admin
-    # app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+    app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
     
     # Health check endpoint
     @app.get("/health")
