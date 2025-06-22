@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box, Typography, Chip } from '@mui/material';
 import { useAuthStore } from './store/authStore';
 import Layout from './components/Layout/Layout';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
@@ -240,6 +241,51 @@ const theme = createTheme({
   },
 });
 
+// Debug component to show which backend we're pointing to
+const BackendDebugBanner = () => {
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+  const isProduction = apiUrl.includes('production');
+  const isPreview = apiUrl.includes('preview');
+  const isLocal = apiUrl.includes('localhost');
+  
+  let environment = 'Unknown';
+  let color: 'error' | 'warning' | 'info' | 'success' = 'error';
+  
+  if (isProduction) {
+    environment = 'Production';
+    color = 'success';
+  } else if (isPreview) {
+    environment = 'Preview';
+    color = 'warning';
+  } else if (isLocal) {
+    environment = 'Local';
+    color = 'info';
+  }
+  
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999,
+        backgroundColor: isProduction ? '#4caf50' : isPreview ? '#ff9800' : '#2196f3',
+        color: 'white',
+        padding: '4px 8px',
+        textAlign: 'center',
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        borderBottom: '1px solid rgba(255,255,255,0.3)'
+      }}
+    >
+      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
+        Backend: <strong>{environment}</strong> ({apiUrl})
+      </Typography>
+    </Box>
+  );
+};
+
 function App() {
   const { isAuthenticated, isLoading, checkAuth, user } = useAuthStore();
 
@@ -262,7 +308,9 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
+      <BackendDebugBanner />
+      <Box sx={{ paddingTop: '24px' }}>
+        <Router>
         <Routes>
           <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" />} />
@@ -283,6 +331,7 @@ function App() {
           </Route>
         </Routes>
       </Router>
+      </Box>
     </ThemeProvider>
   );
 }
