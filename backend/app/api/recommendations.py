@@ -165,7 +165,7 @@ async def get_meal_recommendations(
             })
         
         # Get recommendations from selected AI provider
-        provider = request.ai_provider or "claude"
+        provider = request.ai_provider or "groq"
         logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations from {provider}")
         logger.info(f"DEBUG: Family members: {len(family_members)}")
         logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
@@ -228,13 +228,13 @@ async def get_recommendation_status():
     return {
         "providers": providers,
         "available_providers": available_providers,
-        "default_provider": "claude" if providers.get("claude") else ("groq" if providers.get("groq") else None),
+        "default_provider": "groq" if providers.get("groq") else ("claude" if providers.get("claude") else None),
         "message": f"Available AI providers: {', '.join(available_providers)}" if available_providers else "No AI providers configured"
     }
 
 
 @router.get("/test")
-async def test_ai_recommendations(provider: str = Query(default="claude")):
+async def test_ai_recommendations(provider: str = Query(default="groq")):
     """Test endpoint to verify AI provider is working"""
     try:
         if not ai_service.is_provider_available(provider):

@@ -358,6 +358,7 @@ const PantryManagement: React.FC = () => {
                   disabled={!!editingItem}
                   filterSelectedOptions
                   loading={loading}
+                  disableCloseOnSelect={!editingItem}
                   onInputChange={(_, newInputValue, reason) => {
                     if (reason === 'input') {
                       setIngredientSearchTerm(newInputValue);

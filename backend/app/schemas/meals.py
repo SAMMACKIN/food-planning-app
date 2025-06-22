@@ -9,7 +9,7 @@ class MealRecommendationRequest(BaseModel):
     num_recommendations: Optional[int] = 5
     meal_type: Optional[str] = None  # breakfast, lunch, dinner, snack
     preferences: Optional[dict] = {}
-    ai_provider: Optional[str] = "claude"  # claude or groq
+    ai_provider: Optional[str] = "groq"  # groq preferred
 
 
 class MealRecommendationResponse(BaseModel):
