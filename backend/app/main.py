@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database import init_database, populate_sample_data
+from .core.database import init_database, populate_sample_data, ensure_separate_databases
 
 
 # Configure logging
@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     logger.info("🚀 Starting Food Planning App API...")
+    ensure_separate_databases()
     init_database()
     populate_sample_data()
     logger.info("✅ Application startup complete")

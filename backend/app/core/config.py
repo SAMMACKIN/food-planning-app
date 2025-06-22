@@ -9,8 +9,25 @@ from typing import Optional
 class Settings:
     """Application settings"""
     
-    # Database
-    DB_PATH: str = os.getenv("DB_PATH", "simple_food_app.db")
+    # Database - Environment-specific database paths
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    
+    @property
+    def DB_PATH(self) -> str:
+        """Get environment-specific database path"""
+        # Check if DB_PATH is explicitly set
+        if os.getenv("DB_PATH"):
+            return os.getenv("DB_PATH")
+        
+        # Otherwise, use environment-specific defaults
+        if self.ENVIRONMENT == "production":
+            return "production_food_app.db"
+        elif self.ENVIRONMENT == "preview":
+            return "preview_food_app.db" 
+        elif "test" in self.ENVIRONMENT.lower():
+            return "test_food_app.db"
+        else:
+            return "development_food_app.db"
     
     # Security
     JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback-secret-change-in-production")
@@ -30,7 +47,6 @@ class Settings:
     # App info
     APP_NAME: str = "Food Planning App API"
     VERSION: str = "1.0.0"
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
     # Deployment info
     RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")

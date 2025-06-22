@@ -14,7 +14,9 @@ settings = get_settings()
 
 def get_db_path() -> str:
     """Get the database file path"""
-    return settings.DB_PATH
+    db_path = settings.DB_PATH
+    logger.info(f"🗄️ Using database: {db_path} (Environment: {settings.ENVIRONMENT})")
+    return db_path
 
 
 def get_db_connection() -> sqlite3.Connection:
@@ -42,12 +44,22 @@ def get_db_cursor():
 
 
 def ensure_separate_databases():
-    """Ensure test and production databases are separate"""
+    """Ensure different environments use separate databases"""
     db_path = get_db_path()
-    if 'test' in db_path.lower():
-        logger.info(f"Using test database: {db_path}")
+    env = settings.ENVIRONMENT
+    
+    logger.info(f"🔒 Database isolation check:")
+    logger.info(f"   Environment: {env}")
+    logger.info(f"   Database file: {db_path}")
+    
+    if env == "production" and "production" not in db_path:
+        logger.warning("⚠️ Production environment not using production database!")
+    elif env == "preview" and "preview" not in db_path:
+        logger.warning("⚠️ Preview environment not using preview database!")
+    elif env == "test" and "test" not in db_path:
+        logger.warning("⚠️ Test environment not using test database!")
     else:
-        logger.info(f"Using production database: {db_path}")
+        logger.info("✅ Database isolation configured correctly")
 
 
 def init_database():
