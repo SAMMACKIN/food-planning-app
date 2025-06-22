@@ -55,7 +55,8 @@ class Settings:
     CORS_ORIGINS: list = [
         "http://localhost:3000",  # Local development
         "https://food-planning-app.vercel.app",  # Production frontend
-        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Preview frontend
+        "https://food-planning-app-preview.vercel.app",  # New preview frontend
+        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Old preview frontend (legacy)
     ]
     
     # Claude AI
