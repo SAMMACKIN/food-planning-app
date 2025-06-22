@@ -10,7 +10,7 @@ class Settings:
     """Application settings"""
     
     # Database - Environment-specific database paths
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    ENVIRONMENT: str = os.getenv("RAILWAY_ENVIRONMENT_NAME", os.getenv("ENVIRONMENT", "development"))
     
     @property
     def DB_PATH(self) -> str:
