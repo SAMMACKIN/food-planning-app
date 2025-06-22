@@ -1,0 +1,61 @@
+/* Food Planning App - Global Styles */
+
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Loading spinner container */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+}
+
+/* Ensure Material-UI components have proper spacing */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Override any default margins/padding that might interfere */
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure proper responsive behavior */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Authentication pages styling */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Dashboard and main app styling */
+.dashboard-container {
+  padding: 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .container {
+    padding: 0 8px;
+  }
+  
+  .dashboard-container {
+    padding: 16px;
+  }
+}
+EOF < /dev/null
