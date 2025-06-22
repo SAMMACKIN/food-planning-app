@@ -47,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 import { apiRequest } from '../../services/api';
+import { ThemeToggle } from '../ThemeToggle';
 
 const Layout: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -219,6 +220,15 @@ const Layout: React.FC = () => {
       
       <Divider sx={{ my: 1 }} />
       
+      {/* Theme Toggle */}
+      <List>
+        <ListItem sx={{ px: 2, py: 1 }}>
+          <ThemeToggle variant="icon" showLabel />
+        </ListItem>
+      </List>
+      
+      <Divider sx={{ my: 1 }} />
+      
       {/* Account Actions */}
       <List>
         <ListItemButton onClick={logout} sx={{ py: 1.5, color: 'warning.main' }}>
@@ -288,6 +298,7 @@ const Layout: React.FC = () => {
               <Typography variant="body2" sx={{ mr: 2, opacity: 0.8 }}>
                 Welcome, {user?.name || user?.email}
               </Typography>
+              <ThemeToggle variant="icon" />
               <Button 
                 color="inherit" 
                 onClick={openDeleteDialog}
@@ -295,6 +306,7 @@ const Layout: React.FC = () => {
                 size="small"
                 startIcon={<DeleteIcon />}
                 sx={{ 
+                  ml: 1,
                   mr: 1,
                   color: 'error.light',
                   '&:hover': { 

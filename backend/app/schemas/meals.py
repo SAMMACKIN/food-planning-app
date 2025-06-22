@@ -9,7 +9,7 @@ class MealRecommendationRequest(BaseModel):
     num_recommendations: Optional[int] = 5
     meal_type: Optional[str] = None  # breakfast, lunch, dinner, snack
     preferences: Optional[dict] = {}
-    ai_provider: Optional[str] = "groq"  # groq preferred
+    ai_provider: Optional[str] = "perplexity"  # perplexity preferred
 
 
 class MealRecommendationResponse(BaseModel):
@@ -79,3 +79,81 @@ class MealReviewResponse(BaseModel):
     would_make_again: bool = True
     preparation_notes: Optional[str] = None
     reviewed_at: str
+
+
+class SavedRecipeCreate(BaseModel):
+    name: str
+    description: str
+    prep_time: int
+    difficulty: str
+    servings: int
+    ingredients_needed: list
+    instructions: list
+    tags: list
+    nutrition_notes: str
+    pantry_usage_score: int
+    ai_generated: Optional[bool] = False
+    ai_provider: Optional[str] = None
+    source: Optional[str] = "recommendation"  # recommendation, manual, imported
+
+
+class SavedRecipeUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    prep_time: Optional[int] = None
+    difficulty: Optional[str] = None
+    servings: Optional[int] = None
+    ingredients_needed: Optional[list] = None
+    instructions: Optional[list] = None
+    tags: Optional[list] = None
+    nutrition_notes: Optional[str] = None
+    pantry_usage_score: Optional[int] = None
+
+
+class SavedRecipeResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    description: str
+    prep_time: int
+    difficulty: str
+    servings: int
+    ingredients_needed: list
+    instructions: list
+    tags: list
+    nutrition_notes: str
+    pantry_usage_score: int
+    ai_generated: bool = False
+    ai_provider: Optional[str] = None
+    source: str = "recommendation"
+    rating: Optional[float] = None  # Average rating
+    times_cooked: int = 0
+    last_cooked: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class RecipeRatingCreate(BaseModel):
+    recipe_id: str
+    rating: int  # 1-5 stars
+    review_text: Optional[str] = None
+    would_make_again: Optional[bool] = True
+    cooking_notes: Optional[str] = None
+
+
+class RecipeRatingUpdate(BaseModel):
+    rating: Optional[int] = None
+    review_text: Optional[str] = None
+    would_make_again: Optional[bool] = None
+    cooking_notes: Optional[str] = None
+
+
+class RecipeRatingResponse(BaseModel):
+    id: str
+    recipe_id: str
+    user_id: str
+    rating: int
+    review_text: Optional[str] = None
+    would_make_again: bool = True
+    cooking_notes: Optional[str] = None
+    created_at: str

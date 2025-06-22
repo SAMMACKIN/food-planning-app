@@ -33,7 +33,7 @@ try:
     import sys
     import os
     # Add the backend directory to Python path to import ai_service
-    backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if backend_dir not in sys.path:
         sys.path.append(backend_dir)
     
@@ -41,13 +41,16 @@ try:
     logger.info("Successfully imported AI service")
 except ImportError as e:
     logger.warning(f"Could not import AI service: {e}")
+    logger.warning(f"Backend dir attempted: {os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}")
+    logger.warning(f"Current sys.path: {sys.path}")
+    
     # Fallback - create a mock service for development
     class MockAIService:
         def is_provider_available(self, provider: str) -> bool:
             return False
         
         def get_available_providers(self) -> dict:
-            return {"claude": False, "groq": False}
+            return {"claude": False, "groq": False, "perplexity": False}
         
         async def get_meal_recommendations(self, **kwargs) -> List[dict]:
             # Return mock recommendation for development
@@ -165,7 +168,7 @@ async def get_meal_recommendations(
             })
         
         # Get recommendations from selected AI provider
-        provider = request.ai_provider or "groq"
+        provider = request.ai_provider or "perplexity"
         logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations from {provider}")
         logger.info(f"DEBUG: Family members: {len(family_members)}")
         logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
@@ -228,13 +231,13 @@ async def get_recommendation_status():
     return {
         "providers": providers,
         "available_providers": available_providers,
-        "default_provider": "groq" if providers.get("groq") else ("claude" if providers.get("claude") else None),
+        "default_provider": "perplexity" if providers.get("perplexity") else ("claude" if providers.get("claude") else ("groq" if providers.get("groq") else None)),
         "message": f"Available AI providers: {', '.join(available_providers)}" if available_providers else "No AI providers configured"
     }
 
 
 @router.get("/test")
-async def test_ai_recommendations(provider: str = Query(default="groq")):
+async def test_ai_recommendations(provider: str = Query(default="perplexity")):
     """Test endpoint to verify AI provider is working"""
     try:
         if not ai_service.is_provider_available(provider):

@@ -11,8 +11,9 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - **Test**: `cd frontend && npm test`
 
 ### Backend (FastAPI)
-- **Start**: `cd backend && python simple_app.py`
+- **Start**: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload`
 - **Test**: `cd backend && python -m pytest`
+- **Legacy Start**: `cd backend && python simple_app.py` (deprecated - use modular app above)
 
 ### Database
 - **Location**: `backend/simple_food_app.db` (SQLite)
@@ -37,6 +38,26 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 ## Environment Variables
 - Frontend: REACT_APP_API_URL=http://localhost:8001
 - Backend: Uses SQLite (no external dependencies needed)
+
+## AI Provider API Keys
+The app supports multiple AI providers for meal recommendations. Add at least one API key to the backend/.env file:
+
+### Perplexity AI (Recommended)
+- Get your API key from: https://www.perplexity.ai/settings/api
+- Add to .env: `PERPLEXITY_API_KEY=your_key_here`
+- Model used: llama-3.1-sonar-small-128k-online
+
+### Claude AI 
+- Get your API key from: https://console.anthropic.com/
+- Add to .env: `ANTHROPIC_API_KEY=your_key_here`
+- Model used: claude-3-haiku-20240307
+
+### Groq (Llama models)
+- Get your API key from: https://console.groq.com/keys
+- Add to .env: `GROQ_API_KEY=your_key_here`
+- Model used: llama-3.1-8b-instant
+
+**Note**: The app will automatically detect which providers are available based on configured API keys.
 
 ## Next Features to Implement
 1. Family member management

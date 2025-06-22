@@ -142,9 +142,70 @@ def init_database():
             user_id TEXT NOT NULL,
             date DATE NOT NULL,
             meal_type TEXT NOT NULL,
-            recipe_name TEXT,
+            meal_name TEXT,
+            meal_description TEXT,
             recipe_data TEXT,
+            ai_generated BOOLEAN DEFAULT FALSE,
+            ai_provider TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create saved_recipes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saved_recipes (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            prep_time INTEGER NOT NULL,
+            difficulty TEXT NOT NULL,
+            servings INTEGER NOT NULL,
+            ingredients_needed TEXT,
+            instructions TEXT,
+            tags TEXT,
+            nutrition_notes TEXT,
+            pantry_usage_score INTEGER DEFAULT 0,
+            ai_generated BOOLEAN DEFAULT FALSE,
+            ai_provider TEXT,
+            source TEXT DEFAULT 'recommendation',
+            times_cooked INTEGER DEFAULT 0,
+            last_cooked TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create recipe_ratings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recipe_ratings (
+            id TEXT PRIMARY KEY,
+            recipe_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            would_make_again BOOLEAN DEFAULT TRUE,
+            cooking_notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recipe_id) REFERENCES saved_recipes (id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create meal_reviews table (for meal plan reviews)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meal_reviews (
+            id TEXT PRIMARY KEY,
+            meal_plan_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            would_make_again BOOLEAN DEFAULT TRUE,
+            preparation_notes TEXT,
+            reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (meal_plan_id) REFERENCES meal_plans (id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -50,6 +50,8 @@ const PantryManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [ingredientSearchTerm, setIngredientSearchTerm] = useState('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollPosition = useRef<number>(0);
 
   const {
     control,
@@ -61,12 +63,37 @@ const PantryManagement: React.FC = () => {
     resolver: zodResolver(pantryItemSchema),
   });
 
-  const fetchPantryItems = async () => {
+  const saveScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      lastScrollPosition.current = scrollContainerRef.current.scrollTop;
+    }
+  };
+
+  const restoreScrollPosition = () => {
+    setTimeout(() => {
+      if (scrollContainerRef.current && lastScrollPosition.current > 0) {
+        scrollContainerRef.current.scrollTop = lastScrollPosition.current;
+      }
+    }, 50);
+  };
+
+  const fetchPantryItems = async (preserveScroll = false) => {
     try {
       setLoading(true);
+      
+      // Save scroll position if requested
+      if (preserveScroll) {
+        saveScrollPosition();
+      }
+      
       const items = await apiRequest<PantryItem[]>('GET', '/pantry');
       setPantryItems(items);
       setError(null);
+      
+      // Restore scroll position after a short delay to allow rendering
+      if (preserveScroll) {
+        restoreScrollPosition();
+      }
     } catch (error: any) {
       setError('Failed to fetch pantry items');
       console.error('Error fetching pantry items:', error);
@@ -106,12 +133,14 @@ const PantryManagement: React.FC = () => {
   }, [ingredientSearchTerm]);
 
   const handleAddItem = () => {
+    saveScrollPosition();
     setEditingItem(null);
     reset({ ingredient_ids: [], quantity: 1, expiration_date: '' });
     setIsDialogOpen(true);
   };
 
   const handleEditItem = (item: PantryItem) => {
+    saveScrollPosition();
     setEditingItem(item);
     reset({
       ingredient_ids: [item.ingredient_id],
@@ -128,7 +157,7 @@ const PantryManagement: React.FC = () => {
 
     try {
       await apiRequest('DELETE', `/pantry/${ingredientId}`);
-      await fetchPantryItems();
+      await fetchPantryItems(true); // Preserve scroll position
     } catch (error: any) {
       setError('Failed to remove pantry item');
       console.error('Error removing pantry item:', error);
@@ -159,10 +188,11 @@ const PantryManagement: React.FC = () => {
         await Promise.all(promises);
       }
 
-      await fetchPantryItems();
+      await fetchPantryItems(true); // Preserve scroll position
       setIsDialogOpen(false);
       reset();
       setError(null);
+      restoreScrollPosition(); // Restore scroll after dialog closes
     } catch (error: any) {
       setError(editingItem ? 'Failed to update pantry item' : 'Failed to add pantry items');
       console.error('Error saving pantry items:', error);
@@ -244,94 +274,111 @@ const PantryManagement: React.FC = () => {
         />
       </Box>
 
-      {filteredItems.length === 0 && !loading ? (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Kitchen sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              {pantryItems.length === 0 ? 'Your pantry is empty' : 'No items match your search'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>
-              {pantryItems.length === 0 
-                ? 'Add ingredients to start tracking your pantry inventory'
-                : 'Try adjusting your search terms'
-              }
-            </Typography>
-            {pantryItems.length === 0 && (
-              <Button variant="contained" startIcon={<Add />} onClick={handleAddItem}>
-                Add Your First Item
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        Object.entries(groupedItems).map(([category, items]) => (
-          <Box key={category} mb={4}>
-            <Typography variant="h6" gutterBottom sx={{ borderBottom: 1, borderColor: 'divider', pb: 1 }}>
-              {category}
-            </Typography>
-            <TableContainer component={Paper} sx={{ mt: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Ingredient</TableCell>
-                    <TableCell align="right">Quantity</TableCell>
-                    <TableCell>Expiration</TableCell>
-                    <TableCell>Allergens</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.ingredient_id}>
-                      <TableCell>
-                        <Typography variant="body1">{item.ingredient.name}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2">
-                          {item.quantity} {item.ingredient.unit}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={formatExpirationDate(item.expiration_date)}
-                          color={getExpirationColor(item.expiration_date) as any}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" flexWrap="wrap" gap={0.5}>
-                          {item.ingredient.allergens.map((allergen, index) => (
-                            <Chip key={index} label={allergen} size="small" variant="outlined" />
-                          ))}
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditItem(item)}
-                          disabled={loading}
-                        >
-                          <Edit />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteItem(item.ingredient_id)}
-                          disabled={loading}
-                        >
-                          <Delete />
-                        </IconButton>
-                      </TableCell>
+      <Box 
+        ref={scrollContainerRef}
+        sx={{ 
+          maxHeight: 'calc(100vh - 200px)', 
+          overflowY: 'auto', 
+          pr: 1 
+        }}
+      >
+        {filteredItems.length === 0 && !loading ? (
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 4 }}>
+              <Kitchen sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                {pantryItems.length === 0 ? 'Your pantry is empty' : 'No items match your search'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={3}>
+                {pantryItems.length === 0 
+                  ? 'Add ingredients to start tracking your pantry inventory'
+                  : 'Try adjusting your search terms'
+                }
+              </Typography>
+              {pantryItems.length === 0 && (
+                <Button variant="contained" startIcon={<Add />} onClick={handleAddItem}>
+                  Add Your First Item
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          Object.entries(groupedItems).map(([category, items]) => (
+            <Box key={category} mb={4}>
+              <Typography variant="h6" gutterBottom sx={{ borderBottom: 1, borderColor: 'divider', pb: 1 }}>
+                {category}
+              </Typography>
+              <TableContainer component={Paper} sx={{ mt: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Ingredient</TableCell>
+                      <TableCell align="right">Quantity</TableCell>
+                      <TableCell>Expiration</TableCell>
+                      <TableCell>Allergens</TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        ))
-      )}
+                  </TableHead>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.ingredient_id}>
+                        <TableCell>
+                          <Typography variant="body1">{item.ingredient.name}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {item.quantity} {item.ingredient.unit}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={formatExpirationDate(item.expiration_date)}
+                            color={getExpirationColor(item.expiration_date) as any}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" flexWrap="wrap" gap={0.5}>
+                            {item.ingredient.allergens.map((allergen, index) => (
+                              <Chip key={index} label={allergen} size="small" variant="outlined" />
+                            ))}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditItem(item)}
+                            disabled={loading}
+                          >
+                            <Edit />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteItem(item.ingredient_id)}
+                            disabled={loading}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          ))
+        )}
+      </Box>
 
-      <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={isDialogOpen} 
+        onClose={() => {
+          setIsDialogOpen(false);
+          restoreScrollPosition();
+        }} 
+        maxWidth="sm" 
+        fullWidth
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogTitle>
             {editingItem ? 'Edit Pantry Item' : 'Add Pantry Items'}
@@ -451,7 +498,13 @@ const PantryManagement: React.FC = () => {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setIsDialogOpen(false)} disabled={loading}>
+            <Button 
+              onClick={() => {
+                setIsDialogOpen(false);
+                restoreScrollPosition();
+              }} 
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" variant="contained" disabled={loading}>

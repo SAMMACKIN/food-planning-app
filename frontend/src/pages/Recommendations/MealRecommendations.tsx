@@ -23,6 +23,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
+  Rating,
+  Checkbox,
+  FormControlLabel,
+  Snackbar,
 } from '@mui/material';
 import {
   Restaurant,
@@ -34,75 +39,105 @@ import {
   Refresh,
   AutoAwesome,
   Settings,
+  Save,
+  Star,
+  CalendarToday,
+  BookmarkAdd,
 } from '@mui/icons-material';
-import { MealRecommendation, MealRecommendationRequest } from '../../types';
-import { apiRequest } from '../../services/api';
+import { MealRecommendation } from '../../types';
+import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';
+import { useRecipes } from '../../hooks/useRecipes';
 
 const MealRecommendations: React.FC = () => {
-  const [recommendations, setRecommendations] = useState<MealRecommendation[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    recommendations,
+    loading,
+    error,
+    availableProviders,
+    selectedProvider,
+    setSelectedProvider,
+    refreshRecommendations,
+    handleMealTypeFilter,
+    clearError
+  } = useRecommendationsCache();
+
+  const {
+    saveRecommendationAsRecipe,
+    addRecommendationToMealPlan,
+    rateRecipe,
+    error: recipeError,
+    clearError: clearRecipeError
+  } = useRecipes();
+
   const [selectedMeal, setSelectedMeal] = useState<MealRecommendation | null>(null);
-  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>('claude');
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [mealPlanDialogOpen, setMealPlanDialogOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [wouldMakeAgain, setWouldMakeAgain] = useState(true);
+  const [cookingNotes, setCookingNotes] = useState('');
+  const [mealDate, setMealDate] = useState('');
+  const [mealType, setMealType] = useState('dinner');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  const checkAIStatus = async () => {
-    try {
-      const status = await apiRequest<{ 
-        available_providers: string[]; 
-        default_provider: string;
-        message: string 
-      }>('GET', '/recommendations/status');
-      
-      setAvailableProviders(status.available_providers);
-      if (status.default_provider) {
-        setSelectedProvider(status.default_provider);
-      }
-    } catch (error) {
-      console.error('Error checking AI status:', error);
+  const handleSaveRecipe = async (meal: MealRecommendation) => {
+    const saved = await saveRecommendationAsRecipe(meal);
+    if (saved) {
+      setSnackbarMessage(`"${meal.name}" saved to your recipes!`);
+      setSnackbarOpen(true);
     }
   };
 
-  const fetchRecommendations = async (request: MealRecommendationRequest = {}) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Add timestamp and AI provider to request
-      const requestWithTimestamp = {
-        ...request,
-        ai_provider: selectedProvider,
-        timestamp: Date.now()
-      };
-      
-      console.log(`Fetching fresh AI recommendations from ${selectedProvider}...`);
-      const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
-      console.log('Received recommendations:', recs.map(r => ({ name: r.name, ai_generated: r.ai_generated, ai_provider: r.ai_provider })));
-      setRecommendations(recs);
-    } catch (error: any) {
-      setError(`Failed to get meal recommendations from ${selectedProvider}`);
-      console.error('Error fetching recommendations:', error);
-    } finally {
-      setLoading(false);
+  const handleOpenMealPlanDialog = (meal: MealRecommendation) => {
+    setSelectedMeal(meal);
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    setMealDate(today);
+    setMealPlanDialogOpen(true);
+  };
+
+  const handleAddToMealPlan = async () => {
+    if (!selectedMeal || !mealDate || !mealType) return;
+
+    const success = await addRecommendationToMealPlan(selectedMeal, mealDate, mealType);
+    if (success) {
+      setSnackbarMessage(`"${selectedMeal.name}" added to ${mealType} on ${mealDate}!`);
+      setSnackbarOpen(true);
+      setMealPlanDialogOpen(false);
     }
   };
 
-  useEffect(() => {
-    checkAIStatus();
-  }, []);
-
-  useEffect(() => {
-    if (availableProviders.length > 0) {
-      fetchRecommendations();
-    }
-  }, [selectedProvider, availableProviders]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleRefresh = () => {
-    fetchRecommendations();
+  const handleOpenRatingDialog = (meal: MealRecommendation) => {
+    setSelectedMeal(meal);
+    // Reset form
+    setRating(5);
+    setReviewText('');
+    setWouldMakeAgain(true);
+    setCookingNotes('');
+    setRatingDialogOpen(true);
   };
 
-  const handleMealTypeFilter = (mealType: string) => {
-    fetchRecommendations({ meal_type: mealType });
+  const handleRateRecipe = async () => {
+    if (!selectedMeal) return;
+
+    // First save the recipe if not already saved
+    const savedRecipe = await saveRecommendationAsRecipe(selectedMeal);
+    if (!savedRecipe) return;
+
+    const success = await rateRecipe({
+      recipe_id: savedRecipe.id,
+      rating,
+      review_text: reviewText || undefined,
+      would_make_again: wouldMakeAgain,
+      cooking_notes: cookingNotes || undefined
+    });
+
+    if (success) {
+      setSnackbarMessage(`Rating submitted for "${selectedMeal.name}"!`);
+      setSnackbarOpen(true);
+      setRatingDialogOpen(false);
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -137,16 +172,23 @@ const MealRecommendations: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<Refresh />}
-          onClick={handleRefresh}
+          onClick={() => refreshRecommendations()}
           disabled={loading}
         >
           Get New Ideas
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+      {(error || recipeError) && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 2 }}
+          onClose={() => {
+            clearError();
+            clearRecipeError();
+          }}
+        >
+          {error || recipeError}
         </Alert>
       )}
 
@@ -173,8 +215,9 @@ const MealRecommendations: React.FC = () => {
                 >
                   {availableProviders.map((provider) => (
                     <MenuItem key={provider} value={provider}>
-                      {provider === 'claude' ? 'Claude (Anthropic)' : 
+                      {provider === 'claude' ? 'Claude AI' : 
                        provider === 'groq' ? 'Groq (Llama)' : 
+                       provider === 'perplexity' ? 'Perplexity AI' :
                        provider.charAt(0).toUpperCase() + provider.slice(1)}
                     </MenuItem>
                   ))}
@@ -191,7 +234,7 @@ const MealRecommendations: React.FC = () => {
           Filter by Meal Type
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap">
-          <Button variant="outlined" onClick={() => fetchRecommendations()}>
+          <Button variant="outlined" onClick={() => refreshRecommendations()}>
             All Meals
           </Button>
           <Button variant="outlined" onClick={() => handleMealTypeFilter('breakfast')}>
@@ -242,8 +285,9 @@ const MealRecommendations: React.FC = () => {
                           />
                           {meal.ai_provider && (
                             <Chip
-                              label={meal.ai_provider === 'claude' ? 'Claude' : 
+                              label={meal.ai_provider === 'claude' ? 'Claude AI' : 
                                      meal.ai_provider === 'groq' ? 'Groq' : 
+                                     meal.ai_provider === 'perplexity' ? 'Perplexity' :
                                      meal.ai_provider.charAt(0).toUpperCase() + meal.ai_provider.slice(1)}
                               color="secondary"
                               size="small"
@@ -326,14 +370,46 @@ const MealRecommendations: React.FC = () => {
                 </CardContent>
 
                 <Box p={2} pt={0}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<Restaurant />}
-                    onClick={() => setSelectedMeal(meal)}
-                  >
-                    View Recipe
-                  </Button>
+                  <Box display="flex" gap={1} mb={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Save />}
+                      onClick={() => handleSaveRecipe(meal)}
+                      sx={{ flex: 1 }}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Star />}
+                      onClick={() => handleOpenRatingDialog(meal)}
+                      sx={{ flex: 1 }}
+                    >
+                      Rate
+                    </Button>
+                  </Box>
+                  <Box display="flex" gap={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<CalendarToday />}
+                      onClick={() => handleOpenMealPlanDialog(meal)}
+                      sx={{ flex: 1 }}
+                    >
+                      Add to Plan
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<Restaurant />}
+                      onClick={() => setSelectedMeal(meal)}
+                      sx={{ flex: 1 }}
+                    >
+                      View Recipe
+                    </Button>
+                  </Box>
                 </Box>
               </Card>
           ))}
@@ -350,7 +426,7 @@ const MealRecommendations: React.FC = () => {
             <Typography variant="body2" color="text.secondary" mb={3}>
               Add some ingredients to your pantry and family members to get personalized meal suggestions
             </Typography>
-            <Button variant="contained" onClick={handleRefresh}>
+            <Button variant="contained" onClick={() => refreshRecommendations()}>
               Get Recommendations
             </Button>
           </CardContent>
@@ -450,13 +526,155 @@ const MealRecommendations: React.FC = () => {
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setSelectedMeal(null)}>Close</Button>
-              <Button variant="contained" color="primary">
+              <Button 
+                startIcon={<Save />} 
+                onClick={() => selectedMeal && handleSaveRecipe(selectedMeal)}
+              >
+                Save Recipe
+              </Button>
+              <Button 
+                startIcon={<Star />}
+                onClick={() => selectedMeal && handleOpenRatingDialog(selectedMeal)}
+              >
+                Rate Recipe
+              </Button>
+              <Button 
+                variant="contained" 
+                startIcon={<CalendarToday />}
+                onClick={() => selectedMeal && handleOpenMealPlanDialog(selectedMeal)}
+              >
                 Add to Meal Plan
               </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
+
+      {/* Rating Dialog */}
+      <Dialog open={ratingDialogOpen} onClose={() => setRatingDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Rate Recipe: {selectedMeal?.name}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography component="legend">Overall Rating</Typography>
+            <Rating
+              name="recipe-rating"
+              value={rating}
+              onChange={(_, newValue) => setRating(newValue || 5)}
+              size="large"
+            />
+          </Box>
+          
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Review (optional)"
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+            placeholder="How was this recipe? Any tips or modifications?"
+            sx={{ mt: 2 }}
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={wouldMakeAgain}
+                onChange={(e) => setWouldMakeAgain(e.target.checked)}
+              />
+            }
+            label="Would make this recipe again"
+            sx={{ mt: 2 }}
+          />
+          
+          <TextField
+            margin="dense"
+            label="Cooking Notes (optional)"
+            fullWidth
+            multiline
+            rows={2}
+            variant="outlined"
+            value={cookingNotes}
+            onChange={(e) => setCookingNotes(e.target.value)}
+            placeholder="Any notes about preparation, substitutions, etc."
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRatingDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleRateRecipe} variant="contained">
+            Submit Rating
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Meal Plan Dialog */}
+      <Dialog open={mealPlanDialogOpen} onClose={() => setMealPlanDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add to Meal Plan: {selectedMeal?.name}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={mealDate}
+            onChange={(e) => setMealDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mt: 2 }}
+          />
+          
+          <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
+            <InputLabel>Meal Type</InputLabel>
+            <Select
+              value={mealType}
+              label="Meal Type"
+              onChange={(e) => setMealType(e.target.value)}
+            >
+              <MenuItem value="breakfast">Breakfast</MenuItem>
+              <MenuItem value="lunch">Lunch</MenuItem>
+              <MenuItem value="dinner">Dinner</MenuItem>
+              <MenuItem value="snack">Snack</MenuItem>
+            </Select>
+          </FormControl>
+          
+          {selectedMeal && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Recipe Summary:
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedMeal.description}
+              </Typography>
+              <Box display="flex" gap={1} mt={1}>
+                <Chip size="small" icon={<Timer />} label={`${selectedMeal.prep_time} min`} />
+                <Chip size="small" icon={<People />} label={`${selectedMeal.servings} servings`} />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMealPlanDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleAddToMealPlan} 
+            variant="contained"
+            disabled={!mealDate || !mealType}
+          >
+            Add to Plan
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+      />
     </Box>
   );
 };

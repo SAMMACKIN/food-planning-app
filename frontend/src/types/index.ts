@@ -191,6 +191,64 @@ export interface MealRecommendationRequest {
   ai_provider?: string;
 }
 
+export interface SavedRecipe {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  prep_time: number;
+  difficulty: string;
+  servings: number;
+  ingredients_needed: IngredientNeeded[];
+  instructions: string[];
+  tags: string[];
+  nutrition_notes: string;
+  pantry_usage_score: number;
+  ai_generated: boolean;
+  ai_provider?: string;
+  source: string;
+  rating?: number;
+  times_cooked: number;
+  last_cooked?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedRecipeCreate {
+  name: string;
+  description: string;
+  prep_time: number;
+  difficulty: string;
+  servings: number;
+  ingredients_needed: IngredientNeeded[];
+  instructions: string[];
+  tags: string[];
+  nutrition_notes: string;
+  pantry_usage_score: number;
+  ai_generated?: boolean;
+  ai_provider?: string;
+  source?: string;
+}
+
+export interface RecipeRating {
+  id: string;
+  recipe_id: string;
+  user_id: string;
+  rating: number;
+  review_text?: string;
+  would_make_again: boolean;
+  cooking_notes?: string;
+  created_at: string;
+}
+
+export interface RecipeRatingCreate {
+  recipe_id: string;
+  rating: number;
+  review_text?: string;
+  would_make_again?: boolean;
+  cooking_notes?: string;
+}
+
 export interface ShoppingListItem {
   ingredient: Ingredient;
   quantity: number;

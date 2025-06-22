@@ -1,5 +1,6 @@
 import os
 import json
+import httpx
 from typing import List, Dict, Any, Optional, Literal
 from anthropic import Anthropic
 from groq import Groq
@@ -14,7 +15,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-AIProvider = Literal["claude", "groq"]
+AIProvider = Literal["claude", "groq", "perplexity"]
 
 class AIService:
     def __init__(self):
@@ -30,18 +31,31 @@ class AIService:
         # Initialize Groq
         self.groq_client = None
         groq_key = os.getenv("GROQ_API_KEY")
+        # Check if key exists and is not empty
+        groq_key = groq_key if groq_key and groq_key.strip() else None
         logger.info(f"Groq API key present: {'Yes' if groq_key else 'No'}")
         if groq_key:
             self.groq_client = Groq(api_key=groq_key)
             logger.info("Groq client initialized successfully")
         else:
-            logger.warning("GROQ_API_KEY not found. Groq will be disabled.")
+            logger.warning("GROQ_API_KEY not found or empty. Groq will be disabled.")
+        
+        # Initialize Perplexity
+        self.perplexity_key = os.getenv("PERPLEXITY_API_KEY")
+        # Check if key exists and is not empty
+        self.perplexity_key = self.perplexity_key if self.perplexity_key and self.perplexity_key.strip() else None
+        logger.info(f"Perplexity API key present: {'Yes' if self.perplexity_key else 'No'}")
+        if self.perplexity_key:
+            logger.info("Perplexity client initialized successfully")
+        else:
+            logger.warning("PERPLEXITY_API_KEY not found or empty. Perplexity will be disabled.")
     
     def get_available_providers(self) -> Dict[str, bool]:
         """Get status of available AI providers"""
         return {
             "claude": self.claude_client is not None,
-            "groq": self.groq_client is not None
+            "groq": self.groq_client is not None,
+            "perplexity": self.perplexity_key is not None
         }
     
     def is_provider_available(self, provider: AIProvider) -> bool:
@@ -50,6 +64,8 @@ class AIService:
             return self.claude_client is not None
         elif provider == "groq":
             return self.groq_client is not None
+        elif provider == "perplexity":
+            return self.perplexity_key is not None
         return False
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -59,7 +75,7 @@ class AIService:
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]] = None,
         num_recommendations: int = 5,
-        provider: AIProvider = "groq"
+        provider: AIProvider = "perplexity"
     ) -> List[Dict[str, Any]]:
         """
         Get AI-powered meal recommendations from specified provider
@@ -73,6 +89,10 @@ class AIService:
             )
         elif provider == "claude" and self.claude_client:
             return await self._get_claude_recommendations(
+                family_members, pantry_items, preferences, num_recommendations
+            )
+        elif provider == "perplexity" and self.perplexity_key:
+            return await self._get_perplexity_recommendations(
                 family_members, pantry_items, preferences, num_recommendations
             )
         else:
@@ -135,6 +155,49 @@ class AIService:
             
         except Exception as e:
             logger.error(f"Groq API error: {e}")
+            raise
+
+    async def _get_perplexity_recommendations(
+        self,
+        family_members: List[Dict[str, Any]],
+        pantry_items: List[Dict[str, Any]],
+        preferences: Optional[Dict[str, Any]],
+        num_recommendations: int
+    ) -> List[Dict[str, Any]]:
+        """Get recommendations from Perplexity"""
+        try:
+            prompt = self._build_recommendation_prompt(
+                family_members, pantry_items, preferences, num_recommendations
+            )
+            
+            logger.info("Calling Perplexity API for meal recommendations...")
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.perplexity.ai/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.perplexity_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-sonar-small-128k-online",
+                        "messages": [
+                            {"role": "user", "content": prompt}
+                        ],
+                        "max_tokens": 4096,
+                        "temperature": 0.7
+                    },
+                    timeout=60.0
+                )
+                response.raise_for_status()
+                data = response.json()
+            
+            recommendations = self._parse_ai_response(data["choices"][0]["message"]["content"], "perplexity")
+            logger.info(f"Perplexity generated {len(recommendations)} recommendations")
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Perplexity API error: {e}")
             raise
 
     def _build_recommendation_prompt(
