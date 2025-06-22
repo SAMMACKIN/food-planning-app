@@ -51,26 +51,39 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - Backend logs are in `backend/simple_backend.log`
 
 ## 🚨 DEPLOYMENT WORKFLOW - ABSOLUTE CRITICAL RULE 🚨
-⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT PREVIEW TESTING** ⚠️
+⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT EXPLICIT USER APPROVAL** ⚠️
 ⚠️ **CLAUDE MUST ALWAYS USE PREVIEW-FIRST WORKFLOW** ⚠️
-⚠️ **USER MUST APPROVE ALL CHANGES BEFORE PRODUCTION** ⚠️
+⚠️ **USER MUST EXPLICITLY SAY "DEPLOY TO PRODUCTION" BEFORE ANY PRODUCTION DEPLOYMENT** ⚠️
+
+### 🛑 CRITICAL DEPLOYMENT VIOLATIONS TO AVOID:
+- ❌ NEVER run commands like `git push origin master` without explicit user approval
+- ❌ NEVER run commands like `git checkout master && git merge preview` without user saying "deploy to production"
+- ❌ NEVER assume user wants production deployment
+- ❌ NEVER deploy to production just because preview works
 
 ### MANDATORY Steps for ALL Changes (NO EXCEPTIONS):
 1. **Work on preview branch ONLY**: `git checkout preview`
 2. **Commit to preview**: `git add . && git commit -m "..."`
-3. **Push to preview**: `git push origin preview` 
+3. **Push to preview ONLY**: `git push origin preview` 
 4. **Test on preview environment**: https://food-planning-app-preview.up.railway.app/
-5. **WAIT for user approval**: User must test and explicitly approve changes
-6. **Only after approval**: `git checkout master && git merge preview && git push origin master`
+5. **STOP AND WAIT**: Do NOT touch production until user explicitly approves
+6. **Only after user says "deploy to production"**: `git checkout master && git merge preview && git push origin master`
 
 ### 🛑 CLAUDE DEPLOYMENT RULES:
-- ❌ NEVER push directly to master branch
+- ❌ NEVER push directly to master branch without explicit approval
 - ❌ NEVER deploy to production without user testing preview first
-- ❌ NEVER assume user approval - wait for explicit confirmation
+- ❌ NEVER assume user approval - wait for explicit "deploy to production" command
+- ❌ NEVER merge to master automatically
 - ✅ ALWAYS work on preview branch
 - ✅ ALWAYS let user test preview environment first
-- ✅ ALWAYS wait for user to say "deploy to production"
-- ✅ ALWAYS make sure the testing rules are followed
+- ✅ ALWAYS wait for user to explicitly say "deploy to production" or "push to production"
+- ✅ ALWAYS ask "Should I deploy this to production?" if uncertain
+
+### 🆘 IF CLAUDE ACCIDENTALLY DEPLOYS TO PRODUCTION:
+1. Immediately revert production: `git checkout master && git reset --hard HEAD~1 && git push origin master --force`
+2. Apologize to user
+3. Confirm preview branch still has the changes
+4. Wait for explicit approval before any future production deployments
 
 ### 🛑 CLAUDE TESTING RULES:
 
