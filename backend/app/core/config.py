@@ -1,43 +1,57 @@
-from pydantic_settings import BaseSettings
-from typing import List
+"""
+Application configuration management
+"""
+import os
+from functools import lru_cache
+from typing import Optional
 
 
-class Settings(BaseSettings):
+class Settings:
+    """Application settings"""
+    
     # Database
-    DATABASE_URL: str = "sqlite:///./food_planning.db"
+    DB_PATH: str = os.getenv("DB_PATH", "simple_food_app.db")
     
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
-    
-    # Claude API
-    CLAUDE_API_KEY: str = ""
-    CLAUDE_MODEL: str = "claude-3-sonnet-20240229"
-    
-    # JWT
-    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
+    # Security
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback-secret-change-in-production")
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
-    # Application
-    DEBUG: bool = True
-    PROJECT_NAME: str = "Food Planning App"
-    VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api/v1"
+    JWT_EXPIRATION_HOURS: int = 24
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list = [
+        "http://localhost:3000",  # Local development
+        "https://food-planning-app.vercel.app",  # Production frontend
+        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Preview frontend
+    ]
     
-    # File Upload
-    MAX_FILE_SIZE: int = 10485760  # 10MB
-    UPLOAD_DIR: str = "uploads/"
+    # Claude AI
+    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     
-    # Rate Limiting
-    RATE_LIMIT_PER_MINUTE: int = 100
+    # App info
+    APP_NAME: str = "Food Planning App API"
+    VERSION: str = "1.0.0"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
-    class Config:
-        env_file = ".env"
-        extra = "allow"
+    # Deployment info
+    RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
+    RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
+    
+    @property
+    def deployment_info(self) -> dict:
+        """Get deployment information"""
+        return {
+            "deployment_id": self.RAILWAY_DEPLOYMENT_ID,
+            "domain": self.RAILWAY_DEPLOYMENT_DOMAIN,
+            "environment": self.ENVIRONMENT
+        }
 
 
-settings = Settings()
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached application settings"""
+    return Settings()
+
+
+# Legacy compatibility - maintain existing imports
+JWT_SECRET = get_settings().JWT_SECRET
+JWT_ALGORITHM = get_settings().JWT_ALGORITHM
