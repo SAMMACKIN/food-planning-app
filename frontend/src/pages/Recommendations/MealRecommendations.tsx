@@ -124,7 +124,7 @@ const MealRecommendations: React.FC = () => {
     const savedRecipe = await saveRecommendationAsRecipe(selectedMeal);
     if (!savedRecipe) return;
 
-    const success = await rateRecipe({
+    const result = await rateRecipe({
       recipe_id: savedRecipe.id,
       rating,
       review_text: reviewText || undefined,
@@ -132,7 +132,7 @@ const MealRecommendations: React.FC = () => {
       cooking_notes: cookingNotes || undefined
     });
 
-    if (success) {
+    if (result) {
       setSnackbarMessage(`Rating submitted for "${selectedMeal.name}"!`);
       setSnackbarOpen(true);
       setRatingDialogOpen(false);
