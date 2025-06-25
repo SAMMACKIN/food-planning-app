@@ -25,7 +25,10 @@ def get_current_user(authorization: str = None):
         return None
     
     token = authorization.split(" ")[1]
-    return verify_token(token)
+    payload = verify_token(token)
+    if payload and 'sub' in payload:
+        return {'id': payload['sub']}
+    return None
 
 
 # Import AI service from existing service module
