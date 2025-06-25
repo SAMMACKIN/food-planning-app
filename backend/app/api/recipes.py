@@ -595,7 +595,7 @@ async def add_recipe_to_meal_plan(
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             meal_plan_id, user_id, meal_date, meal_type, recipe[0], recipe[1],
-            json.dumps(recipe_data), recipe[9], recipe[10]
+            json.dumps(recipe_data), recipe[9] or False, recipe[10]
         ))
         
         conn.commit()

@@ -54,7 +54,7 @@ async def get_meal_plans(
         # Build query with optional date filtering
         if start_date and end_date:
             cursor.execute('''
-                SELECT id, user_id, date, meal_type, recipe_name, recipe_data, created_at
+                SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
                 FROM meal_plans 
                 WHERE user_id = ? AND date BETWEEN ? AND ?
                 ORDER BY date, 
@@ -67,7 +67,7 @@ async def get_meal_plans(
             ''', (user_id, start_date, end_date))
         else:
             cursor.execute('''
-                SELECT id, user_id, date, meal_type, recipe_name, recipe_data, created_at
+                SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
                 FROM meal_plans 
                 WHERE user_id = ?
                 ORDER BY date DESC, 
@@ -85,10 +85,10 @@ async def get_meal_plans(
         for plan in meal_plans:
             # Parse recipe_data from JSON/eval
             try:
-                recipe_data = json.loads(plan[5]) if plan[5] else None
+                recipe_data = json.loads(plan[6]) if plan[6] else None
             except (json.JSONDecodeError, TypeError):
                 try:
-                    recipe_data = eval(plan[5]) if plan[5] else None
+                    recipe_data = eval(plan[6]) if plan[6] else None
                 except:
                     recipe_data = None
             
@@ -98,11 +98,11 @@ async def get_meal_plans(
                 date=plan[2],
                 meal_type=plan[3],
                 meal_name=plan[4] or "",
-                meal_description=None,  # Not in current schema
+                meal_description=plan[5],
                 recipe_data=recipe_data,
-                ai_generated=False,  # Not in current schema
-                ai_provider=None,    # Not in current schema
-                created_at=plan[6]
+                ai_generated=plan[7] or False,
+                ai_provider=plan[8],
+                created_at=plan[9]
             ))
         
         return result
@@ -142,21 +142,24 @@ async def create_meal_plan(
         
         cursor.execute('''
             INSERT INTO meal_plans 
-            (id, user_id, date, meal_type, recipe_name, recipe_data)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             meal_plan_id,
             user_id,
             meal_plan_data.date,
             meal_plan_data.meal_type,
             meal_plan_data.meal_name,
-            recipe_data_str
+            meal_plan_data.meal_description,
+            recipe_data_str,
+            meal_plan_data.ai_generated,
+            meal_plan_data.ai_provider
         ))
         conn.commit()
         
         # Get the created meal plan
         cursor.execute('''
-            SELECT id, user_id, date, meal_type, recipe_name, recipe_data, created_at
+            SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
             FROM meal_plans WHERE id = ?
         ''', (meal_plan_id,))
         meal_plan = cursor.fetchone()
@@ -164,9 +167,9 @@ async def create_meal_plan(
         if not meal_plan:
             raise HTTPException(status_code=500, detail="Failed to create meal plan")
         
-        # Parse recipe_data from JSON
+        # Parse recipe_data from JSON  
         try:
-            recipe_data = json.loads(meal_plan[5]) if meal_plan[5] else None
+            recipe_data = json.loads(meal_plan[6]) if meal_plan[6] else None
         except (json.JSONDecodeError, TypeError):
             recipe_data = None
         
@@ -176,11 +179,11 @@ async def create_meal_plan(
             date=meal_plan[2],
             meal_type=meal_plan[3],
             meal_name=meal_plan[4] or "",
-            meal_description=meal_plan_data.meal_description,
+            meal_description=meal_plan[5],
             recipe_data=recipe_data,
-            ai_generated=meal_plan_data.ai_generated or False,
-            ai_provider=meal_plan_data.ai_provider,
-            created_at=meal_plan[6]
+            ai_generated=meal_plan[7] or False,
+            ai_provider=meal_plan[8],
+            created_at=meal_plan[9]
         )
         
     finally:
@@ -219,8 +222,11 @@ async def update_meal_plan(
         values = []
         
         if meal_plan_data.meal_name is not None:
-            updates.append("recipe_name = ?")
+            updates.append("meal_name = ?")
             values.append(meal_plan_data.meal_name)
+        if meal_plan_data.meal_description is not None:
+            updates.append("meal_description = ?")
+            values.append(meal_plan_data.meal_description)
         if meal_plan_data.recipe_data is not None:
             updates.append("recipe_data = ?")
             values.append(json.dumps(meal_plan_data.recipe_data))
@@ -235,14 +241,14 @@ async def update_meal_plan(
         
         # Get updated meal plan
         cursor.execute('''
-            SELECT id, user_id, date, meal_type, recipe_name, recipe_data, created_at
+            SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
             FROM meal_plans WHERE id = ?
         ''', (meal_plan_id,))
         meal_plan = cursor.fetchone()
         
         # Parse recipe_data from JSON
         try:
-            recipe_data = json.loads(meal_plan[5]) if meal_plan[5] else None
+            recipe_data = json.loads(meal_plan[6]) if meal_plan[6] else None
         except (json.JSONDecodeError, TypeError):
             recipe_data = None
         
@@ -252,11 +258,11 @@ async def update_meal_plan(
             date=meal_plan[2],
             meal_type=meal_plan[3],
             meal_name=meal_plan[4] or "",
-            meal_description=meal_plan_data.meal_description,
+            meal_description=meal_plan[5],
             recipe_data=recipe_data,
-            ai_generated=False,  # Not tracked in current schema
-            ai_provider=None,    # Not tracked in current schema
-            created_at=meal_plan[6]
+            ai_generated=meal_plan[7] or False,
+            ai_provider=meal_plan[8],
+            created_at=meal_plan[9]
         )
         
     finally:
