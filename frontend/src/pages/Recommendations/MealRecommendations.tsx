@@ -79,6 +79,11 @@ const MealRecommendations: React.FC = () => {
   const [mealType, setMealType] = useState('dinner');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [filteredRecommendations, setFilteredRecommendations] = useState<MealRecommendation[]>([]);
+  const [activeFilters, setActiveFilters] = useState({
+    difficulty: 'all',
+    prepTime: 'all'
+  });
 
   const handleSaveRecipe = async (meal: MealRecommendation) => {
     const saved = await saveRecommendationAsRecipe(meal);
@@ -154,6 +159,45 @@ const MealRecommendations: React.FC = () => {
     return 'error';
   };
 
+  const handleDifficultyFilter = (difficulty: string) => {
+    setActiveFilters(prev => ({ ...prev, difficulty }));
+  };
+
+  const handleTimeFilter = (prepTime: string) => {
+    setActiveFilters(prev => ({ ...prev, prepTime }));
+  };
+
+  // Apply filters whenever recommendations or filters change
+  React.useEffect(() => {
+    let filtered = [...recommendations];
+
+    // Apply difficulty filter
+    if (activeFilters.difficulty !== 'all') {
+      filtered = filtered.filter(meal => 
+        meal.difficulty.toLowerCase() === activeFilters.difficulty.toLowerCase()
+      );
+    }
+
+    // Apply prep time filter
+    if (activeFilters.prepTime !== 'all') {
+      filtered = filtered.filter(meal => {
+        const prepTime = meal.prep_time;
+        switch (activeFilters.prepTime) {
+          case 'quick':
+            return prepTime <= 30;
+          case 'medium':
+            return prepTime > 30 && prepTime <= 60;
+          case 'long':
+            return prepTime > 60;
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredRecommendations(filtered);
+  }, [recommendations, activeFilters]);
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -227,29 +271,110 @@ const MealRecommendations: React.FC = () => {
         </Card>
       )}
 
-      {/* Meal Type Filters */}
-      <Box mb={3}>
+      {/* Filters */}
+      <Card sx={{ mb: 3, p: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Filter by Meal Type
+          🔍 Filter Recipes
         </Typography>
-        <Box display="flex" gap={1} flexWrap="wrap">
-          <Button variant="outlined" onClick={() => refreshRecommendations()}>
-            All Meals
-          </Button>
-          <Button variant="outlined" onClick={() => handleMealTypeFilter('breakfast')}>
-            Breakfast
-          </Button>
-          <Button variant="outlined" onClick={() => handleMealTypeFilter('lunch')}>
-            Lunch
-          </Button>
-          <Button variant="outlined" onClick={() => handleMealTypeFilter('dinner')}>
-            Dinner
-          </Button>
-          <Button variant="outlined" onClick={() => handleMealTypeFilter('snack')}>
-            Snacks
-          </Button>
+        
+        <Box mb={2}>
+          <Typography variant="subtitle2" gutterBottom>
+            Meal Type
+          </Typography>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button size="small" variant="outlined" onClick={() => refreshRecommendations()}>
+              All Meals
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('breakfast')}>
+              Breakfast
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('lunch')}>
+              Lunch
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('dinner')}>
+              Dinner
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('snack')}>
+              Snacks
+            </Button>
+          </Box>
         </Box>
-      </Box>
+
+        <Box mb={2}>
+          <Typography variant="subtitle2" gutterBottom>
+            Difficulty
+          </Typography>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button 
+              size="small" 
+              variant={activeFilters.difficulty === 'all' ? 'contained' : 'outlined'} 
+              onClick={() => handleDifficultyFilter('all')}
+            >
+              All Levels
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.difficulty === 'Easy' ? 'contained' : 'outlined'} 
+              color="success" 
+              onClick={() => handleDifficultyFilter('Easy')}
+            >
+              Easy
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.difficulty === 'Medium' ? 'contained' : 'outlined'} 
+              color="warning" 
+              onClick={() => handleDifficultyFilter('Medium')}
+            >
+              Medium
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.difficulty === 'Hard' ? 'contained' : 'outlined'} 
+              color="error" 
+              onClick={() => handleDifficultyFilter('Hard')}
+            >
+              Hard
+            </Button>
+          </Box>
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Preparation Time
+          </Typography>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button 
+              size="small" 
+              variant={activeFilters.prepTime === 'all' ? 'contained' : 'outlined'} 
+              onClick={() => handleTimeFilter('all')}
+            >
+              Any Time
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.prepTime === 'quick' ? 'contained' : 'outlined'} 
+              onClick={() => handleTimeFilter('quick')}
+            >
+              ≤ 30 min
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.prepTime === 'medium' ? 'contained' : 'outlined'} 
+              onClick={() => handleTimeFilter('medium')}
+            >
+              30-60 min
+            </Button>
+            <Button 
+              size="small" 
+              variant={activeFilters.prepTime === 'long' ? 'contained' : 'outlined'} 
+              onClick={() => handleTimeFilter('long')}
+            >
+              > 60 min
+            </Button>
+          </Box>
+        </Box>
+      </Card>
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -262,120 +387,97 @@ const MealRecommendations: React.FC = () => {
         <Box 
           sx={{ 
             display: 'grid', 
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, 
-            gap: 3 
+            gridTemplateColumns: { 
+              xs: '1fr', 
+              sm: 'repeat(2, 1fr)', 
+              md: 'repeat(3, 1fr)', 
+              lg: 'repeat(4, 1fr)' 
+            }, 
+            gap: 2,
+            mb: 4
           }}
         >
-          {recommendations.map((meal, index) => (
-            <Card key={index} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+          {filteredRecommendations.map((meal, index) => (
+            <Card key={index} sx={{ height: '100%', display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
+              <CardContent sx={{ flexGrow: 1, p: 2, '&:last-child': { pb: 1 } }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                  <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.2 }}>
+                    {meal.name}
+                  </Typography>
+                  <Chip
+                    label={`${meal.pantry_usage_score}%`}
+                    color={getPantryScoreColor(meal.pantry_usage_score) as any}
+                    size="small"
+                    sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
+                  />
+                </Box>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ 
+                  fontSize: '0.8rem',
+                  lineHeight: 1.3,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  mb: 1.5
+                }}>
+                  {meal.description}
+                </Typography>
+
+                <Box display="flex" gap={0.5} mb={1.5} flexWrap="wrap">
+                  <Chip
+                    icon={<Timer />}
+                    label={`${meal.prep_time}m`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22 }}
+                  />
+                  <Chip
+                    label={meal.difficulty}
+                    size="small"
+                    color={getDifficultyColor(meal.difficulty) as any}
+                    sx={{ fontSize: '0.7rem', height: 22 }}
+                  />
+                  <Chip
+                    icon={<People />}
+                    label={`${meal.servings}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22 }}
+                  />
+                </Box>
+
+                <Box mb={1.5}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', mb: 0.5, display: 'block' }}>
+                    Need to buy:
+                  </Typography>
                   <Box>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        {meal.name}
+                    {meal.ingredients_needed.filter(ing => !ing.have_in_pantry).slice(0, 3).map((ingredient, ingredientIndex) => (
+                      <Typography key={ingredientIndex} variant="caption" sx={{ 
+                        fontSize: '0.75rem', 
+                        display: 'block',
+                        color: 'text.secondary'
+                      }}>
+                        • {ingredient.name}
                       </Typography>
-                      {meal.ai_generated && (
-                        <Box display="flex" gap={1} flexWrap="wrap">
-                          <Chip
-                            icon={<AutoAwesome />}
-                            label="AI Generated"
-                            color="primary"
-                            size="small"
-                          />
-                          {meal.ai_provider && (
-                            <Chip
-                              label={meal.ai_provider === 'claude' ? 'Claude AI' : 
-                                     meal.ai_provider === 'groq' ? 'Groq' : 
-                                     meal.ai_provider === 'perplexity' ? 'Perplexity' :
-                                     meal.ai_provider.charAt(0).toUpperCase() + meal.ai_provider.slice(1)}
-                              color="secondary"
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      )}
-                    </Box>
-                    <Chip
-                      label={`${meal.pantry_usage_score}%`}
-                      color={getPantryScoreColor(meal.pantry_usage_score) as any}
-                      size="small"
-                      title="Pantry Usage Score"
-                    />
+                    ))}
+                    {meal.ingredients_needed.filter(ing => !ing.have_in_pantry).length > 3 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                        +{meal.ingredients_needed.filter(ing => !ing.have_in_pantry).length - 3} more
+                      </Typography>
+                    )}
                   </Box>
-                  
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {meal.description}
-                  </Typography>
-
-                  <Box display="flex" gap={1} mb={2} flexWrap="wrap">
-                    <Chip
-                      icon={<Timer />}
-                      label={`${meal.prep_time} min`}
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      label={meal.difficulty}
-                      size="small"
-                      color={getDifficultyColor(meal.difficulty) as any}
-                    />
-                    <Chip
-                      icon={<People />}
-                      label={`${meal.servings} servings`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-
-                  <Box mb={2}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Tags:
-                    </Typography>
-                    <Box display="flex" gap={0.5} flexWrap="wrap">
-                      {meal.tags.map((tag, tagIndex) => (
-                        <Chip key={tagIndex} label={tag} size="small" variant="outlined" />
-                      ))}
-                    </Box>
-                  </Box>
-
-                  <Box mb={2}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Ingredients needed:
-                    </Typography>
-                    <Box>
-                      {meal.ingredients_needed.slice(0, 3).map((ingredient, ingredientIndex) => (
-                        <Box key={ingredientIndex} display="flex" alignItems="center" gap={1}>
-                          {ingredient.have_in_pantry ? 
-                            <CheckCircle color="success" sx={{ fontSize: 16 }} /> : 
-                            <RadioButtonUnchecked color="disabled" sx={{ fontSize: 16 }} />
-                          }
-                          <Typography variant="caption">
-                            {ingredient.name} ({ingredient.quantity} {ingredient.unit})
-                          </Typography>
-                        </Box>
-                      ))}
-                      {meal.ingredients_needed.length > 3 && (
-                        <Typography variant="caption" color="text.secondary">
-                          +{meal.ingredients_needed.length - 3} more ingredients
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-
-                  <Typography variant="body2" color="primary" sx={{ fontStyle: 'italic' }}>
-                    {meal.nutrition_notes}
-                  </Typography>
+                </Box>
                 </CardContent>
 
-                <Box p={2} pt={0}>
-                  <Box display="flex" gap={1} mb={1}>
+                <Box sx={{ p: 1.5, pt: 0 }}>
+                  <Box display="flex" gap={0.5} mb={0.5}>
                     <Button
                       size="small"
                       variant="outlined"
                       startIcon={<Save />}
                       onClick={() => handleSaveRecipe(meal)}
-                      sx={{ flex: 1 }}
+                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
                     >
                       Save
                     </Button>
@@ -384,35 +486,52 @@ const MealRecommendations: React.FC = () => {
                       variant="outlined"
                       startIcon={<Star />}
                       onClick={() => handleOpenRatingDialog(meal)}
-                      sx={{ flex: 1 }}
+                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
                     >
                       Rate
                     </Button>
                   </Box>
-                  <Box display="flex" gap={1}>
+                  <Box display="flex" gap={0.5}>
                     <Button
                       size="small"
                       variant="outlined"
                       startIcon={<CalendarToday />}
                       onClick={() => handleOpenMealPlanDialog(meal)}
-                      sx={{ flex: 1 }}
+                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
                     >
-                      Add to Plan
+                      Plan
                     </Button>
                     <Button
                       size="small"
                       variant="contained"
                       startIcon={<Restaurant />}
                       onClick={() => setSelectedMeal(meal)}
-                      sx={{ flex: 1 }}
+                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
                     >
-                      View Recipe
+                      View
                     </Button>
                   </Box>
                 </Box>
               </Card>
           ))}
         </Box>
+      )}
+
+      {filteredRecommendations.length === 0 && recommendations.length > 0 && !loading && (
+        <Card>
+          <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <Restaurant sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No recipes match your filters
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+              Try adjusting your difficulty or time filters to see more options
+            </Typography>
+            <Button variant="outlined" onClick={() => setActiveFilters({ difficulty: 'all', prepTime: 'all' })}>
+              Clear Filters
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {recommendations.length === 0 && !loading && (
