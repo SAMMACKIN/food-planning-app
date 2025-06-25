@@ -35,8 +35,8 @@ const Dashboard: React.FC = () => {
       icon: FamilyRestroom,
       action: () => navigate('/family'),
       actionLabel: 'Manage Family',
-      color: theme.palette.primary.main,
-      gradient: 'linear-gradient(135deg, #2e7d32 0%, #60ad5e 100%)',
+      color: theme.palette.success.main,
+      gradient: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
     },
     {
       title: 'Pantry',
@@ -44,8 +44,8 @@ const Dashboard: React.FC = () => {
       icon: Kitchen,
       action: () => navigate('/pantry'),
       actionLabel: 'View Pantry',
-      color: theme.palette.secondary.main,
-      gradient: 'linear-gradient(135deg, #ff6f00 0%, #ffa040 100%)',
+      color: theme.palette.warning.main,
+      gradient: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.light} 100%)`,
     },
     {
       title: 'Meal Plans',
@@ -53,8 +53,8 @@ const Dashboard: React.FC = () => {
       icon: CalendarMonth,
       action: () => navigate('/meal-planning'),
       actionLabel: 'Plan Meals',
-      color: '#1976d2',
-      gradient: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+      color: theme.palette.info.main,
+      gradient: `linear-gradient(135deg, ${theme.palette.info.main} 0%, ${theme.palette.info.light} 100%)`,
     },
     {
       title: 'Recipes',
@@ -62,8 +62,8 @@ const Dashboard: React.FC = () => {
       icon: Restaurant,
       action: () => navigate('/recommendations'),
       actionLabel: 'Get Recipes',
-      color: '#9c27b0',
-      gradient: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+      color: theme.palette.primary.main,
+      gradient: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
     },
   ];
 
@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
           component="h1" 
           sx={{ 
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #2e7d32 0%, #60ad5e 100%)',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
                 transition: 'all 0.3s ease',
                 background: isMobile 
                   ? `linear-gradient(135deg, ${card.color}08 0%, ${card.color}04 100%)`
-                  : 'white',
+                  : 'transparent', // Use theme background instead of hardcoded white
                 border: isMobile ? `1px solid ${card.color}20` : 'none',
                 '&:hover': {
                   transform: 'translateY(-4px)',
