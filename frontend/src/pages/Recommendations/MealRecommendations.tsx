@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -42,7 +42,6 @@ import {
   Save,
   Star,
   CalendarToday,
-  BookmarkAdd,
 } from '@mui/icons-material';
 import { MealRecommendation } from '../../types';
 import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';

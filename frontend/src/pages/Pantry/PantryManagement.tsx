@@ -117,6 +117,7 @@ const PantryManagement: React.FC = () => {
   useEffect(() => {
     fetchPantryItems();
     fetchIngredients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Search ingredients when search term changes

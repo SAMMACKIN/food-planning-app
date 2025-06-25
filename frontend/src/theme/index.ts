@@ -217,15 +217,30 @@ const getDesignTokens = (mode: PaletteMode) => ({
   spacing: 8, // 8px base unit
   shadows: mode === 'light' ? [
     'none',
-    '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)', // subtle
-    '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', // small
-    '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', // medium
-    '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', // large
-    '0 25px 50px -12px rgba(0, 0, 0, 0.25)', // xl
-    '0 25px 50px -12px rgba(0, 0, 0, 0.25)', // 2xl
-    '0 25px 50px -12px rgba(0, 0, 0, 0.25)', // 3xl
-    // ... fill the rest with the last shadow
-    ...Array(17).fill('0 25px 50px -12px rgba(0, 0, 0, 0.25)')
+    '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
   ] : [
     'none',
     '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2)',
@@ -235,8 +250,23 @@ const getDesignTokens = (mode: PaletteMode) => ({
     '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
     '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
     '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-    // ... fill the rest
-    ...Array(17).fill('0 25px 50px -12px rgba(0, 0, 0, 0.5)')
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
   ],
   components: {
     // CssBaseline for consistent styling
@@ -782,7 +812,7 @@ const getDesignTokens = (mode: PaletteMode) => ({
 
 export const createAppTheme = (mode: PaletteMode): Theme => {
   const tokens = getDesignTokens(mode);
-  return createTheme(tokens);
+  return createTheme(tokens as any); // Bypass strict typing for complex theme
 };
 
 // Export default themes

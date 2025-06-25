@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,7 +22,6 @@ const loginSchema = z.object({
 });
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuthStore();
 
   const {

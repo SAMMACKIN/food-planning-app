@@ -22,7 +22,7 @@ import {
   Checkbox,
   Divider,
 } from '@mui/material';
-import { Add, Delete, CalendarToday, Restaurant, RateReview, Star } from '@mui/icons-material';
+import { Add, Delete, CalendarToday, Restaurant, RateReview } from '@mui/icons-material';
 import { apiRequest } from '../../services/api';
 import { MealRecommendation as ImportedMealRecommendation } from '../../types';
 
@@ -136,6 +136,7 @@ const MealPlanning: React.FC = () => {
 
   useEffect(() => {
     fetchMealPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeekStart]);
 
   useEffect(() => {
