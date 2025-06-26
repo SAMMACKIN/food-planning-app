@@ -1,10 +1,27 @@
 {
-  "buildCommand": "cd frontend && chmod +x build-for-branch.sh && ./build-for-branch.sh",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install",
-  "functions": {
-    "frontend/src/**/*.{js,ts,tsx}": {
-      "maxDuration": 30
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build",
+        "buildCommand": "chmod +x build-for-branch.sh && ./build-for-branch.sh"
+      }
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
