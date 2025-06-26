@@ -64,7 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(family.router, prefix="/api/v1", tags=["family"])
     app.include_router(pantry.router, prefix="/api/v1", tags=["pantry"])
     app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
-    app.include_router(recipes.router, prefix="/api/v1", tags=["recipes"])
+    app.include_router(recipes.router, prefix="/api/v1/recipes", tags=["recipes"])
     app.include_router(meal_plans.router, prefix="/api/v1", tags=["meal-plans"])
     app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
     

@@ -16,7 +16,7 @@ from ..schemas.meals import (
     RecipeRatingCreate, RecipeRatingUpdate, RecipeRatingResponse
 )
 
-router = APIRouter(prefix="/recipes", tags=["recipes"])
+router = APIRouter(tags=["recipes"])
 logger = logging.getLogger(__name__)
 
 
