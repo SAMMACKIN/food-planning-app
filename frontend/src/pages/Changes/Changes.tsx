@@ -24,6 +24,10 @@ import {
   CalendarToday,
   People,
   Kitchen,
+  FilterList,
+  MenuBook,
+  Star,
+  Refresh,
 } from '@mui/icons-material';
 
 interface ChangeEntry {
@@ -38,6 +42,58 @@ interface ChangeEntry {
 }
 
 const changeHistory: ChangeEntry[] = [
+  {
+    version: "1.5.0",
+    date: "June 2025",
+    type: "major",
+    changes: [
+      {
+        type: "feature",
+        description: "Recipe Cards Redesign - Compact 4x3 grid layout showing 12 recipes per page",
+        icon: <Restaurant />
+      },
+      {
+        type: "feature",
+        description: "Advanced Recipe Filtering - Filter by difficulty, preparation time, and meal type",
+        icon: <FilterList />
+      },
+      {
+        type: "feature",
+        description: "Enhanced Cooking Instructions - Step-by-step visual guide with numbered circles and connecting lines",
+        icon: <MenuBook />
+      },
+      {
+        type: "feature",
+        description: "User Recipe Creation - Create and save your own custom recipes with full ingredient and instruction management",
+        icon: <Add />
+      },
+      {
+        type: "feature",
+        description: "Smart AI Learning - AI now learns from your recipe ratings to suggest better personalized recommendations",
+        icon: <Star />
+      },
+      {
+        type: "feature",
+        description: "Recipe Similarity Prevention - AI avoids suggesting recipes too similar to recently saved or poorly rated ones",
+        icon: <Refresh />
+      },
+      {
+        type: "improvement",
+        description: "Enhanced Recipe Saving Debug Tools - Comprehensive troubleshooting capabilities with detailed error logging",
+        icon: <BugReport />
+      },
+      {
+        type: "improvement",
+        description: "Better Error Handling - Improved error messages and user feedback throughout the recipe system",
+        icon: <AutoAwesome />
+      },
+      {
+        type: "improvement",
+        description: "Reusable Recipe Components - Created modular components for better code maintainability",
+        icon: <Build />
+      }
+    ]
+  },
   {
     version: "1.4.0",
     date: "June 2025",

@@ -31,15 +31,55 @@ export const useRecipes = () => {
   const saveRecipe = useCallback(async (recipeData: SavedRecipeCreate): Promise<SavedRecipe | null> => {
     try {
       setError(null);
+      console.log('🍽️ Saving recipe:', recipeData.name);
+      console.log('📋 Recipe data:', recipeData);
+      
+      // Check authentication before attempting save
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        const errorMsg = 'No authentication token found. Please log in again.';
+        console.error('❌', errorMsg);
+        setError(errorMsg);
+        return null;
+      }
+      
+      console.log('🔑 Token exists, length:', token.length);
+      
       const savedRecipe = await apiRequest<SavedRecipe>('POST', '/recipes', recipeData);
+      console.log('✅ Recipe saved successfully:', savedRecipe);
       
       // Add to local state
       setSavedRecipes(prev => [savedRecipe, ...prev]);
       
       return savedRecipe;
     } catch (error: any) {
-      console.error('Error saving recipe:', error);
-      setError('Failed to save recipe');
+      console.error('❌ Error saving recipe:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      
+      let errorMessage = 'Failed to save recipe';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 422) {
+        errorMessage = 'Invalid recipe data. Please check all fields.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
       return null;
     }
   }, []);
@@ -83,7 +123,20 @@ export const useRecipes = () => {
   const rateRecipe = useCallback(async (ratingData: RecipeRatingCreate): Promise<RecipeRating | null> => {
     try {
       setError(null);
+      console.log('⭐ Rating recipe:', ratingData.recipe_id, 'with', ratingData.rating, 'stars');
+      console.log('📋 Rating data:', ratingData);
+      
+      // Check authentication before attempting rating
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        const errorMsg = 'No authentication token found. Please log in again.';
+        console.error('❌', errorMsg);
+        setError(errorMsg);
+        return null;
+      }
+      
       const rating = await apiRequest<RecipeRating>('POST', `/recipes/${ratingData.recipe_id}/ratings`, ratingData);
+      console.log('✅ Recipe rated successfully:', rating);
       
       // Update local recipe state with new average rating (approximation)
       setSavedRecipes(prev => prev.map(recipe => {
@@ -99,8 +152,31 @@ export const useRecipes = () => {
       
       return rating;
     } catch (error: any) {
-      console.error('Error rating recipe:', error);
-      setError('Failed to rate recipe');
+      console.error('❌ Error rating recipe:', error);
+      console.error('❌ Rating error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        recipeId: ratingData.recipe_id
+      });
+      
+      let errorMessage = 'Failed to rate recipe';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Recipe not found. It may have been deleted.';
+      } else if (error.response?.status === 422) {
+        errorMessage = 'Invalid rating data. Please check your rating.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
       return null;
     }
   }, []);
@@ -112,11 +188,48 @@ export const useRecipes = () => {
   ): Promise<boolean> => {
     try {
       setError(null);
+      console.log('📅 Adding recipe to meal plan:', {recipeId, mealDate, mealType});
+      
+      // Check authentication before attempting
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        const errorMsg = 'No authentication token found. Please log in again.';
+        console.error('❌', errorMsg);
+        setError(errorMsg);
+        return false;
+      }
+      
       await apiRequest('POST', `/recipes/${recipeId}/add-to-meal-plan?meal_date=${mealDate}&meal_type=${mealType}`);
+      console.log('✅ Recipe added to meal plan successfully');
       return true;
     } catch (error: any) {
-      console.error('Error adding recipe to meal plan:', error);
-      setError(error.response?.data?.detail || 'Failed to add recipe to meal plan');
+      console.error('❌ Error adding recipe to meal plan:', error);
+      console.error('❌ Meal plan error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        recipeId,
+        mealDate,
+        mealType
+      });
+      
+      let errorMessage = 'Failed to add recipe to meal plan';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Recipe not found. It may have been deleted.';
+      } else if (error.response?.status === 400) {
+        errorMessage = 'Invalid meal plan data or slot already occupied.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
       return false;
     }
   }, []);

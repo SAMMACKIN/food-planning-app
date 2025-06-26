@@ -75,7 +75,10 @@ class AIService:
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]] = None,
         num_recommendations: int = 5,
-        provider: AIProvider = "perplexity"
+        provider: AIProvider = "perplexity",
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """
         Get AI-powered meal recommendations from specified provider
@@ -85,15 +88,15 @@ class AIService:
         
         if provider == "groq" and self.groq_client:
             return await self._get_groq_recommendations(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
         elif provider == "claude" and self.claude_client:
             return await self._get_claude_recommendations(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
         elif provider == "perplexity" and self.perplexity_key:
             return await self._get_perplexity_recommendations(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
         else:
             logger.error(f"Provider {provider} not available or not configured")
@@ -104,12 +107,15 @@ class AIService:
         family_members: List[Dict[str, Any]],
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]],
-        num_recommendations: int
+        num_recommendations: int,
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Get recommendations from Claude"""
         try:
             prompt = self._build_recommendation_prompt(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
             
             logger.info("Calling Claude API for meal recommendations...")
@@ -133,12 +139,15 @@ class AIService:
         family_members: List[Dict[str, Any]],
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]],
-        num_recommendations: int
+        num_recommendations: int,
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Get recommendations from Groq"""
         try:
             prompt = self._build_recommendation_prompt(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
             
             logger.info("Calling Groq API for meal recommendations...")
@@ -162,12 +171,15 @@ class AIService:
         family_members: List[Dict[str, Any]],
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]],
-        num_recommendations: int
+        num_recommendations: int,
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Get recommendations from Perplexity"""
         try:
             prompt = self._build_recommendation_prompt(
-                family_members, pantry_items, preferences, num_recommendations
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
             )
             
             logger.info("Calling Perplexity API for meal recommendations...")
@@ -205,7 +217,10 @@ class AIService:
         family_members: List[Dict[str, Any]],
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]],
-        num_recommendations: int
+        num_recommendations: int,
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """Build a comprehensive prompt for AI models"""
         
@@ -248,6 +263,40 @@ class AIService:
         # Extract difficulty preference if provided
         difficulty_pref = preferences.get('difficulty', 'mixed') if preferences else 'mixed'
         
+        # Build user preferences from ratings data
+        liked_recipes_info = []
+        if liked_recipes:
+            for recipe in liked_recipes[:10]:  # Limit to top 10 liked recipes
+                info = f"- {recipe['name']} (rated {recipe['rating']}/5)"
+                if recipe.get('tags'):
+                    info += f" - tags: {', '.join(recipe['tags'])}"
+                if recipe.get('difficulty'):
+                    info += f" - difficulty: {recipe['difficulty']}"
+                if recipe.get('review_text'):
+                    info += f" - review: {recipe['review_text'][:100]}..."
+                liked_recipes_info.append(info)
+        
+        disliked_recipes_info = []
+        if disliked_recipes:
+            for recipe in disliked_recipes[:5]:  # Limit to top 5 disliked recipes
+                info = f"- {recipe['name']} (rated {recipe['rating']}/5)"
+                if recipe.get('tags'):
+                    info += f" - tags: {', '.join(recipe['tags'])}"
+                if recipe.get('review_text'):
+                    info += f" - negative feedback: {recipe['review_text'][:100]}..."
+                disliked_recipes_info.append(info)
+        
+        # Build recent recipes info to avoid repetition
+        recent_recipes_info = []
+        if recent_recipes:
+            for recipe in recent_recipes[:10]:  # Limit to last 10 recipes
+                info = f"- {recipe['name']}"
+                if recipe.get('tags'):
+                    info += f" (tags: {', '.join(recipe['tags'][:3])})"  # Show only first 3 tags
+                if recipe.get('difficulty'):
+                    info += f" - {recipe['difficulty']}"
+                recent_recipes_info.append(info)
+        
         prompt = f"""
 You are a world-class chef trained by Yotam Ottolenghi, Jamie Oliver, and many other renowned culinary masters. Your expertise spans global cuisines with a focus on fresh, flavorful, and accessible cooking.
 
@@ -259,8 +308,18 @@ FAMILY MEMBERS & PREFERENCES:
 AVAILABLE PANTRY ITEMS:
 {chr(10).join(pantry_info)}
 
+USER'S RECIPE HISTORY & PREFERENCES:
+{f"HIGHLY RATED RECIPES (learn from these - user loves these!):{chr(10)}{chr(10).join(liked_recipes_info)}" if liked_recipes_info else "No highly rated recipes yet."}
+
+{f"POORLY RATED RECIPES (avoid similar recipes!):{chr(10)}{chr(10).join(disliked_recipes_info)}" if disliked_recipes_info else "No poorly rated recipes."}
+
+{f"RECENT RECIPES (avoid suggesting very similar recipes):{chr(10)}{chr(10).join(recent_recipes_info)}" if recent_recipes_info else "No recent recipe history."}
+
 CHEF'S INSTRUCTIONS:
 - Draw from your training with Ottolenghi (Middle Eastern, Mediterranean), Jamie Oliver (Italian, simple fresh ingredients), and other master chefs
+- LEARN FROM HIGHLY RATED RECIPES: suggest similar styles, techniques, ingredients, and flavors that the user has loved
+- AVOID POORLY RATED RECIPES: do not suggest recipes similar to those the user disliked
+- AVOID RECENT RECIPES: provide variety by not suggesting recipes too similar to recently saved ones
 - PRIORITIZE family food likes and preferred cuisines
 - AVOID family food dislikes completely
 - RESPECT all dietary restrictions (vegetarian, vegan, gluten-free, etc.)

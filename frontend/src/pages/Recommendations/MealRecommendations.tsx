@@ -42,10 +42,14 @@ import {
   Save,
   Star,
   CalendarToday,
+  Add,
 } from '@mui/icons-material';
 import { MealRecommendation } from '../../types';
 import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';
 import { useRecipes } from '../../hooks/useRecipes';
+import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
+import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
+import RecipeDebugPanel from '../../components/Recipe/RecipeDebugPanel';
 
 const MealRecommendations: React.FC = () => {
   const {
@@ -64,6 +68,7 @@ const MealRecommendations: React.FC = () => {
     saveRecommendationAsRecipe,
     addRecommendationToMealPlan,
     rateRecipe,
+    saveRecipe,
     error: recipeError,
     clearError: clearRecipeError
   } = useRecipes();
@@ -84,12 +89,18 @@ const MealRecommendations: React.FC = () => {
     difficulty: 'all',
     prepTime: 'all'
   });
+  const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
 
   const handleSaveRecipe = async (meal: MealRecommendation) => {
+    console.log('🍽️ Attempting to save recipe:', meal.name);
     const saved = await saveRecommendationAsRecipe(meal);
     if (saved) {
       setSnackbarMessage(`"${meal.name}" saved to your recipes!`);
       setSnackbarOpen(true);
+      console.log('✅ Recipe save successful:', saved.id);
+    } else {
+      console.error('❌ Recipe save failed');
+      // The error will be shown via the error state from useRecipes hook
     }
   };
 
@@ -198,6 +209,20 @@ const MealRecommendations: React.FC = () => {
     setFilteredRecommendations(filtered);
   }, [recommendations, activeFilters]);
 
+  const handleCreateCustomRecipe = async (recipeData: any) => {
+    console.log('🍽️ Creating custom recipe:', recipeData.name);
+    const saved = await saveRecipe(recipeData);
+    if (saved) {
+      setSnackbarMessage(`"${recipeData.name}" created and saved successfully!`);
+      setSnackbarOpen(true);
+      console.log('✅ Custom recipe created:', saved.id);
+      return true;
+    } else {
+      console.error('❌ Custom recipe creation failed');
+      return false;
+    }
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -212,14 +237,23 @@ const MealRecommendations: React.FC = () => {
             </Alert>
           )}
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Refresh />}
-          onClick={() => refreshRecommendations()}
-          disabled={loading}
-        >
-          Get New Ideas
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setCreateRecipeDialogOpen(true)}
+          >
+            Create Recipe
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Refresh />}
+            onClick={() => refreshRecommendations()}
+            disabled={loading}
+          >
+            Get New Ideas
+          </Button>
+        </Box>
       </Box>
 
       {(error || recipeError) && (
@@ -233,6 +267,14 @@ const MealRecommendations: React.FC = () => {
         >
           {error || recipeError}
         </Alert>
+      )}
+
+      {/* Debug Panel - only show when there are recipe errors */}
+      {recipeError && (
+        <RecipeDebugPanel 
+          error={recipeError} 
+          onClearError={clearRecipeError}
+        />
       )}
 
       {/* AI Provider Selection */}
@@ -356,7 +398,7 @@ const MealRecommendations: React.FC = () => {
               variant={activeFilters.prepTime === 'quick' ? 'contained' : 'outlined'} 
               onClick={() => handleTimeFilter('quick')}
             >
-              ≤ 30 min
+              {'≤'} 30 min
             </Button>
             <Button 
               size="small" 
@@ -370,7 +412,7 @@ const MealRecommendations: React.FC = () => {
               variant={activeFilters.prepTime === 'long' ? 'contained' : 'outlined'} 
               onClick={() => handleTimeFilter('long')}
             >
-              > 60 min
+              {'>'} 60 min
             </Button>
           </Box>
         </Box>
@@ -608,19 +650,13 @@ const MealRecommendations: React.FC = () => {
 
               <Accordion>
                 <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="h6">Instructions ({selectedMeal.instructions.length} steps)</Typography>
+                  <Typography variant="h6">Cooking Instructions ({selectedMeal.instructions.length} steps)</Typography>
                 </AccordionSummary>
-                <AccordionDetails>
-                  <List>
-                    {selectedMeal.instructions.map((instruction, index) => (
-                      <ListItem key={index}>
-                        <ListItemText
-                          primary={`Step ${index + 1}`}
-                          secondary={instruction}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
+                <AccordionDetails sx={{ p: 0 }}>
+                  <RecipeInstructions 
+                    instructions={selectedMeal.instructions} 
+                    prepTime={selectedMeal.prep_time}
+                  />
                 </AccordionDetails>
               </Accordion>
 
@@ -792,6 +828,13 @@ const MealRecommendations: React.FC = () => {
         autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
         message={snackbarMessage}
+      />
+
+      {/* Create Recipe Dialog */}
+      <CreateRecipeForm
+        open={createRecipeDialogOpen}
+        onClose={() => setCreateRecipeDialogOpen(false)}
+        onSave={handleCreateCustomRecipe}
       />
     </Box>
   );

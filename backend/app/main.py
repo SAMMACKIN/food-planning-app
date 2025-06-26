@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database import init_database, populate_sample_data, ensure_separate_databases
+from .core.database import init_database, populate_sample_data, ensure_separate_databases, verify_database_schema
 
 
 # Configure logging
@@ -25,6 +25,12 @@ async def lifespan(app: FastAPI):
     ensure_separate_databases()
     init_database()
     populate_sample_data()
+    
+    # Final verification
+    if not verify_database_schema():
+        logger.error("❌ Database schema verification failed during startup")
+        raise RuntimeError("Database not properly configured")
+    
     logger.info("✅ Application startup complete")
     
     yield

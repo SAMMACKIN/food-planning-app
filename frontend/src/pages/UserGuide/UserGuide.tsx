@@ -24,6 +24,11 @@ import {
   PlayArrow,
   Lightbulb,
   Security,
+  FilterList,
+  MenuBook,
+  Star,
+  Add,
+  Refresh,
 } from '@mui/icons-material';
 
 const UserGuide: React.FC = () => {
@@ -61,14 +66,32 @@ const UserGuide: React.FC = () => {
             </ListItem>
             <ListItem>
               <ListItemText 
-                primary="3. Get Recommendations" 
-                secondary="Visit Recommendations tab for AI-powered meal suggestions based on your preferences"
+                primary="3. Get AI Recommendations" 
+                secondary="Visit Recommendations tab for personalized meal suggestions based on your preferences"
               />
             </ListItem>
             <ListItem>
               <ListItemText 
-                primary="4. Plan Your Week" 
-                secondary="Use Meal Plans tab to organize your weekly meals"
+                primary="4. Use Advanced Filtering" 
+                secondary="Filter recipes by difficulty and preparation time to find perfect matches"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="5. Save & Rate Recipes" 
+                secondary="Save recipes you like and rate them to help AI learn your preferences"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="6. Plan Your Week" 
+                secondary="Use Meal Plans tab to organize your weekly meals from saved recipes"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="7. Create Custom Recipes" 
+                secondary="Add your own family recipes using the 'Create Recipe' feature"
               />
             </ListItem>
           </List>
@@ -320,6 +343,147 @@ const UserGuide: React.FC = () => {
               />
             </ListItem>
           </List>
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            NEW Recipe Features (v1.5.0):
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemIcon><FilterList /></ListItemIcon>
+              <ListItemText 
+                primary="Advanced Filtering" 
+                secondary="Filter recipes by difficulty (Easy/Medium/Hard) and preparation time"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Restaurant /></ListItemIcon>
+              <ListItemText 
+                primary="Compact Recipe Cards" 
+                secondary="New 4x3 grid layout shows 12 recipes per page for better browsing"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Star /></ListItemIcon>
+              <ListItemText 
+                primary="Smart AI Learning" 
+                secondary="AI learns from your recipe ratings to provide better personalized suggestions"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Refresh /></ListItemIcon>
+              <ListItemText 
+                primary="Similarity Prevention" 
+                secondary="AI avoids suggesting recipes too similar to recently saved or poorly rated ones"
+              />
+            </ListItem>
+          </List>
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <MenuBook sx={{ mr: 2 }} />
+          <Typography variant="h6">Recipe Management (NEW)</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography paragraph>
+            Comprehensive recipe management features for saving, creating, and organizing your recipes:
+          </Typography>
+          
+          <Typography variant="subtitle2" gutterBottom>
+            Enhanced Recipe Display:
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemText 
+                primary="Visual Step-by-Step Instructions" 
+                secondary="Numbered circles with connecting lines guide you through each cooking step"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Smart Recipe Cards" 
+                secondary="Compact design showing 12 recipes in a 4x3 grid for efficient browsing"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Advanced Filtering" 
+                secondary="Filter by difficulty, preparation time, and meal type with visual feedback"
+              />
+            </ListItem>
+          </List>
+
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            Create Your Own Recipes:
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemIcon><Add /></ListItemIcon>
+              <ListItemText 
+                primary="Custom Recipe Creation" 
+                secondary="Click 'Create Recipe' to add your own recipes with ingredients, instructions, and tags"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Add /></ListItemIcon>
+              <ListItemText 
+                primary="Ingredient Management" 
+                secondary="Add ingredients with quantities and units, remove unwanted items"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Add /></ListItemIcon>
+              <ListItemText 
+                primary="Dynamic Instructions" 
+                secondary="Add, edit, and reorder cooking steps with easy-to-use controls"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Add /></ListItemIcon>
+              <ListItemText 
+                primary="Recipe Tags & Categories" 
+                secondary="Tag recipes with dietary info, cooking methods, and cuisines for easy filtering"
+              />
+            </ListItem>
+          </List>
+
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            Recipe Rating & Learning:
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemIcon><Star /></ListItemIcon>
+              <ListItemText 
+                primary="Rate Recipes" 
+                secondary="Give 1-5 star ratings with optional reviews and cooking notes"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Star /></ListItemIcon>
+              <ListItemText 
+                primary="AI Learning" 
+                secondary="AI learns from your ratings to suggest better personalized recipes"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon><Star /></ListItemIcon>
+              <ListItemText 
+                primary="Avoid Repetition" 
+                secondary="System prevents suggesting recipes too similar to recent or poorly rated ones"
+              />
+            </ListItem>
+          </List>
+
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            Recipe Actions:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+            <Chip label="Save Recipe" color="primary" size="small" />
+            <Chip label="Rate Recipe" color="secondary" size="small" />
+            <Chip label="Add to Meal Plan" color="success" size="small" />
+            <Chip label="View Details" color="info" size="small" />
+            <Chip label="Create Custom" color="warning" size="small" />
+          </Box>
         </AccordionDetails>
       </Accordion>
 
@@ -372,6 +536,68 @@ const UserGuide: React.FC = () => {
               <ListItemText 
                 primary="Consider Schedule" 
                 secondary="Plan quick meals for busy days, elaborate ones for weekends"
+              />
+            </ListItem>
+          </List>
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Recipe Management Tips:</Typography>
+          <List>
+            <ListItem>
+              <ListItemText 
+                primary="Rate Your Recipes" 
+                secondary="Rate recipes after cooking to help AI learn your preferences and suggest better matches"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Use Filtering Effectively" 
+                secondary="Combine difficulty and time filters to find recipes that match your current schedule"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Create Personal Recipes" 
+                secondary="Add your family favorites and secret recipes to get similar AI suggestions"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Tag Consistently" 
+                secondary="Use consistent tags when creating recipes to improve filtering and organization"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Save Cooking Notes" 
+                secondary="Add cooking notes when rating to remember modifications and tips for next time"
+              />
+            </ListItem>
+          </List>
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>AI Recommendation Tips:</Typography>
+          <List>
+            <ListItem>
+              <ListItemText 
+                primary="Build Rating History" 
+                secondary="Rate at least 5-10 recipes to help AI understand your taste preferences"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Update Family Preferences" 
+                secondary="Keep family member preferences current as tastes change over time"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Refresh Recommendations" 
+                secondary="Click 'Get New Ideas' if current suggestions don't appeal to you"
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Provide Feedback" 
+                secondary="Both positive and negative ratings help improve future recommendations"
               />
             </ListItem>
           </List>

@@ -170,18 +170,117 @@ async def get_meal_recommendations(
                 }
             })
         
+        # Get user recipe ratings to inform AI suggestions
+        cursor.execute('''
+            SELECT r.name, r.difficulty, r.tags, r.nutrition_notes, 
+                   rt.rating, rt.review_text, rt.would_make_again,
+                   r.ai_generated, r.ai_provider
+            FROM saved_recipes r
+            JOIN recipe_ratings rt ON r.id = rt.recipe_id
+            WHERE r.user_id = ? AND rt.rating >= 4
+            ORDER BY rt.created_at DESC
+            LIMIT 20
+        ''', (user_id,))
+        liked_recipes_data = cursor.fetchall()
+        
+        liked_recipes = []
+        for recipe in liked_recipes_data:
+            try:
+                tags = json.loads(recipe[2]) if recipe[2] else []
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    tags = eval(recipe[2]) if recipe[2] else []
+                except:
+                    tags = []
+            
+            liked_recipes.append({
+                'name': recipe[0],
+                'difficulty': recipe[1],
+                'tags': tags,
+                'nutrition_notes': recipe[3],
+                'rating': recipe[4],
+                'review_text': recipe[5],
+                'would_make_again': bool(recipe[6]),
+                'ai_generated': bool(recipe[7]),
+                'ai_provider': recipe[8]
+            })
+        
+        # Get disliked recipes (rating <= 2) to avoid similar suggestions
+        cursor.execute('''
+            SELECT r.name, r.difficulty, r.tags, r.nutrition_notes,
+                   rt.rating, rt.review_text, rt.would_make_again
+            FROM saved_recipes r
+            JOIN recipe_ratings rt ON r.id = rt.recipe_id
+            WHERE r.user_id = ? AND rt.rating <= 2
+            ORDER BY rt.created_at DESC
+            LIMIT 10
+        ''', (user_id,))
+        disliked_recipes_data = cursor.fetchall()
+        
+        disliked_recipes = []
+        for recipe in disliked_recipes_data:
+            try:
+                tags = json.loads(recipe[2]) if recipe[2] else []
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    tags = eval(recipe[2]) if recipe[2] else []
+                except:
+                    tags = []
+            
+            disliked_recipes.append({
+                'name': recipe[0],
+                'difficulty': recipe[1],
+                'tags': tags,
+                'nutrition_notes': recipe[3],
+                'rating': recipe[4],
+                'review_text': recipe[5],
+                'would_make_again': bool(recipe[6])
+            })
+        
+        # Get recently saved/viewed recipes to avoid suggesting very similar ones
+        cursor.execute('''
+            SELECT name, tags, difficulty, created_at
+            FROM saved_recipes 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 15
+        ''', (user_id,))
+        recent_recipes_data = cursor.fetchall()
+        
+        recent_recipes = []
+        for recipe in recent_recipes_data:
+            try:
+                tags = json.loads(recipe[1]) if recipe[1] else []
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    tags = eval(recipe[1]) if recipe[1] else []
+                except:
+                    tags = []
+            
+            recent_recipes.append({
+                'name': recipe[0],
+                'tags': tags,
+                'difficulty': recipe[2]
+            })
+        
         # Get recommendations from selected AI provider
         provider = request.ai_provider or "perplexity"
         logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations from {provider}")
         logger.info(f"DEBUG: Family members: {len(family_members)}")
         logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
+        logger.info(f"DEBUG: Liked recipes: {len(liked_recipes)}")
+        logger.info(f"DEBUG: Disliked recipes: {len(disliked_recipes)}")
+        logger.info(f"DEBUG: Recent recipes: {len(recent_recipes)}")
         
         recommendations = await ai_service.get_meal_recommendations(
             family_members=family_members,
             pantry_items=pantry_items,
             preferences=request.preferences,
             num_recommendations=request.num_recommendations,
-            provider=provider
+            provider=provider,
+            liked_recipes=liked_recipes,
+            disliked_recipes=disliked_recipes,
+            recent_recipes=recent_recipes
         )
         
         logger.info(f"DEBUG: Got {len(recommendations)} recommendations")

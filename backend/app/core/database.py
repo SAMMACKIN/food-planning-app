@@ -28,27 +28,110 @@ def get_db_path() -> str:
 
 
 def get_db_connection() -> sqlite3.Connection:
-    """Get a database connection"""
+    """Get a database connection with improved error handling"""
     db_path = get_db_path()
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Enable column access by name
-    return conn
+    
+    # Log the actual database being used
+    logger.info(f"🔗 Connecting to database: {db_path}")
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row  # Enable column access by name
+        
+        # Enable foreign key constraints
+        conn.execute("PRAGMA foreign_keys = ON")
+        
+        # Test the connection
+        conn.execute("SELECT 1")
+        
+        logger.info(f"✅ Database connection successful")
+        return conn
+        
+    except sqlite3.Error as e:
+        logger.error(f"❌ Database connection failed: {e}")
+        logger.error(f"   Database path: {db_path}")
+        logger.error(f"   Current working directory: {os.getcwd()}")
+        logger.error(f"   Database exists: {os.path.exists(db_path)}")
+        raise
 
 
 @contextmanager
 def get_db_cursor():
-    """Context manager for database operations"""
-    conn = get_db_connection()
+    """Context manager for database operations with improved transaction handling"""
+    conn = None
     try:
+        conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Start transaction
+        conn.execute("BEGIN")
+        
         yield cursor, conn
+        
+        # Commit transaction
         conn.commit()
+        logger.debug("✅ Database transaction committed")
+        
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+            logger.error(f"❌ Database transaction rolled back due to SQLite error: {e}")
+        raise
     except Exception as e:
-        conn.rollback()
-        logger.error(f"Database operation failed: {e}")
+        if conn:
+            conn.rollback()
+            logger.error(f"❌ Database transaction rolled back due to error: {e}")
         raise
     finally:
+        if conn:
+            conn.close()
+            logger.debug("🔒 Database connection closed")
+
+
+def verify_database_schema():
+    """Verify that the database has all required tables and columns"""
+    logger.info("🔍 Verifying database schema...")
+    
+    required_tables = {
+        'users': ['id', 'email', 'name', 'hashed_password', 'timezone', 'is_active', 'is_admin', 'created_at'],
+        'saved_recipes': ['id', 'user_id', 'name', 'description', 'prep_time', 'difficulty', 'servings', 
+                         'ingredients_needed', 'instructions', 'tags', 'nutrition_notes', 'pantry_usage_score',
+                         'ai_generated', 'ai_provider', 'source', 'times_cooked', 'last_cooked', 'created_at', 'updated_at'],
+        'recipe_ratings': ['id', 'recipe_id', 'user_id', 'rating', 'review_text', 'would_make_again', 'cooking_notes', 'created_at'],
+        'meal_plans': ['id', 'user_id', 'date', 'meal_type', 'meal_name', 'meal_description', 'recipe_data', 
+                      'ai_generated', 'ai_provider', 'created_at']
+    }
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if all required tables exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = {row[0] for row in cursor.fetchall()}
+        
+        missing_tables = set(required_tables.keys()) - existing_tables
+        if missing_tables:
+            logger.error(f"❌ Missing tables: {missing_tables}")
+            return False
+        
+        # Check if all required columns exist in each table
+        for table_name, required_columns in required_tables.items():
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            
+            missing_columns = set(required_columns) - existing_columns
+            if missing_columns:
+                logger.error(f"❌ Table {table_name} missing columns: {missing_columns}")
+                return False
+        
+        logger.info("✅ Database schema verification passed")
         conn.close()
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Database schema verification failed: {e}")
+        return False
 
 
 def ensure_separate_databases():
@@ -74,8 +157,9 @@ def init_database():
     """Initialize the database with required tables"""
     logger.info("🗄️  Initializing database...")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
     
     # Create users table
     cursor.execute('''
@@ -210,9 +294,18 @@ def init_database():
         )
     ''')
     
-    conn.commit()
-    conn.close()
-    logger.info("✅ Database initialization complete")
+        conn.commit()
+        conn.close()
+        logger.info("✅ Database initialization complete")
+        
+        # Verify the schema was created correctly
+        if not verify_database_schema():
+            logger.error("❌ Database schema verification failed after initialization")
+            raise RuntimeError("Database schema verification failed")
+        
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        raise
 
 
 def populate_sample_data():
