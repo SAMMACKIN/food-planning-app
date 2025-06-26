@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd frontend && chmod +x build-for-branch.sh && ./build-for-branch.sh",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm install",
+  "functions": {
+    "frontend/src/**/*.{js,ts,tsx}": {
+      "maxDuration": 30
+    }
+  }
+}
