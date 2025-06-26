@@ -247,6 +247,14 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
         
     except HTTPException:
         raise
+    except sqlite3.OperationalError as e:
+        logger.error(f"❌ Database operational error saving recipe: {e}")
+        if "no such table" in str(e).lower():
+            raise HTTPException(status_code=500, detail="Database schema error: saved_recipes table missing. Please restart the application to repair the database schema.")
+        elif "no such column" in str(e).lower():
+            raise HTTPException(status_code=500, detail="Database schema error: recipe table columns missing. Please restart the application to repair the database schema.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Database operational error: {str(e)}")
     except sqlite3.IntegrityError as e:
         logger.error(f"❌ Database integrity error saving recipe: {e}")
         raise HTTPException(status_code=400, detail="Recipe data violates database constraints")
