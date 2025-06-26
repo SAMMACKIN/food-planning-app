@@ -14,37 +14,30 @@ class Settings:
     
     @property
     def DB_PATH(self) -> str:
-        """Get environment-specific database path with deployment isolation"""
+        """Get environment-specific database path matching simple_app.py format"""
         # Check if DB_PATH is explicitly set
         if os.getenv("DB_PATH"):
             return os.getenv("DB_PATH")
         
-        # Use environment-specific database files
+        # Use the SAME database path logic as simple_app.py to eliminate dual DB issue
         env_lower = self.ENVIRONMENT.lower()
         
-        # Get Railway deployment ID for absolute isolation
-        deployment_id = self.RAILWAY_DEPLOYMENT_ID
-        if deployment_id:
-            # Use deployment ID in filename for guaranteed separation
-            deployment_suffix = deployment_id[:8]  # First 8 chars for brevity
-            if "production" in env_lower or env_lower == "prod":
-                return f"production_{deployment_suffix}_food_app.db"
-            elif "preview" in env_lower or "staging" in env_lower:
-                return f"preview_{deployment_suffix}_food_app.db"
-            elif "test" in env_lower:
-                return f"test_{deployment_suffix}_food_app.db"
-            else:
-                return f"{env_lower}_{deployment_suffix}_food_app.db"
+        # Check Railway environment variables (matching simple_app.py logic)
+        railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '').lower()
+        is_railway = bool(railway_domain or os.getenv('RAILWAY_PROJECT_ID'))
         
-        # Fallback to environment-only naming
-        if "production" in env_lower or env_lower == "prod":
-            return "production_food_app.db"
-        elif "preview" in env_lower or "staging" in env_lower:
-            return "preview_food_app.db"
-        elif "test" in env_lower:
-            return "test_food_app.db"
+        if is_railway:
+            # Use domain-based detection (matching simple_app.py)
+            if 'preview' in railway_domain or 'preview' in env_lower:
+                return '/app/data/preview_food_app.db'
+            elif 'production' in railway_domain or env_lower == 'production':
+                return '/app/data/production_food_app.db'
+            else:
+                # Fallback: assume production for Railway
+                return '/app/data/production_food_app.db'
         else:
-            return f"{env_lower}_food_app.db"
+            # Local development
+            return 'development_food_app.db'
     
     # Security
     JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback-secret-change-in-production")

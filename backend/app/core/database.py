@@ -31,6 +31,12 @@ def get_db_connection() -> sqlite3.Connection:
     """Get a database connection with improved error handling"""
     db_path = get_db_path()
     
+    # Create database directory if it doesn't exist (for Railway /app/data/)
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        logger.info(f"📁 Creating database directory: {db_dir}")
+        os.makedirs(db_dir, exist_ok=True)
+    
     # Log the actual database being used
     logger.info(f"🔗 Connecting to database: {db_path}")
     
