@@ -160,9 +160,9 @@ def init_database():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-    
-    # Create users table
-    cursor.execute('''
+        
+        # Create users table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
@@ -173,10 +173,10 @@ def init_database():
             is_admin BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
-    
-    # Create family_members table
-    cursor.execute('''
+        ''')
+        
+        # Create family_members table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS family_members (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -187,10 +187,10 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    ''')
-    
-    # Create ingredients table
-    cursor.execute('''
+        ''')
+        
+        # Create ingredients table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS ingredients (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -203,10 +203,10 @@ def init_database():
             allergens TEXT DEFAULT '[]',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
-    
-    # Create pantry_items table
-    cursor.execute('''
+        ''')
+        
+        # Create pantry_items table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS pantry_items (
             user_id TEXT NOT NULL,
             ingredient_id TEXT NOT NULL,
@@ -217,10 +217,10 @@ def init_database():
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (ingredient_id) REFERENCES ingredients (id)
         )
-    ''')
-    
-    # Create meal_plans table
-    cursor.execute('''
+        ''')
+        
+        # Create meal_plans table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS meal_plans (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -234,10 +234,10 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    ''')
-    
-    # Create saved_recipes table
-    cursor.execute('''
+        ''')
+        
+        # Create saved_recipes table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS saved_recipes (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -260,10 +260,10 @@ def init_database():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    ''')
-    
-    # Create recipe_ratings table
-    cursor.execute('''
+        ''')
+        
+        # Create recipe_ratings table
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS recipe_ratings (
             id TEXT PRIMARY KEY,
             recipe_id TEXT NOT NULL,
@@ -276,10 +276,10 @@ def init_database():
             FOREIGN KEY (recipe_id) REFERENCES saved_recipes (id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    ''')
-    
-    # Create meal_reviews table (for meal plan reviews)
-    cursor.execute('''
+        ''')
+        
+        # Create meal_reviews table (for meal plan reviews)
+        cursor.execute('''
         CREATE TABLE IF NOT EXISTS meal_reviews (
             id TEXT PRIMARY KEY,
             meal_plan_id TEXT NOT NULL,
@@ -292,8 +292,8 @@ def init_database():
             FOREIGN KEY (meal_plan_id) REFERENCES meal_plans (id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    ''')
-    
+        ''')
+        
         conn.commit()
         conn.close()
         logger.info("✅ Database initialization complete")

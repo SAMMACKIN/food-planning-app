@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database import init_database, populate_sample_data, ensure_separate_databases, verify_database_schema, repair_database_schema
+from .core.database import init_database, populate_sample_data, ensure_separate_databases, verify_database_schema
 
 
 # Configure logging
@@ -27,19 +27,10 @@ async def lifespan(app: FastAPI):
     init_database()
     populate_sample_data()
     
-    # Final verification with automatic repair
+    # Final verification
     if not verify_database_schema():
-        logger.warning("⚠️ Database schema verification failed during startup, attempting repair...")
-        if repair_database_schema():
-            logger.info("✅ Schema repair successful, re-verifying...")
-            if verify_database_schema():
-                logger.info("✅ Database schema verification passed after repair")
-            else:
-                logger.error("❌ Database schema verification still failing after repair")
-                raise RuntimeError("Database schema verification failed even after repair")
-        else:
-            logger.error("❌ Database schema repair failed during startup")
-            raise RuntimeError("Database schema repair failed")
+        logger.error("❌ Database schema verification failed during startup")
+        raise RuntimeError("Database not properly configured")
     
     logger.info("✅ Application startup complete")
     
