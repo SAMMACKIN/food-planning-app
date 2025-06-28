@@ -22,7 +22,7 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("🚀 Starting Food Planning App API...")
+    logger.info("🚀 Starting Food Planning App API (debug build)...")
     ensure_separate_databases()
     init_database()
     populate_sample_data()
