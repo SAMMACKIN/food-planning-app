@@ -2,6 +2,7 @@
 Main FastAPI application instance and configuration
 """
 import logging
+import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,15 +68,24 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Import and include routers
-    from .api import auth, family, pantry, recommendations, meal_plans, recipes, admin
-    app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
-    app.include_router(family.router, prefix="/api/v1", tags=["family"])
-    app.include_router(pantry.router, prefix="/api/v1", tags=["pantry"])
-    app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
-    app.include_router(recipes.router, prefix="/api/v1/recipes", tags=["recipes"])
-    app.include_router(meal_plans.router, prefix="/api/v1", tags=["meal-plans"])
-    app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+    # Import and include routers with error handling
+    try:
+        from .api import auth, family, pantry, recommendations, meal_plans, recipes, admin
+        
+        app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+        app.include_router(family.router, prefix="/api/v1", tags=["family"])
+        app.include_router(pantry.router, prefix="/api/v1", tags=["pantry"])
+        app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
+        app.include_router(recipes.router, prefix="/api/v1/recipes", tags=["recipes"])
+        app.include_router(meal_plans.router, prefix="/api/v1", tags=["meal-plans"])
+        app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+        
+        logger.info("✅ All routers imported and registered successfully")
+        logger.info(f"📝 Recipes router registered at: /api/v1/recipes")
+        
+    except Exception as e:
+        logger.error(f"❌ Error importing/registering routers: {e}")
+        raise
     
     # Health check endpoint
     @app.get("/health")
@@ -92,6 +102,17 @@ def create_app() -> FastAPI:
     async def root():
         """Root endpoint"""
         return {"message": settings.APP_NAME}
+    
+    @app.get("/api/v1/debug/app-version")
+    async def debug_app_version():
+        """Debug endpoint to confirm which app is running"""
+        return {
+            "app": "modular_app (app.main:app)",
+            "has_recipes_endpoint": True,
+            "recipes_router_included": True,
+            "available_routes": [route.path for route in app.routes if hasattr(route, 'path')],
+            "timestamp": datetime.datetime.now().isoformat()
+        }
     
     return app
 
