@@ -31,12 +31,6 @@ def get_db_connection() -> sqlite3.Connection:
     """Get a database connection with improved error handling"""
     db_path = get_db_path()
     
-    # Create database directory if it doesn't exist (for Railway /app/data/)
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        logger.info(f"📁 Creating database directory: {db_dir}")
-        os.makedirs(db_dir, exist_ok=True)
-    
     # Log the actual database being used
     logger.info(f"🔗 Connecting to database: {db_path}")
     
@@ -140,114 +134,6 @@ def verify_database_schema():
         return False
 
 
-def repair_database_schema():
-    """Repair database schema by adding missing tables and columns"""
-    logger.info("🔧 Attempting to repair database schema...")
-    
-    required_tables = {
-        'users': ['id', 'email', 'name', 'hashed_password', 'timezone', 'is_active', 'is_admin', 'created_at'],
-        'saved_recipes': ['id', 'user_id', 'name', 'description', 'prep_time', 'difficulty', 'servings', 
-                         'ingredients_needed', 'instructions', 'tags', 'nutrition_notes', 'pantry_usage_score',
-                         'ai_generated', 'ai_provider', 'source', 'times_cooked', 'last_cooked', 'created_at', 'updated_at'],
-        'recipe_ratings': ['id', 'recipe_id', 'user_id', 'rating', 'review_text', 'would_make_again', 'cooking_notes', 'created_at'],
-        'meal_plans': ['id', 'user_id', 'date', 'meal_type', 'meal_name', 'meal_description', 'recipe_data', 
-                      'ai_generated', 'ai_provider', 'created_at']
-    }
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Check and create missing tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        existing_tables = {row[0] for row in cursor.fetchall()}
-        
-        missing_tables = set(required_tables.keys()) - existing_tables
-        if missing_tables:
-            logger.info(f"🔧 Creating missing tables: {missing_tables}")
-            
-            if 'saved_recipes' in missing_tables:
-                cursor.execute('''
-                    CREATE TABLE saved_recipes (
-                        id TEXT PRIMARY KEY,
-                        user_id TEXT NOT NULL,
-                        name TEXT NOT NULL,
-                        description TEXT,
-                        prep_time INTEGER,
-                        difficulty TEXT,
-                        servings INTEGER,
-                        ingredients_needed TEXT,
-                        instructions TEXT,
-                        tags TEXT,
-                        nutrition_notes TEXT,
-                        pantry_usage_score REAL DEFAULT 0,
-                        ai_generated BOOLEAN DEFAULT 0,
-                        ai_provider TEXT,
-                        source TEXT DEFAULT 'manual',
-                        times_cooked INTEGER DEFAULT 0,
-                        last_cooked TIMESTAMP,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-                logger.info("✅ Created saved_recipes table")
-            
-            if 'recipe_ratings' in missing_tables:
-                cursor.execute('''
-                    CREATE TABLE recipe_ratings (
-                        id TEXT PRIMARY KEY,
-                        recipe_id TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        rating INTEGER NOT NULL,
-                        review_text TEXT,
-                        would_make_again BOOLEAN DEFAULT 1,
-                        cooking_notes TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (recipe_id) REFERENCES saved_recipes (id),
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-                logger.info("✅ Created recipe_ratings table")
-        
-        # Check and add missing columns to existing tables
-        for table_name, required_columns in required_tables.items():
-            if table_name in existing_tables:
-                cursor.execute(f"PRAGMA table_info({table_name})")
-                existing_columns = {row[1] for row in cursor.fetchall()}
-                
-                missing_columns = set(required_columns) - existing_columns
-                if missing_columns:
-                    logger.info(f"🔧 Adding missing columns to {table_name}: {missing_columns}")
-                    
-                    # Add missing columns with appropriate defaults
-                    column_defaults = {
-                        'ai_generated': 'BOOLEAN DEFAULT 0',
-                        'ai_provider': 'TEXT',
-                        'source': 'TEXT DEFAULT "manual"',
-                        'times_cooked': 'INTEGER DEFAULT 0',
-                        'last_cooked': 'TIMESTAMP',
-                        'pantry_usage_score': 'REAL DEFAULT 0',
-                        'updated_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                        'would_make_again': 'BOOLEAN DEFAULT 1',
-                        'cooking_notes': 'TEXT'
-                    }
-                    
-                    for column in missing_columns:
-                        if column in column_defaults:
-                            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column} {column_defaults[column]}")
-                            logger.info(f"✅ Added column {column} to {table_name}")
-        
-        conn.commit()
-        conn.close()
-        logger.info("✅ Database schema repair completed")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Database schema repair failed: {e}")
-        return False
-
-
 def ensure_separate_databases():
     """Ensure different environments use separate databases"""
     db_path = get_db_path()
@@ -267,12 +153,8 @@ def ensure_separate_databases():
         logger.info("✅ Database isolation configured correctly")
 
 
-def init_database(unsafe: bool = False):
-    """Initialize the database with required tables
-    
-    Args:
-        unsafe: If True, drop and recreate tables if schema verification fails
-    """
+def init_database():
+    """Initialize the database with required tables"""
     logger.info("🗄️  Initializing database...")
     
     try:
@@ -418,22 +300,8 @@ def init_database(unsafe: bool = False):
         
         # Verify the schema was created correctly
         if not verify_database_schema():
-            logger.warning("⚠️ Database schema verification failed after initialization")
-            if unsafe:
-                logger.info("🔧 Attempting schema repair (unsafe mode enabled)")
-                if repair_database_schema():
-                    logger.info("✅ Schema repair successful, re-verifying...")
-                    if verify_database_schema():
-                        logger.info("✅ Schema verification passed after repair")
-                    else:
-                        logger.error("❌ Schema verification still failing after repair")
-                        raise RuntimeError("Database schema verification failed even after repair")
-                else:
-                    logger.error("❌ Schema repair failed")
-                    raise RuntimeError("Database schema repair failed")
-            else:
-                logger.error("❌ Database schema verification failed (run with unsafe=True to attempt repair)")
-                raise RuntimeError("Database schema verification failed")
+            logger.error("❌ Database schema verification failed after initialization")
+            raise RuntimeError("Database schema verification failed")
         
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
