@@ -15,16 +15,141 @@ def test_db():
     # Create a temporary file for the test database
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     
-    # Mock the database path to use our test database
-    with patch('app.core.database.get_db_path', return_value=db_path):
-        # Initialize the database with the schema from modular app
-        init_database()
-    
-    yield db_path
-    
-    # Cleanup
-    os.close(db_fd)
-    os.unlink(db_path)
+    try:
+        # Initialize the database directly without mocking
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Create all required tables directly
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT,
+            hashed_password TEXT NOT NULL,
+            timezone TEXT DEFAULT 'UTC',
+            is_active BOOLEAN DEFAULT 1,
+            is_admin BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS family_members (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            age INTEGER,
+            dietary_restrictions TEXT,
+            preferences TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ingredients (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            calories_per_unit REAL DEFAULT 0,
+            protein_per_unit REAL DEFAULT 0,
+            carbs_per_unit REAL DEFAULT 0,
+            fat_per_unit REAL DEFAULT 0,
+            allergens TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pantry_items (
+            user_id TEXT NOT NULL,
+            ingredient_id TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            expiration_date DATE,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, ingredient_id),
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (ingredient_id) REFERENCES ingredients (id)
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saved_recipes (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            prep_time INTEGER,
+            difficulty TEXT,
+            servings INTEGER,
+            ingredients_needed TEXT,
+            instructions TEXT,
+            tags TEXT,
+            nutrition_notes TEXT,
+            pantry_usage_score REAL,
+            ai_generated BOOLEAN DEFAULT 0,
+            ai_provider TEXT,
+            source TEXT,
+            times_cooked INTEGER DEFAULT 0,
+            last_cooked DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recipe_ratings (
+            id TEXT PRIMARY KEY,
+            recipe_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            would_make_again BOOLEAN,
+            cooking_notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recipe_id) REFERENCES saved_recipes (id),
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            UNIQUE(recipe_id, user_id)
+        )
+        ''')
+        
+        # Create admin user for testing
+        import uuid
+        from app.core.security import hash_password
+        admin_id = str(uuid.uuid4())
+        admin_password = hash_password("admin123")
+        
+        cursor.execute('''
+        INSERT OR IGNORE INTO users (id, email, name, hashed_password, is_admin, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (admin_id, "admin", "Admin User", admin_password, 1, 1))
+        
+        # Add some basic ingredients for testing
+        ingredients = [
+            ("ingredient-1", "Chicken Breast", "Protein", "piece", 165, 31, 0, 3.6, ""),
+            ("ingredient-2", "Rice", "Grain", "cup", 205, 4, 45, 0.5, ""),
+            ("ingredient-3", "Broccoli", "Vegetable", "cup", 25, 3, 5, 0, "")
+        ]
+        
+        for ing_id, name, category, unit, calories, protein, carbs, fat, allergens in ingredients:
+            cursor.execute('''
+            INSERT OR IGNORE INTO ingredients (id, name, category, unit, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, allergens)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (ing_id, name, category, unit, calories, protein, carbs, fat, allergens))
+        
+        conn.commit()
+        conn.close()
+        
+        yield db_path
+        
+    finally:
+        # Cleanup
+        os.close(db_fd)
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 @pytest.fixture
