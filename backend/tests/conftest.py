@@ -155,8 +155,16 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create a test client with test database"""
-    # Mock the get_db_path function to use test database
-    with patch('app.core.database.get_db_path', return_value=test_db):
+    # Mock the core database functions to use test database
+    def get_test_db_connection():
+        import sqlite3
+        conn = sqlite3.connect(test_db)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+    
+    with patch('app.core.database.get_db_path', return_value=test_db), \
+         patch('app.core.database.get_db_connection', side_effect=get_test_db_connection):
         yield TestClient(app)
 
 
