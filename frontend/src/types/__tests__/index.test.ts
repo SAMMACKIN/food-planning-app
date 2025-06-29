@@ -42,7 +42,7 @@ describe('Type Definitions', () => {
 
     expect(familyMember.name).toBe('John Doe');
     expect(familyMember.dietary_restrictions).toContain('vegetarian');
-    expect(familyMember.preferences.favorite_cuisines).toContain('italian');
+    expect(familyMember.preferences.preferred_cuisines).toContain('italian');
   });
 
   test('MealRecommendation type has required fields', () => {
