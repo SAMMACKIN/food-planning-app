@@ -57,8 +57,9 @@ def admin_headers(admin_token):
 @pytest.fixture
 def sample_user_data():
     """Sample user data for testing"""
+    import uuid
     return {
-        "email": "test@example.com",
+        "email": f"test-{uuid.uuid4()}@example.com",
         "password": "testpassword123",
         "name": "Test User"
     }
@@ -142,7 +143,10 @@ class UserFactory:
     """Factory for creating test users"""
     
     @staticmethod
-    def create_user_data(email="test@example.com", name="Test User", password="testpass123"):
+    def create_user_data(email=None, name="Test User", password="testpass123"):
+        import uuid
+        if email is None:
+            email = f"test-{uuid.uuid4()}@example.com"
         return {
             "email": email,
             "name": name,

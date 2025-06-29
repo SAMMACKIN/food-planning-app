@@ -49,8 +49,8 @@ def test_config():
     print("Testing configuration...")
     settings = Settings()
     assert settings.JWT_ALGORITHM == "HS256"
-    assert settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES == 30
-    assert settings.API_V1_STR == "/api/v1"
+    assert settings.JWT_EXPIRATION_HOURS == 24
+    assert settings.APP_NAME == "Food Planning App API"
     print("✓ Configuration works")
 
 if __name__ == "__main__":

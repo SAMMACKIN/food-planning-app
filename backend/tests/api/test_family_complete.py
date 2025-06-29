@@ -21,8 +21,9 @@ class TestFamilyMemberManagement:
     def test_get_family_members_as_user(self, client):
         """Test regular user can only view their own family members"""
         # Register a new user
+        import uuid
         user_data = {
-            "email": "familyuser@example.com",
+            "email": f"familyuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Family User"
         }
@@ -50,8 +51,9 @@ class TestFamilyMemberManagement:
     def test_create_family_member_success(self, client):
         """Test successful family member creation"""
         # Register a user first
+        import uuid
         user_data = {
-            "email": "parentuser@example.com",
+            "email": f"parentuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Parent User"
         }
@@ -84,8 +86,9 @@ class TestFamilyMemberManagement:
     def test_create_family_member_minimal_data(self, client):
         """Test family member creation with minimal required data"""
         # Register a user first
+        import uuid
         user_data = {
-            "email": "minimal@example.com",
+            "email": f"minimal-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Minimal User"
         }
@@ -116,8 +119,9 @@ class TestFamilyMemberManagement:
         
     def test_create_family_member_invalid_data(self, client):
         """Test family member creation with invalid data"""
+        import uuid
         user_data = {
-            "email": "invalid@example.com",
+            "email": f"invalid-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Invalid User"
         }
@@ -139,8 +143,9 @@ class TestFamilyMemberManagement:
     def test_update_family_member_success(self, client):
         """Test successful family member update"""
         # Setup: Register user and create family member
+        import uuid
         user_data = {
-            "email": "updateuser@example.com",
+            "email": f"updateuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Update User"
         }
@@ -177,8 +182,9 @@ class TestFamilyMemberManagement:
     def test_update_family_member_partial(self, client):
         """Test partial family member update"""
         # Setup
+        import uuid
         user_data = {
-            "email": "partialuser@example.com",
+            "email": f"partialuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Partial User"
         }
@@ -206,8 +212,9 @@ class TestFamilyMemberManagement:
         
     def test_update_nonexistent_family_member(self, client):
         """Test updating a family member that doesn't exist"""
+        import uuid
         user_data = {
-            "email": "nonexistent@example.com",
+            "email": f"nonexistent-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Nonexistent User"
         }
@@ -225,8 +232,9 @@ class TestFamilyMemberManagement:
     def test_update_family_member_wrong_user(self, client):
         """Test user cannot update another user's family member"""
         # Create first user and family member
+        import uuid
         user1_data = {
-            "email": "user1@example.com",
+            "email": f"user1-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "User One"
         }
@@ -241,7 +249,7 @@ class TestFamilyMemberManagement:
         
         # Create second user
         user2_data = {
-            "email": "user2@example.com",
+            "email": f"user2-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "User Two"
         }
@@ -259,8 +267,9 @@ class TestFamilyMemberManagement:
     def test_delete_family_member_success(self, client):
         """Test successful family member deletion"""
         # Setup
+        import uuid
         user_data = {
-            "email": "deleteuser@example.com",
+            "email": f"deleteuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Delete User"
         }
@@ -288,8 +297,9 @@ class TestFamilyMemberManagement:
         
     def test_delete_nonexistent_family_member(self, client):
         """Test deleting a family member that doesn't exist"""
+        import uuid
         user_data = {
-            "email": "deletenonexistent@example.com",
+            "email": f"deletenonexistent-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Delete Nonexistent User"
         }
@@ -306,8 +316,9 @@ class TestFamilyMemberManagement:
     def test_delete_family_member_wrong_user(self, client):
         """Test user cannot delete another user's family member"""
         # Create first user and family member
+        import uuid
         user1_data = {
-            "email": "deluser1@example.com",
+            "email": f"deluser1-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Delete User One"
         }
@@ -322,7 +333,7 @@ class TestFamilyMemberManagement:
         
         # Create second user
         user2_data = {
-            "email": "deluser2@example.com",
+            "email": f"deluser2-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Delete User Two"
         }
@@ -343,8 +354,9 @@ class TestFamilyMemberValidation:
     
     def test_family_member_name_validation(self, client):
         """Test name field validation"""
+        import uuid
         user_data = {
-            "email": "validation@example.com",
+            "email": f"validation-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Validation User"
         }
@@ -369,8 +381,9 @@ class TestFamilyMemberValidation:
         
     def test_family_member_age_validation(self, client):
         """Test age field validation"""
+        import uuid
         user_data = {
-            "email": "agevalidation@example.com",
+            "email": f"agevalidation-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Age Validation User"
         }
@@ -395,8 +408,9 @@ class TestFamilyMemberValidation:
         
     def test_family_member_dietary_restrictions_validation(self, client):
         """Test dietary restrictions field validation"""
+        import uuid
         user_data = {
-            "email": "dietary@example.com",
+            "email": f"dietary-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Dietary User"
         }
@@ -423,8 +437,9 @@ class TestFamilyMemberValidation:
             
     def test_family_member_preferences_validation(self, client):
         """Test preferences field validation"""
+        import uuid
         user_data = {
-            "email": "preferences@example.com",
+            "email": f"preferences-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Preferences User"
         }
@@ -463,8 +478,9 @@ class TestFamilyMemberIntegration:
         """Test that family members can be used in meal recommendations"""
         # This test verifies the integration between family management and AI recommendations
         # Setup user and family members
+        import uuid
         user_data = {
-            "email": "integration@example.com",
+            "email": f"integration-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Integration User"
         }
@@ -506,8 +522,9 @@ class TestFamilyMemberIntegration:
     def test_family_member_workflow_complete(self, client):
         """Test complete family member management workflow"""
         # Register user
+        import uuid
         user_data = {
-            "email": "workflow@example.com",
+            "email": f"workflow-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Workflow User"
         }

@@ -3,6 +3,7 @@ Comprehensive pantry management API tests
 """
 import pytest
 import json
+import uuid
 from datetime import datetime, timedelta
 
 
@@ -14,7 +15,7 @@ class TestPantryManagement:
         """Test getting pantry items for new user (should be empty)"""
         # Register a new user
         user_data = {
-            "email": "pantryuser@example.com",
+            "email": f"pantryuser-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Pantry User"
         }
@@ -41,7 +42,7 @@ class TestPantryManagement:
         """Test successfully adding a pantry item"""
         # Register user
         user_data = {
-            "email": "addpantry@example.com",
+            "email": f"addpantry-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Add Pantry User"
         }
@@ -77,7 +78,7 @@ class TestPantryManagement:
     def test_add_pantry_item_minimal_data(self, client):
         """Test adding pantry item with minimal required data"""
         user_data = {
-            "email": "minimal@example.com",
+            "email": f"minimal-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Minimal User"
         }
@@ -106,7 +107,7 @@ class TestPantryManagement:
     def test_add_pantry_item_invalid_ingredient(self, client):
         """Test adding pantry item with invalid ingredient ID"""
         user_data = {
-            "email": "invalidingredient@example.com",
+            "email": f"invalidingredient-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Invalid Ingredient User"
         }
@@ -138,7 +139,7 @@ class TestPantryManagement:
     def test_add_pantry_item_invalid_data(self, client):
         """Test adding pantry item with invalid data"""
         user_data = {
-            "email": "invaliddata@example.com",
+            "email": f"invaliddata-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Invalid Data User"
         }
@@ -161,7 +162,7 @@ class TestPantryManagement:
         """Test successfully updating a pantry item"""
         # Setup: Register user and add pantry item
         user_data = {
-            "email": "updatepantry@example.com",
+            "email": f"updatepantry-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Update Pantry User"
         }
@@ -199,7 +200,7 @@ class TestPantryManagement:
         """Test partial update of pantry item"""
         # Setup
         user_data = {
-            "email": "partialupdate@example.com",
+            "email": f"partialupdate-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Partial Update User"
         }
@@ -230,7 +231,7 @@ class TestPantryManagement:
     def test_update_nonexistent_pantry_item(self, client):
         """Test updating a pantry item that doesn't exist"""
         user_data = {
-            "email": "updatenonexistent@example.com",
+            "email": f"updatenonexistent-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Update Nonexistent User"
         }
@@ -249,7 +250,7 @@ class TestPantryManagement:
         """Test successfully removing a pantry item"""
         # Setup
         user_data = {
-            "email": "removepantry@example.com",
+            "email": f"removepantry-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Remove Pantry User"
         }
@@ -282,7 +283,7 @@ class TestPantryManagement:
     def test_remove_nonexistent_pantry_item(self, client):
         """Test removing a pantry item that doesn't exist"""
         user_data = {
-            "email": "removenonexistent@example.com",
+            "email": f"removenonexistent-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Remove Nonexistent User"
         }
@@ -299,7 +300,7 @@ class TestPantryManagement:
     def test_pantry_item_replace_existing(self, client):
         """Test that adding same ingredient replaces existing pantry item"""
         user_data = {
-            "email": "replace@example.com",
+            "email": f"replace-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Replace User"
         }
@@ -343,7 +344,7 @@ class TestPantryValidation:
     def test_pantry_quantity_validation(self, client):
         """Test quantity field validation"""
         user_data = {
-            "email": "quantityvalidation@example.com",
+            "email": f"quantityvalidation-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Quantity Validation User"
         }
@@ -377,7 +378,7 @@ class TestPantryValidation:
     def test_pantry_expiration_date_validation(self, client):
         """Test expiration date field validation"""
         user_data = {
-            "email": "datevalidation@example.com",
+            "email": f"datevalidation-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Date Validation User"
         }
@@ -415,7 +416,7 @@ class TestPantryValidation:
     def test_pantry_ingredient_id_validation(self, client):
         """Test ingredient ID validation"""
         user_data = {
-            "email": "ingredientvalidation@example.com",
+            "email": f"ingredientvalidation-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Ingredient Validation User"
         }
@@ -447,7 +448,7 @@ class TestPantryIntegration:
         """Test that pantry items influence meal recommendations"""
         # Setup user and pantry items
         user_data = {
-            "email": "pantryintegration@example.com",
+            "email": f"pantryintegration-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Pantry Integration User"
         }
@@ -484,7 +485,7 @@ class TestPantryIntegration:
         """Test that users can only see their own pantry items"""
         # Create two users
         user1_data = {
-            "email": "pantryuser1@example.com",
+            "email": f"pantryuser1-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Pantry User 1"
         }
@@ -493,7 +494,7 @@ class TestPantryIntegration:
         headers1 = {"Authorization": f"Bearer {token1}"}
         
         user2_data = {
-            "email": "pantryuser2@example.com",
+            "email": f"pantryuser2-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Pantry User 2"
         }
@@ -536,7 +537,7 @@ class TestPantryIntegration:
         """Test complete pantry management workflow"""
         # Register user
         user_data = {
-            "email": "workflow@example.com",
+            "email": f"workflow-{uuid.uuid4()}@example.com",
             "password": "password123",
             "name": "Workflow User"
         }

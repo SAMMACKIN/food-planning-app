@@ -39,8 +39,9 @@ class TestAuthentication:
     
     def test_user_registration_success(self, client):
         """Test successful user registration"""
+        import uuid
         user_data = {
-            "email": "testuser@example.com",
+            "email": f"testuser-{uuid.uuid4()}@example.com",
             "password": "testpassword123",
             "name": "Test User"
         }
@@ -58,8 +59,10 @@ class TestAuthentication:
     
     def test_user_registration_duplicate_email(self, client):
         """Test registration with duplicate email"""
+        import uuid
+        unique_email = f"duplicate-{uuid.uuid4()}@example.com"
         user_data = {
-            "email": "duplicate@example.com",
+            "email": unique_email,
             "password": "password123",
             "name": "First User"
         }
@@ -103,9 +106,10 @@ class TestAuthentication:
     
     def test_complete_user_workflow(self, client):
         """Test complete user registration → login → protected access workflow"""
+        import uuid
         # Step 1: Register new user
         user_data = {
-            "email": "workflow@example.com",
+            "email": f"workflow-{uuid.uuid4()}@example.com",
             "password": "workflow123",
             "name": "Workflow User"
         }
