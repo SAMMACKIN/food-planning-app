@@ -5,22 +5,20 @@ import sqlite3
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 
-import simple_app
+from app.main import app
+from app.core.database import init_database, get_db_path
 
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a temporary test database for simple_app"""
+    """Create a temporary test database for modular app"""
     # Create a temporary file for the test database
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     
-    # Initialize the database with the schema from simple_app
-    conn = sqlite3.connect(db_path)
-    
-    # Create the tables and admin user
-    simple_app.init_database_with_connection(conn)
-    
-    conn.close()
+    # Mock the database path to use our test database
+    with patch('app.core.database.get_db_path', return_value=db_path):
+        # Initialize the database with the schema from modular app
+        init_database()
     
     yield db_path
     
@@ -33,8 +31,8 @@ def test_db():
 def client(test_db):
     """Create a test client with test database"""
     # Mock the get_db_path function to use test database
-    with patch.object(simple_app, 'get_db_path', return_value=test_db):
-        yield TestClient(simple_app.app)
+    with patch('app.core.database.get_db_path', return_value=test_db):
+        yield TestClient(app)
 
 
 @pytest.fixture
@@ -89,9 +87,9 @@ def auth_headers(authenticated_user):
 @pytest.fixture
 def mock_claude_api():
     """Mock Claude API responses"""
-    with patch('simple_app.claude_available', True):
-        with patch('simple_app.get_claude_recommendations') as mock_claude:
-            mock_claude.return_value = [
+    with patch('app.services.ai_service.is_ai_available', return_value=True):
+        with patch('app.services.ai_service.get_meal_recommendations') as mock_ai:
+            mock_ai.return_value = [
                 {
                     "name": "Mock AI Recipe",
                     "description": "AI generated test recipe",
@@ -109,7 +107,7 @@ def mock_claude_api():
                     "ai_provider": "claude"
                 }
             ]
-            yield mock_claude
+            yield mock_ai
 
 
 @pytest.fixture

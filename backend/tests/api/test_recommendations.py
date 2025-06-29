@@ -110,7 +110,7 @@ class TestRecommendationsAPI:
         # Should cap at reasonable limit
         assert len(data) <= 10
     
-    @patch('simple_app.claude_available', False)
+    @patch('app.services.ai_service.is_ai_available', return_value=False)
     def test_get_recommendations_claude_unavailable(self, client):
         """Test recommendations when Claude API is unavailable"""
         request_data = {
