@@ -57,7 +57,15 @@ describe('AuthStore', () => {
     // Set initial authenticated state
     act(() => {
       useAuthStore.setState({
-        user: { id: '1', email: 'test@example.com', name: 'Test' },
+        user: { 
+          id: '1', 
+          email: 'test@example.com', 
+          name: 'Test',
+          timezone: 'UTC',
+          is_active: true,
+          is_admin: false,
+          created_at: '2024-01-01T00:00:00Z'
+        },
         isAuthenticated: true,
       });
     });

@@ -32,10 +32,10 @@ describe('Type Definitions', () => {
       age: 25,
       dietary_restrictions: ['vegetarian'],
       preferences: {
-        favorite_cuisines: ['italian'],
-        disliked_ingredients: ['mushrooms'],
-        spice_tolerance: 'medium',
-        portion_size: 'normal',
+        likes: ['pasta'],
+        dislikes: ['mushrooms'],
+        preferred_cuisines: ['italian'],
+        spice_level: 2,
       },
       created_at: '2024-01-01T00:00:00Z',
     };
@@ -55,8 +55,9 @@ describe('Type Definitions', () => {
       ingredients_needed: [
         {
           name: 'pasta',
-          amount: '1 lb',
-          category: 'grains',
+          quantity: '1 lb',
+          unit: 'lb',
+          have_in_pantry: false,
         }
       ],
       instructions: ['Boil water', 'Cook pasta'],
@@ -92,6 +93,6 @@ describe('Type Definitions', () => {
 
     expect(registerRequest.email).toContain('@');
     expect(registerRequest.password.length).toBeGreaterThan(0);
-    expect(registerRequest.name.length).toBeGreaterThan(0);
+    expect(registerRequest.name!.length).toBeGreaterThan(0);
   });
 });

@@ -11,12 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 # Test security functions
 def test_security_functions():
     """Test security functions directly"""
-    from app.core.security import get_password_hash, verify_password, create_access_token, verify_token
+    from app.core.security import hash_password, verify_password, create_access_token, verify_token
     from datetime import timedelta
     
     print("Testing password hashing...")
     password = "test_password_123"
-    hashed = get_password_hash(password)
+    hashed = hash_password(password)
     assert hashed != password
     assert verify_password(password, hashed) is True
     assert verify_password("wrong_password", hashed) is False
