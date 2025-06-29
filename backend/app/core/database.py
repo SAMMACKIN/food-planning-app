@@ -14,6 +14,13 @@ settings = get_settings()
 
 def get_db_path() -> str:
     """Get the database file path"""
+    # Check if we're in testing mode
+    if os.getenv("TESTING") == "true":
+        # Use a test-specific database path
+        test_db_path = os.getenv("TEST_DB_PATH", ":memory:")
+        logger.info(f"🧪 Test mode: Using test database: {test_db_path}")
+        return test_db_path
+    
     db_path = settings.DB_PATH
     deployment_id = settings.RAILWAY_DEPLOYMENT_ID
     environment = settings.ENVIRONMENT

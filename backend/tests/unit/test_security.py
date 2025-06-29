@@ -49,9 +49,9 @@ class TestSecurityFunctions:
     @patch('app.core.security.settings')
     def test_create_access_token_default_expiration(self, mock_settings):
         """Test creating access token with default expiration"""
-        mock_settings.JWT_SECRET_KEY = "test_secret_key"
+        mock_settings.JWT_SECRET = "test_secret_key"
         mock_settings.JWT_ALGORITHM = "HS256"
-        mock_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
+        mock_settings.JWT_EXPIRATION_HOURS = 24
         
         data = {"sub": "user@example.com", "user_id": "123"}
         token = create_access_token(data)
@@ -62,7 +62,7 @@ class TestSecurityFunctions:
         # Decode to verify contents
         payload = jwt.decode(
             token, 
-            mock_settings.JWT_SECRET_KEY, 
+            mock_settings.JWT_SECRET, 
             algorithms=[mock_settings.JWT_ALGORITHM]
         )
         
@@ -73,7 +73,7 @@ class TestSecurityFunctions:
     @patch('app.core.security.settings')
     def test_create_access_token_custom_expiration(self, mock_settings):
         """Test creating access token with custom expiration"""
-        mock_settings.JWT_SECRET_KEY = "test_secret_key"
+        mock_settings.JWT_SECRET = "test_secret_key"
         mock_settings.JWT_ALGORITHM = "HS256"
         
         data = {"sub": "user@example.com"}
@@ -86,14 +86,15 @@ class TestSecurityFunctions:
         # Decode to verify expiration
         payload = jwt.decode(
             token, 
-            mock_settings.JWT_SECRET_KEY, 
+            mock_settings.JWT_SECRET, 
             algorithms=[mock_settings.JWT_ALGORITHM]
         )
         
-        exp_time = datetime.fromtimestamp(payload["exp"])
-        expected_min = before_creation + expires_delta
-        expected_max = after_creation + expires_delta
+        exp_time = datetime.utcfromtimestamp(payload["exp"])
+        expected_min = (before_creation + expires_delta).replace(microsecond=0)
+        expected_max = (after_creation + expires_delta).replace(microsecond=0)
         
+        # JWT timestamps don't include microseconds, so remove them for comparison
         assert expected_min <= exp_time <= expected_max
     
     # @patch('app.core.security.settings')  
@@ -110,9 +111,9 @@ class TestSecurityFunctions:
     @patch('app.core.security.settings')
     def test_verify_token_valid(self, mock_settings):
         """Test verifying a valid token"""
-        mock_settings.JWT_SECRET_KEY = "test_secret_key"
+        mock_settings.JWT_SECRET = "test_secret_key"
         mock_settings.JWT_ALGORITHM = "HS256"
-        mock_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
+        mock_settings.JWT_EXPIRATION_HOURS = 24
         
         data = {"sub": "user@example.com", "user_id": "123"}
         token = create_access_token(data)
@@ -139,7 +140,7 @@ class TestSecurityFunctions:
     @patch('app.core.security.settings')
     def test_verify_token_expired(self, mock_settings):
         """Test verifying an expired token"""
-        mock_settings.JWT_SECRET_KEY = "test_secret_key"
+        mock_settings.JWT_SECRET = "test_secret_key"
         mock_settings.JWT_ALGORITHM = "HS256"
         
         # Create token that expires immediately
@@ -154,16 +155,16 @@ class TestSecurityFunctions:
     @patch('app.core.security.settings')
     def test_verify_token_wrong_secret(self, mock_settings):
         """Test verifying token with wrong secret"""
-        mock_settings.JWT_SECRET_KEY = "test_secret_key"
+        mock_settings.JWT_SECRET = "test_secret_key"
         mock_settings.JWT_ALGORITHM = "HS256"
-        mock_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
+        mock_settings.JWT_EXPIRATION_HOURS = 24
         
         # Create token with one secret
         data = {"sub": "user@example.com"}
         token = create_access_token(data)
         
         # Try to verify with different secret
-        mock_settings.JWT_SECRET_KEY = "different_secret_key"
+        mock_settings.JWT_SECRET = "different_secret_key"
         payload = verify_token(token)
         
         assert payload is None

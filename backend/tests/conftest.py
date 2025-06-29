@@ -2,132 +2,53 @@ import pytest
 import tempfile
 import os
 import sqlite3
+import uuid
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from app.main import app
-from app.core.database import init_database, get_db_path
+from app.core.database import init_database
+from app.core.security import hash_password
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """Set up test environment variables"""
+    os.environ["TESTING"] = "true"
+    yield
+    # Cleanup
+    if "TESTING" in os.environ:
+        del os.environ["TESTING"]
+    if "TEST_DB_PATH" in os.environ:
+        del os.environ["TEST_DB_PATH"]
 
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a temporary test database for modular app"""
+    """Create a temporary test database"""
     # Create a temporary file for the test database
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     
     try:
-        # Initialize the database directly without mocking
+        # Set the test database path environment variable
+        os.environ["TEST_DB_PATH"] = db_path
+        
+        # Initialize the database with proper schema
+        init_database()
+        
+        # Add admin user and test data directly
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Create all required tables directly
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            name TEXT,
-            hashed_password TEXT NOT NULL,
-            timezone TEXT DEFAULT 'UTC',
-            is_active BOOLEAN DEFAULT 1,
-            is_admin BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS family_members (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            age INTEGER,
-            dietary_restrictions TEXT,
-            preferences TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-        ''')
-        
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ingredients (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            category TEXT NOT NULL,
-            unit TEXT NOT NULL,
-            calories_per_unit REAL DEFAULT 0,
-            protein_per_unit REAL DEFAULT 0,
-            carbs_per_unit REAL DEFAULT 0,
-            fat_per_unit REAL DEFAULT 0,
-            allergens TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS pantry_items (
-            user_id TEXT NOT NULL,
-            ingredient_id TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            expiration_date DATE,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, ingredient_id),
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (ingredient_id) REFERENCES ingredients (id)
-        )
-        ''')
-        
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS saved_recipes (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT,
-            prep_time INTEGER,
-            difficulty TEXT,
-            servings INTEGER,
-            ingredients_needed TEXT,
-            instructions TEXT,
-            tags TEXT,
-            nutrition_notes TEXT,
-            pantry_usage_score REAL,
-            ai_generated BOOLEAN DEFAULT 0,
-            ai_provider TEXT,
-            source TEXT,
-            times_cooked INTEGER DEFAULT 0,
-            last_cooked DATE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-        ''')
-        
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS recipe_ratings (
-            id TEXT PRIMARY KEY,
-            recipe_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-            review_text TEXT,
-            would_make_again BOOLEAN,
-            cooking_notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (recipe_id) REFERENCES saved_recipes (id),
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            UNIQUE(recipe_id, user_id)
-        )
-        ''')
-        
-        # Create admin user for testing
-        import uuid
-        from app.core.security import hash_password
+        # Create admin user
         admin_id = str(uuid.uuid4())
         admin_password = hash_password("admin123")
-        
         cursor.execute('''
-        INSERT OR IGNORE INTO users (id, email, name, hashed_password, is_admin, is_active)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''', (admin_id, "admin", "Admin User", admin_password, 1, 1))
+            INSERT OR IGNORE INTO users (id, email, name, hashed_password, is_admin, is_active, timezone)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (admin_id, "admin", "Admin User", admin_password, True, True, "UTC"))
         
-        # Add some basic ingredients for testing
+        # Add basic ingredients for testing
         ingredients = [
             ("ingredient-1", "Chicken Breast", "Protein", "piece", 165, 31, 0, 3.6, ""),
             ("ingredient-2", "Rice", "Grain", "cup", 205, 4, 45, 0.5, ""),
@@ -136,8 +57,8 @@ def test_db():
         
         for ing_id, name, category, unit, calories, protein, carbs, fat, allergens in ingredients:
             cursor.execute('''
-            INSERT OR IGNORE INTO ingredients (id, name, category, unit, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, allergens)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO ingredients (id, name, category, unit, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, allergens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (ing_id, name, category, unit, calories, protein, carbs, fat, allergens))
         
         conn.commit()
@@ -155,17 +76,7 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create a test client with test database"""
-    # Mock the core database functions to use test database
-    def get_test_db_connection():
-        import sqlite3
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
-    
-    with patch('app.core.database.get_db_path', return_value=test_db), \
-         patch('app.core.database.get_db_connection', side_effect=get_test_db_connection):
-        yield TestClient(app)
+    yield TestClient(app)
 
 
 @pytest.fixture
@@ -190,7 +101,6 @@ def admin_headers(admin_token):
 @pytest.fixture
 def sample_user_data():
     """Sample user data for testing"""
-    import uuid
     return {
         "email": f"test-{uuid.uuid4()}@example.com",
         "password": "testpassword123",
@@ -221,8 +131,8 @@ def auth_headers(authenticated_user):
 @pytest.fixture
 def mock_claude_api():
     """Mock Claude API responses"""
-    with patch('app.services.ai_service.is_ai_available', return_value=True):
-        with patch('app.services.ai_service.get_meal_recommendations') as mock_ai:
+    with patch('ai_service.ai_service.is_provider_available', return_value=True):
+        with patch('ai_service.ai_service.get_meal_recommendations') as mock_ai:
             mock_ai.return_value = [
                 {
                     "name": "Mock AI Recipe",
@@ -231,12 +141,13 @@ def mock_claude_api():
                     "difficulty": "Easy",
                     "servings": 4,
                     "ingredients_needed": [
-                        {"name": "test ingredient", "amount": "1 cup", "category": "test"}
+                        "test ingredient 1 cup",
+                        "another ingredient 2 tbsp"
                     ],
                     "instructions": ["Step 1: Test", "Step 2: Verify"],
                     "tags": ["test", "mock"],
                     "nutrition_notes": "Test nutrition",
-                    "pantry_usage_score": 0.8,
+                    "pantry_usage_score": 80,
                     "ai_generated": True,
                     "ai_provider": "claude"
                 }
@@ -264,9 +175,10 @@ def sample_family_member():
         "age": 25,
         "dietary_restrictions": ["vegetarian"],
         "preferences": {
-            "favorite_cuisines": ["italian"],
-            "disliked_ingredients": ["mushrooms"],
-            "spice_tolerance": "medium"
+            "likes": ["pasta"],
+            "dislikes": ["mushrooms"],
+            "preferred_cuisines": ["italian"],
+            "spice_level": 2
         }
     }
 
@@ -277,7 +189,6 @@ class UserFactory:
     
     @staticmethod
     def create_user_data(email=None, name="Test User", password="testpass123"):
-        import uuid
         if email is None:
             email = f"test-{uuid.uuid4()}@example.com"
         return {
@@ -311,8 +222,9 @@ class FamilyMemberFactory:
             "age": age,
             "dietary_restrictions": [],
             "preferences": {
-                "favorite_cuisines": ["italian"],
-                "disliked_ingredients": [],
-                "spice_tolerance": "medium"
+                "likes": ["pasta"],
+                "dislikes": [],
+                "preferred_cuisines": ["italian"],
+                "spice_level": 2
             }
         }

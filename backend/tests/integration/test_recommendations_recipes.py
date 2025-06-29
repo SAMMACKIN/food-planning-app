@@ -4,13 +4,9 @@ Tests the exact endpoints that break in preview environment
 """
 import pytest
 import json
-from fastapi.testclient import TestClient
-from app.main import app
-
-client = TestClient(app)
 
 @pytest.fixture
-def test_user_with_data():
+def test_user_with_data(client):
     """Create a test user with family and pantry data"""
     import uuid
     # Register user
@@ -37,9 +33,9 @@ def test_user_with_data():
     
     # Add pantry items
     pantry_items = [
-        {"ingredient_id": "pasta", "quantity": 2.0, "expiration_date": "2025-01-15"},
-        {"ingredient_id": "olive-oil", "quantity": 0.5, "expiration_date": "2025-03-01"},
-        {"ingredient_id": "tomatoes", "quantity": 3.0, "expiration_date": "2024-12-28"}
+        {"ingredient_id": "ingredient-1", "quantity": 2.0, "expiration_date": "2025-01-15"},
+        {"ingredient_id": "ingredient-2", "quantity": 0.5, "expiration_date": "2025-03-01"},
+        {"ingredient_id": "ingredient-3", "quantity": 3.0, "expiration_date": "2024-12-28"}
     ]
     
     for item in pantry_items:
@@ -52,7 +48,7 @@ def test_user_with_data():
 class TestRecommendationsEndpoint:
     """Test the recommendations endpoint that breaks in preview"""
     
-    def test_recommendations_status_endpoint(self):
+    def test_recommendations_status_endpoint(self, client):
         """Test the recommendations status endpoint (should always work)"""
         print("\n🤖 Testing recommendations status...")
         response = client.get("/api/v1/recommendations/status")
@@ -67,7 +63,7 @@ class TestRecommendationsEndpoint:
         print(f"🤖 Available providers: {data['available_providers']}")
     
     
-    def test_recommendations_test_endpoint(self):
+    def test_recommendations_test_endpoint(self, client):
         """Test the AI provider test endpoint"""
         providers_to_test = ["perplexity", "claude", "groq"]
         
@@ -84,7 +80,7 @@ class TestRecommendationsEndpoint:
             print(f"🔧 {provider} status: {data['status']}")
     
     
-    def test_recommendations_with_auth_and_data(self, test_user_with_data):
+    def test_recommendations_with_auth_and_data(self, client, test_user_with_data, mock_claude_api):
         """Test getting recommendations with authenticated user and data"""
         token, headers = test_user_with_data
         
@@ -130,7 +126,7 @@ class TestRecommendationsEndpoint:
                 print(f"✅ AI generated: {first_rec.get('ai_generated', 'UNKNOWN')}")
     
     
-    def test_recommendations_without_ai_providers(self, test_user_with_data):
+    def test_recommendations_without_ai_providers(self, client, test_user_with_data, mock_claude_api):
         """Test recommendations when no AI providers are available (should use mock)"""
         token, headers = test_user_with_data
         
@@ -157,7 +153,7 @@ class TestRecommendationsEndpoint:
 class TestSavedRecipesEndpoint:
     """Test the saved recipes endpoint that breaks in preview"""
     
-    def test_get_saved_recipes_empty(self, test_user_with_data):
+    def test_get_saved_recipes_empty(self, client, test_user_with_data):
         """Test getting saved recipes when user has none"""
         token, headers = test_user_with_data
         
@@ -178,7 +174,7 @@ class TestSavedRecipesEndpoint:
             print(f"✅ Got {len(data)} saved recipes")
     
     
-    def test_save_recipe_manual(self, test_user_with_data):
+    def test_save_recipe_manual(self, client, test_user_with_data):
         """Test saving a manual recipe"""
         token, headers = test_user_with_data
         
@@ -244,16 +240,17 @@ class TestSavedRecipesEndpoint:
                 return recipe_id
     
     
-    def test_recipe_rating(self, test_user_with_data):
+    def test_recipe_rating(self, client, test_user_with_data):
         """Test rating a saved recipe"""
         token, headers = test_user_with_data
         
         # First save a recipe
-        recipe_id = self.test_save_recipe_manual(test_user_with_data)
+        recipe_id = self.test_save_recipe_manual(client, test_user_with_data)
         
         print(f"\n⭐ Testing recipe rating...")
         
         rating_data = {
+            "recipe_id": recipe_id,
             "rating": 5,
             "review_text": "Excellent recipe, very easy to follow!",
             "would_make_again": True,
@@ -275,7 +272,7 @@ class TestSavedRecipesEndpoint:
             print(f"✅ Recipe rating success!")
     
     
-    def test_recipe_with_complex_data(self, test_user_with_data):
+    def test_recipe_with_complex_data(self, client, test_user_with_data):
         """Test saving recipe with complex ingredients and instructions"""
         token, headers = test_user_with_data
         
@@ -341,7 +338,7 @@ class TestSavedRecipesEndpoint:
 class TestRecipesHealthCheck:
     """Test the recipe health check endpoint"""
     
-    def test_recipes_health_endpoint(self, test_user_with_data):
+    def test_recipes_health_endpoint(self, client, test_user_with_data):
         """Test the debug health endpoint for recipes"""
         token, headers = test_user_with_data
         
@@ -370,7 +367,7 @@ class TestRecipesHealthCheck:
 class TestEndToEndRecipeWorkflow:
     """Test the complete recipe workflow from recommendations to saved recipes"""
     
-    def test_complete_recipe_workflow(self, test_user_with_data):
+    def test_complete_recipe_workflow(self, client, test_user_with_data, mock_claude_api):
         """Test: Get recommendations → Save recipe → Rate recipe → Retrieve recipes"""
         token, headers = test_user_with_data
         
@@ -417,6 +414,7 @@ class TestEndToEndRecipeWorkflow:
                     # Step 3: Rate the recipe
                     print(f"🔄 Step 3: Rating the recipe...")
                     rating_data = {
+                        "recipe_id": recipe_id,
                         "rating": 4,
                         "review_text": "Good recipe from AI recommendation",
                         "would_make_again": True
@@ -448,4 +446,4 @@ class TestEndToEndRecipeWorkflow:
         
         # Fallback: test with manual recipe if recommendations fail
         print("🔄 Fallback: Testing with manual recipe...")
-        return self.test_save_recipe_manual(test_user_with_data) is not None
+        return self.test_save_recipe_manual(client, test_user_with_data) is not None
