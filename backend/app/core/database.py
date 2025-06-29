@@ -315,6 +315,20 @@ def populate_sample_data():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Create admin user if it doesn't exist
+    from .security import hash_password
+    import uuid
+    
+    admin_id = str(uuid.uuid4())
+    admin_password = hash_password("admin123")
+    
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (id, email, name, hashed_password, is_admin, is_active, timezone)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (admin_id, "admin", "Admin User", admin_password, True, True, "UTC"))
+    
+    logger.info("👤 Admin user created/verified")
+    
     # Sample ingredients
     ingredients = [
         ("chicken-breast", "Chicken Breast", "Meat", "pound", 231, 43.5, 0, 5.0, '["dairy"]'),
