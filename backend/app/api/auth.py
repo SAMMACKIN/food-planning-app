@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def create_token(user_id: str) -> str:
-    """Create JWT token - wrapper for new security module"""
-    return create_access_token({"sub": user_id})
+# Removed create_token wrapper - using create_access_token directly
 
 
 def get_current_user_dependency(authorization: str = Header(None)):
@@ -124,8 +122,8 @@ async def register(user_data: UserCreate):
     conn.close()
     
     # Create tokens
-    access_token = create_token(user_id)
-    refresh_token = create_token(user_id)
+    access_token = create_access_token({"sub": user_id})
+    refresh_token = create_access_token({"sub": user_id})
     
     return TokenResponse(
         access_token=access_token,
@@ -168,8 +166,8 @@ async def login(user_data: UserLogin):
     conn.close()
     
     # Create tokens
-    access_token = create_token(user[0])
-    refresh_token = create_token(user[0])
+    access_token = create_access_token({"sub": user[0]})
+    refresh_token = create_access_token({"sub": user[0]})
     
     logger.info(f"✅ LOGIN SUCCESS - User: {user_data.email}, Token created")
     

@@ -88,7 +88,10 @@ async def get_family_members(authorization: str = Header(None)):
                 dietary_restrictions = json.loads(row[4]) if row[4] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    dietary_restrictions = eval(row[4]) if row[4] else []
+                    try:
+                        dietary_restrictions = json.loads(row[4]) if row[4] else []
+                    except (json.JSONDecodeError, TypeError):
+                        dietary_restrictions = []
                 except:
                     dietary_restrictions = []
             
@@ -96,7 +99,10 @@ async def get_family_members(authorization: str = Header(None)):
                 preferences = json.loads(row[5]) if row[5] else {}
             except (json.JSONDecodeError, TypeError):
                 try:
-                    preferences = eval(row[5]) if row[5] else {}
+                    try:
+                        preferences = json.loads(row[5]) if row[5] else {}
+                    except (json.JSONDecodeError, TypeError):
+                        preferences = {}
                 except:
                     preferences = {}
             

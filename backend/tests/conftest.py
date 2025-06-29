@@ -15,6 +15,9 @@ from app.core.security import hash_password
 def setup_test_environment():
     """Set up test environment variables"""
     os.environ["TESTING"] = "true"
+    # Set test JWT secret if not already set
+    if not os.environ.get("JWT_SECRET"):
+        os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-not-production"
     yield
     # Cleanup
     if "TESTING" in os.environ:

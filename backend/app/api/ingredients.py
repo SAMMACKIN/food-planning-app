@@ -34,7 +34,10 @@ async def get_ingredients():
                 allergens = json.loads(ingredient[8]) if ingredient[8] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    allergens = eval(ingredient[8]) if ingredient[8] else []
+                    try:
+                        allergens = json.loads(ingredient[8]) if ingredient[8] else []
+                    except (json.JSONDecodeError, TypeError):
+                        allergens = []
                 except:
                     allergens = []
             
@@ -81,7 +84,10 @@ async def search_ingredients(q: str = Query(..., description="Search query for i
                 allergens = json.loads(ingredient[8]) if ingredient[8] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    allergens = eval(ingredient[8]) if ingredient[8] else []
+                    try:
+                        allergens = json.loads(ingredient[8]) if ingredient[8] else []
+                    except (json.JSONDecodeError, TypeError):
+                        allergens = []
                 except:
                     allergens = []
             

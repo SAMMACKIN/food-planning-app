@@ -90,10 +90,8 @@ async def get_meal_plans(
             try:
                 recipe_data = json.loads(plan[6]) if plan[6] else None
             except (json.JSONDecodeError, TypeError):
-                try:
-                    recipe_data = eval(plan[6]) if plan[6] else None
-                except:
-                    recipe_data = None
+                logger.warning(f"Failed to parse recipe_data for meal plan {plan[0]} - setting to None")
+                recipe_data = None
             
             result.append(MealPlanResponse(
                 id=plan[0],

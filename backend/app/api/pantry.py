@@ -107,7 +107,10 @@ async def get_pantry_items(authorization: str = Header(None)):
                 allergens = json.loads(item[13]) if item[13] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    allergens = eval(item[13]) if item[13] else []
+                    try:
+                        allergens = json.loads(item[13]) if item[13] else []
+                    except (json.JSONDecodeError, TypeError):
+                        allergens = []
                 except:
                     allergens = []
             
@@ -180,7 +183,10 @@ async def add_pantry_item(
             allergens = json.loads(item[13]) if item[13] else []
         except (json.JSONDecodeError, TypeError):
             try:
-                allergens = eval(item[13]) if item[13] else []
+                try:
+                    allergens = json.loads(item[13]) if item[13] else []
+                except (json.JSONDecodeError, TypeError):
+                    allergens = []
             except:
                 allergens = []
         
@@ -265,7 +271,10 @@ async def update_pantry_item(
             allergens = json.loads(item[13]) if item[13] else []
         except (json.JSONDecodeError, TypeError):
             try:
-                allergens = eval(item[13]) if item[13] else []
+                try:
+                    allergens = json.loads(item[13]) if item[13] else []
+                except (json.JSONDecodeError, TypeError):
+                    allergens = []
             except:
                 allergens = []
         

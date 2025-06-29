@@ -131,25 +131,15 @@ async def get_meal_recommendations(
                 dietary_restrictions = json.loads(member[3]) if member[3] else []
                 logger.info(f"🔥 Parsed dietary restrictions via JSON: {dietary_restrictions}")
             except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"🔥 JSON parse failed for dietary restrictions: {e}")
-                try:
-                    dietary_restrictions = eval(member[3]) if member[3] else []
-                    logger.info(f"🔥 Parsed dietary restrictions via eval: {dietary_restrictions}")
-                except Exception as e2:
-                    logger.error(f"🔥 Eval parse failed for dietary restrictions: {e2}")
-                    dietary_restrictions = []
+                logger.warning(f"🔥 JSON parse failed for dietary restrictions: {e} - returning empty list")
+                dietary_restrictions = []
             
             try:
                 preferences = json.loads(member[4]) if member[4] else {}
                 logger.info(f"🔥 Parsed preferences via JSON: {preferences}")
             except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"🔥 JSON parse failed for preferences: {e}")
-                try:
-                    preferences = eval(member[4]) if member[4] else {}
-                    logger.info(f"🔥 Parsed preferences via eval: {preferences}")
-                except Exception as e2:
-                    logger.error(f"🔥 Eval parse failed for preferences: {e2}")
-                    preferences = {}
+                logger.warning(f"🔥 JSON parse failed for preferences: {e} - returning empty dict")
+                preferences = {}
             
             family_member = {
                 'id': member[0],
@@ -176,14 +166,12 @@ async def get_meal_recommendations(
         
         pantry_items = []
         for item in pantry_data:
-            # Parse allergens from JSON/eval
+            # Parse allergens from JSON only
             try:
                 allergens = json.loads(item[10]) if item[10] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    allergens = eval(item[10]) if item[10] else []
-                except:
-                    allergens = []
+                logger.warning(f"Failed to parse allergens for item {item[3]} - using empty list")
+                allergens = []
             
             pantry_items.append({
                 'quantity': item[0],
@@ -219,10 +207,8 @@ async def get_meal_recommendations(
             try:
                 tags = json.loads(recipe[2]) if recipe[2] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    tags = eval(recipe[2]) if recipe[2] else []
-                except:
-                    tags = []
+                logger.warning(f"Failed to parse recipe tags - using empty list")
+                tags = []
             
             liked_recipes.append({
                 'name': recipe[0],
@@ -253,10 +239,8 @@ async def get_meal_recommendations(
             try:
                 tags = json.loads(recipe[2]) if recipe[2] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    tags = eval(recipe[2]) if recipe[2] else []
-                except:
-                    tags = []
+                logger.warning(f"Failed to parse recipe tags - using empty list")
+                tags = []
             
             disliked_recipes.append({
                 'name': recipe[0],
@@ -283,10 +267,8 @@ async def get_meal_recommendations(
             try:
                 tags = json.loads(recipe[1]) if recipe[1] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    tags = eval(recipe[1]) if recipe[1] else []
-                except:
-                    tags = []
+                logger.warning(f"Failed to parse recent recipe tags - using empty list")
+                tags = []
             
             recent_recipes.append({
                 'name': recipe[0],

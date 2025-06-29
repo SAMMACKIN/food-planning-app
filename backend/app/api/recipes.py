@@ -137,7 +137,10 @@ async def get_saved_recipes(
                 ingredients_needed = json.loads(recipe[7]) if recipe[7] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    ingredients_needed = eval(recipe[7]) if recipe[7] else []
+                    try:
+                        ingredients_needed = json.loads(recipe[7]) if recipe[7] else []
+                    except (json.JSONDecodeError, TypeError):
+                        ingredients_needed = []
                 except:
                     ingredients_needed = []
             
@@ -145,7 +148,10 @@ async def get_saved_recipes(
                 instructions = json.loads(recipe[8]) if recipe[8] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    instructions = eval(recipe[8]) if recipe[8] else []
+                    try:
+                        instructions = json.loads(recipe[8]) if recipe[8] else []
+                    except (json.JSONDecodeError, TypeError):
+                        instructions = []
                 except:
                     instructions = []
             
@@ -153,7 +159,10 @@ async def get_saved_recipes(
                 tags = json.loads(recipe[9]) if recipe[9] else []
             except (json.JSONDecodeError, TypeError):
                 try:
-                    tags = eval(recipe[9]) if recipe[9] else []
+                    try:
+                        tags = json.loads(recipe[9]) if recipe[9] else []
+                    except (json.JSONDecodeError, TypeError):
+                        tags = []
                 except:
                     tags = []
             

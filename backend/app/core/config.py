@@ -13,8 +13,22 @@ load_dotenv()
 class Settings:
     """Application settings"""
     
-    # Database - Environment-specific database paths
-    ENVIRONMENT: str = os.getenv("RAILWAY_ENVIRONMENT_NAME", os.getenv("ENVIRONMENT", "development"))
+    def __init__(self):
+        """Initialize and validate settings"""
+        # Database - Environment-specific database paths
+        self.ENVIRONMENT: str = os.getenv("RAILWAY_ENVIRONMENT_NAME", os.getenv("ENVIRONMENT", "development"))
+        
+        # Security
+        self.JWT_SECRET: str = os.getenv("JWT_SECRET")
+        self.JWT_ALGORITHM: str = "HS256"
+        self.JWT_EXPIRATION_HOURS: int = 24
+        
+        # Validate critical security settings
+        if not self.JWT_SECRET:
+            raise ValueError(
+                "JWT_SECRET environment variable is required for security. "
+                "Set JWT_SECRET=your-secure-secret-key in your environment."
+            )
     
     @property
     def DB_PATH(self) -> str:
@@ -43,29 +57,24 @@ class Settings:
             # Local development
             return 'development_food_app.db'
     
-    # Security
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback-secret-change-in-production")
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRATION_HOURS: int = 24
-    
-    # CORS
-    CORS_ORIGINS: list = [
-        "http://localhost:3000",  # Local development
-        "https://food-planning-app.vercel.app",  # Production frontend
-        "https://food-planning-app-preview.vercel.app",  # New preview frontend
-        "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Old preview frontend (legacy)
-    ]
-    
-    # Claude AI
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
-    
-    # App info
-    APP_NAME: str = "Food Planning App API"
-    VERSION: str = "1.0.0"
-    
-    # Deployment info
-    RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
-    RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
+        # CORS
+        self.CORS_ORIGINS: list = [
+            "http://localhost:3000",  # Local development
+            "https://food-planning-app.vercel.app",  # Production frontend
+            "https://food-planning-app-preview.vercel.app",  # New preview frontend
+            "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Old preview frontend (legacy)
+        ]
+        
+        # Claude AI
+        self.ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+        
+        # App info
+        self.APP_NAME: str = "Food Planning App API"
+        self.VERSION: str = "1.0.0"
+        
+        # Deployment info
+        self.RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
+        self.RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
     
     @property
     def deployment_info(self) -> dict:

@@ -18,12 +18,44 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
+    """Verify a password against its hash (supports bcrypt and legacy SHA-256)"""
     try:
+        # Try bcrypt first (current standard)
         return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except Exception as e:
-        logger.error(f"Password verification error: {e}")
+    except Exception:
+        # Fallback: check if it's a legacy SHA-256 hash
+        try:
+            import hashlib
+            legacy_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+            if legacy_hash == hashed_password:
+                logger.warning(f"User authenticated with legacy SHA-256 hash - should be migrated to bcrypt")
+                return True
+        except Exception as e:
+            logger.error(f"Password verification error: {e}")
         return False
+
+
+def migrate_legacy_password_hash(user_id: str, new_password: str) -> None:
+    """Migrate a user's password from legacy SHA-256 to bcrypt"""
+    from .database import get_db_connection
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        new_hash = hash_password(new_password)
+        cursor.execute(
+            "UPDATE users SET hashed_password = ? WHERE id = ?",
+            (new_hash, user_id)
+        )
+        conn.commit()
+        conn.close()
+        logger.info(f"Successfully migrated password hash for user {user_id} to bcrypt")
+    except Exception as e:
+        logger.error(f"Failed to migrate password hash for user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
