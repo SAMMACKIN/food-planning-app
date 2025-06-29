@@ -89,6 +89,14 @@ def create_app() -> FastAPI:
             logger.error(f"❌ Pantry router error: {e}")
         
         try:
+            from .api import ingredients
+            app.include_router(ingredients.router, prefix="/api/v1", tags=["ingredients"])
+            router_status["ingredients"] = "✅ Success"
+        except Exception as e:
+            router_status["ingredients"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Ingredients router error: {e}")
+        
+        try:
             from .api import recommendations
             app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
             router_status["recommendations"] = "✅ Success"
