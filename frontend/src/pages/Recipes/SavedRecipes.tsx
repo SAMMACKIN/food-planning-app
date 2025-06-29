@@ -46,7 +46,6 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes,
     deleteRecipe,
     rateRecipe,
-    addRecipeToMealPlan,
     clearError
   } = useRecipes();
 
