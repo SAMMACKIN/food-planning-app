@@ -15,6 +15,7 @@ import MealPlanning from './pages/MealPlanning/MealPlanning';
 import UserGuide from './pages/UserGuide/UserGuide';
 import Changes from './pages/Changes/Changes';
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import SavedRecipes from './pages/Recipes/SavedRecipes';
 import './App.css';
 
 
@@ -91,6 +92,7 @@ function App() {
             <Route path="family" element={<FamilyManagement />} />
             <Route path="pantry" element={<PantryManagement />} />
             <Route path="recommendations" element={<MealRecommendations />} />
+            <Route path="recipes" element={<SavedRecipes />} />
             <Route path="meal-planning" element={<MealPlanning />} />
             <Route path="user-guide" element={<UserGuide />} />
             <Route path="changes" element={<Changes />} />

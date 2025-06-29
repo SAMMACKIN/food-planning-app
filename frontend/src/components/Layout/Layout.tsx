@@ -67,19 +67,20 @@ const Layout: React.FC = () => {
   const getCurrentTab = () => {
     if (location.pathname.includes('/family')) return 1;
     if (location.pathname.includes('/pantry')) return 2;
-    if (location.pathname.includes('/meal-planning')) return 3;
-    if (location.pathname.includes('/recommendations')) return 4;
-    if (location.pathname.includes('/user-guide')) return 5;
-    if (location.pathname.includes('/changes')) return 6;
-    if (location.pathname.includes('/admin')) return 7;
+    if (location.pathname.includes('/recommendations')) return 3;
+    if (location.pathname.includes('/recipes')) return 4;
+    if (location.pathname.includes('/meal-planning')) return 5;
+    if (location.pathname.includes('/user-guide')) return 6;
+    if (location.pathname.includes('/changes')) return 7;
+    if (location.pathname.includes('/admin')) return 8;
     return 0; // dashboard
   };
 
   const getCurrentBottomNav = () => {
     if (location.pathname.includes('/family')) return 1;
     if (location.pathname.includes('/pantry')) return 2;
-    if (location.pathname.includes('/meal-planning')) return 3;
-    if (location.pathname.includes('/recommendations')) return 4;
+    if (location.pathname.includes('/recommendations')) return 3;
+    if (location.pathname.includes('/recipes')) return 4;
     return 0; // dashboard
   };
 
@@ -87,8 +88,9 @@ const Layout: React.FC = () => {
     { label: 'Dashboard', icon: <HomeIcon />, path: '/dashboard' },
     { label: 'Family', icon: <PeopleIcon />, path: '/family' },
     { label: 'Pantry', icon: <KitchenIcon />, path: '/pantry' },
+    { label: 'Recommendations', icon: <RestaurantIcon />, path: '/recommendations' },
+    { label: 'Saved Recipes', icon: <RestaurantIcon />, path: '/recipes' },
     { label: 'Meal Plans', icon: <CalendarIcon />, path: '/meal-planning' },
-    { label: 'Recipes', icon: <RestaurantIcon />, path: '/recommendations' },
     { label: 'Help', icon: <HelpIcon />, path: '/user-guide' },
     { label: 'Changes', icon: <HistoryIcon />, path: '/changes' },
     ...(user?.is_admin ? [{ label: 'Admin', icon: <AdminIcon />, path: '/admin' }] : []),
