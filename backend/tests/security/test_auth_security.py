@@ -94,7 +94,7 @@ class TestJWTSecurity:
         token = create_access_token({"sub": user_id, "user_id": user_id})
         
         # Try to verify with wrong secret - should fail
-        with patch.object(simple_app, 'JWT_SECRET', 'wrong-secret'):
+        with patch.object(config, 'JWT_SECRET', 'wrong-secret'):
             result = verify_token(token)
             assert result is None, "Token should not verify with wrong secret"
     
@@ -138,7 +138,7 @@ class TestCORSSecurity:
         with patch.dict(os.environ, {'ADDITIONAL_CORS_ORIGINS': 'https://test1.com,https://test2.com'}):
             # Reload CORS configuration
             import importlib
-            importlib.reload(simple_app)
+            importlib.reload(config)
             
             assert 'https://test1.com' in get_settings().CORS_ORIGINS
             assert 'https://test2.com' in get_settings().CORS_ORIGINS

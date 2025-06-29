@@ -42,7 +42,7 @@ def get_current_user(authorization: str = None):
         if payload and 'sub' in payload:
             user_id = payload['sub']
             logger.debug(f"✅ Authentication successful for user: {user_id}")
-            return {'id': user_id}
+            return payload
         else:
             logger.warning("❌ Token payload missing 'sub' field")
             return None
@@ -60,17 +60,38 @@ async def get_saved_recipes(
     authorization: str = Header(None)
 ):
     """Get user's saved recipes with optional filtering"""
-    current_user = get_current_user(authorization)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    logger.info("🍽️ GET SAVED RECIPES ENDPOINT CALLED")
+    logger.info(f"🍽️ Authorization header present: {bool(authorization)}")
+    logger.info(f"🍽️ Search: {search}, Difficulty: {difficulty}, Tags: {tags}")
     
     try:
-        user_id = current_user['id']
+        current_user = get_current_user(authorization)
+        logger.info(f"🍽️ Authentication result: {bool(current_user)}")
+        if current_user:
+            logger.info(f"🍽️ User ID: {current_user.get('sub', 'NO_ID')}")
+    except Exception as e:
+        logger.error(f"🍽️ Authentication error: {e}")
+        raise HTTPException(status_code=401, detail=f"Authentication error: {str(e)}")
+    
+    if not current_user:
+        logger.error("🍽️ Authentication failed - no current user")
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        logger.info("🍽️ Getting database connection...")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        logger.info("🍽️ Database connection successful")
+    except Exception as e:
+        logger.error(f"🍽️ Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+    
+    try:
+        user_id = current_user['sub']
+        logger.info(f"🍽️ Processing request for user: {user_id}")
         
         # Base query
+        logger.info("🍽️ Building query...")
         query = '''
             SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
                    r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
@@ -81,6 +102,7 @@ async def get_saved_recipes(
             LEFT JOIN recipe_ratings rt ON r.id = rt.recipe_id
             WHERE r.user_id = ?
         '''
+        logger.info(f"🍽️ Base query: {query[:100]}...")
         params = [user_id]
         
         # Add search filter
@@ -101,8 +123,13 @@ async def get_saved_recipes(
         
         query += ' GROUP BY r.id ORDER BY r.updated_at DESC'
         
+        logger.info(f"🍽️ Final query: {query}")
+        logger.info(f"🍽️ Query params: {params}")
+        logger.info("🍽️ Executing query...")
+        
         cursor.execute(query, params)
         recipes_data = cursor.fetchall()
+        logger.info(f"🍽️ Found {len(recipes_data)} recipes")
         
         recipes = []
         for recipe in recipes_data:
@@ -173,7 +200,7 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
         logger.warning("❌ Recipe save failed: Authentication required")
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    user_id = current_user['id']
+    user_id = current_user['sub']
     recipe_id = str(uuid.uuid4())
     
     logger.info(f"👤 Saving recipe for user: {user_id}")
@@ -277,7 +304,7 @@ async def get_saved_recipe(recipe_id: str, authorization: str = Header(None)):
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         cursor.execute('''
             SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
@@ -343,7 +370,7 @@ async def update_saved_recipe(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if recipe exists and belongs to user
         cursor.execute(
@@ -421,7 +448,7 @@ async def delete_saved_recipe(recipe_id: str, authorization: str = Header(None))
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if recipe exists and belongs to user
         cursor.execute(
@@ -471,7 +498,7 @@ async def rate_recipe(
         logger.warning(f"❌ Invalid rating value: {rating_data.rating}")
         raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
     
-    user_id = current_user['id']
+    user_id = current_user['sub']
     rating_id = str(uuid.uuid4())
     
     logger.info(f"👤 Rating recipe for user: {user_id}")
@@ -554,7 +581,7 @@ async def get_recipe_ratings(recipe_id: str, authorization: str = Header(None)):
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if recipe exists and belongs to user
         cursor.execute(
@@ -623,7 +650,7 @@ async def add_recipe_to_meal_plan(
         logger.warning(f"❌ Invalid date format: {meal_date}")
         raise HTTPException(status_code=400, detail="Date must be in YYYY-MM-DD format")
     
-    user_id = current_user['id']
+    user_id = current_user['sub']
     meal_plan_id = str(uuid.uuid4())
     
     logger.info(f"👤 Adding to meal plan for user: {user_id}")
@@ -710,7 +737,7 @@ async def debug_recipes_health(authorization: str = Header(None)):
     if not current_user:
         return {"status": "error", "message": "Authentication required"}
     
-    user_id = current_user['id']
+    user_id = current_user['sub']
     health_status = {
         "status": "healthy",
         "user_id": user_id,

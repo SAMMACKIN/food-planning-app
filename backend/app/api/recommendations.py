@@ -27,7 +27,7 @@ def get_current_user(authorization: str = None):
     token = authorization.split(" ")[1]
     payload = verify_token(token)
     if payload and 'sub' in payload:
-        return {'id': payload['sub']}
+        return payload
     return None
 
 
@@ -81,58 +81,88 @@ async def get_meal_recommendations(
     authorization: str = Header(None)
 ):
     """Get AI-powered meal recommendations based on family and pantry data"""
+    logger.info("🔥 RECOMMENDATIONS ENDPOINT CALLED")
+    logger.info(f"🔥 Authorization header present: {bool(authorization)}")
+    logger.info(f"🔥 Request data: {request}")
+    logger.info(f"🔥 Time: {datetime.datetime.now()}")
+    
     # Get the current authenticated user
-    current_user = get_current_user(authorization)
+    try:
+        current_user = get_current_user(authorization)
+        logger.info(f"🔥 Authentication result: {bool(current_user)}")
+        if current_user:
+            logger.info(f"🔥 User ID: {current_user.get('sub', 'NO_ID')}")
+    except Exception as e:
+        logger.error(f"🔥 Authentication error: {e}")
+        raise HTTPException(status_code=401, detail=f"Authentication error: {str(e)}")
+    
     if not current_user:
+        logger.error("🔥 Authentication failed - no current user")
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    logger.info("=== RECOMMENDATIONS REQUEST RECEIVED ===")
-    logger.info(f"Request: {request}")
-    logger.info(f"Time: {datetime.datetime.now()}")
-    logger.info("="*50)
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        logger.info("🔥 Getting database connection...")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        logger.info("🔥 Database connection successful")
+    except Exception as e:
+        logger.error(f"🔥 Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
+        logger.info(f"🔥 Processing request for user: {user_id}")
         
         # Get family members
+        logger.info("🔥 Querying family members...")
         cursor.execute('''
             SELECT id, name, age, dietary_restrictions, preferences 
             FROM family_members 
             WHERE user_id = ?
         ''', (user_id,))
         family_data = cursor.fetchall()
+        logger.info(f"🔥 Found {len(family_data)} family members")
         
         family_members = []
-        for member in family_data:
+        for i, member in enumerate(family_data):
+            logger.info(f"🔥 Processing family member {i+1}: {member}")
             # Parse dietary_restrictions and preferences from JSON/eval
             try:
                 dietary_restrictions = json.loads(member[3]) if member[3] else []
-            except (json.JSONDecodeError, TypeError):
+                logger.info(f"🔥 Parsed dietary restrictions via JSON: {dietary_restrictions}")
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"🔥 JSON parse failed for dietary restrictions: {e}")
                 try:
                     dietary_restrictions = eval(member[3]) if member[3] else []
-                except:
+                    logger.info(f"🔥 Parsed dietary restrictions via eval: {dietary_restrictions}")
+                except Exception as e2:
+                    logger.error(f"🔥 Eval parse failed for dietary restrictions: {e2}")
                     dietary_restrictions = []
             
             try:
                 preferences = json.loads(member[4]) if member[4] else {}
-            except (json.JSONDecodeError, TypeError):
+                logger.info(f"🔥 Parsed preferences via JSON: {preferences}")
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"🔥 JSON parse failed for preferences: {e}")
                 try:
                     preferences = eval(member[4]) if member[4] else {}
-                except:
+                    logger.info(f"🔥 Parsed preferences via eval: {preferences}")
+                except Exception as e2:
+                    logger.error(f"🔥 Eval parse failed for preferences: {e2}")
                     preferences = {}
             
-            family_members.append({
+            family_member = {
                 'id': member[0],
                 'name': member[1],
                 'age': member[2],
                 'dietary_restrictions': dietary_restrictions,
                 'preferences': preferences
-            })
+            }
+            logger.info(f"🔥 Added family member: {family_member}")
+            family_members.append(family_member)
         
         # Get pantry items
+        logger.info("🔥 Querying pantry items...")
         cursor.execute('''
             SELECT p.quantity, p.expiration_date,
                    i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
@@ -142,6 +172,7 @@ async def get_meal_recommendations(
             WHERE p.user_id = ?
         ''', (user_id,))
         pantry_data = cursor.fetchall()
+        logger.info(f"🔥 Found {len(pantry_data)} pantry items")
         
         pantry_items = []
         for item in pantry_data:

@@ -58,7 +58,7 @@ async def get_pantry_items(authorization: str = Header(None)):
     try:
         if authorization:
             current_user = get_current_user_dependency(authorization)
-            user_id = current_user['id']
+            user_id = current_user['sub']
         else:
             # Fallback to admin user for compatibility
             conn = get_db_connection()
@@ -147,7 +147,7 @@ async def add_pantry_item(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if ingredient exists
         cursor.execute("SELECT * FROM ingredients WHERE id = ?", (pantry_data.ingredient_id,))
@@ -219,7 +219,7 @@ async def update_pantry_item(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if pantry item exists
         cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
@@ -303,7 +303,7 @@ async def remove_pantry_item(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if pantry item exists
         cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))

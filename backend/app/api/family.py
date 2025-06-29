@@ -77,7 +77,7 @@ async def get_family_members(authorization: str = Header(None)):
                 FROM family_members 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-            ''', (current_user["id"],))
+            ''', (current_user["sub"],))
         
         rows = cursor.fetchall()
         family_members = []
@@ -138,7 +138,7 @@ async def create_family_member(
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             member_id,
-            current_user["id"],
+            current_user["sub"],
             member_data.name,
             member_data.age,
             dietary_restrictions_str,
@@ -206,7 +206,7 @@ async def update_family_member(
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and existing_member[1] != current_user["id"]:
+        if not current_user.get("is_admin", False) and existing_member[1] != current_user["sub"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Build update query dynamically based on provided fields
@@ -294,7 +294,7 @@ async def delete_family_member(
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and result[0] != current_user["id"]:
+        if not current_user.get("is_admin", False) and result[0] != current_user["sub"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the family member

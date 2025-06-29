@@ -208,7 +208,7 @@ async def admin_delete_user(user_id: str, authorization: str = Header(None)):
     current_user = require_admin(authorization)
     
     # Prevent admin from deleting themselves
-    if current_user['id'] == user_id:
+    if current_user['sub'] == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
     
     conn = get_db_connection()

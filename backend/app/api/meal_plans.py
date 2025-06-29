@@ -32,7 +32,7 @@ def get_current_user(authorization: str = None):
     token = authorization.split(" ")[1]
     payload = verify_token(token)
     if payload and 'sub' in payload:
-        return {'id': payload['sub']}
+        return payload
     return None
 
 
@@ -52,7 +52,7 @@ async def get_meal_plans(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Build query with optional date filtering
         if start_date and end_date:
@@ -129,7 +129,7 @@ async def create_meal_plan(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         meal_plan_id = str(uuid.uuid4())
         
         # Check if meal already exists for this slot
@@ -209,7 +209,7 @@ async def update_meal_plan(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if meal plan exists and belongs to user
         cursor.execute("SELECT user_id FROM meal_plans WHERE id = ?", (meal_plan_id,))
@@ -287,7 +287,7 @@ async def delete_meal_plan(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if meal plan exists and belongs to user
         cursor.execute("SELECT user_id FROM meal_plans WHERE id = ?", (meal_plan_id,))
@@ -369,7 +369,7 @@ async def create_meal_review(
     cursor = conn.cursor()
     
     try:
-        user_id = current_user['id']
+        user_id = current_user['sub']
         
         # Check if meal_reviews table exists
         cursor.execute("""

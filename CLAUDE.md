@@ -13,10 +13,9 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 ### Backend (FastAPI)
 - **Start**: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload`
 - **Test**: `cd backend && python -m pytest`
-- **Legacy Start**: `cd backend && python simple_app.py` (deprecated - use modular app above)
 
 ### Database
-- **Location**: `backend/simple_food_app.db` (SQLite)
+- **Location**: `backend/development_food_app.db` (SQLite)
 - **Reset**: Delete the .db file and restart backend
 
 ## Current Status
@@ -69,7 +68,7 @@ The app supports multiple AI providers for meal recommendations. Add at least on
 ## Common Issues
 - If registration fails, check browser console for debug logs
 - Ensure both frontend (3000) and backend (8001) are running
-- Backend logs are in `backend/simple_backend.log`
+- Backend logs are visible in console when running with --reload
 
 ## 🚨 DEPLOYMENT WORKFLOW - ABSOLUTE CRITICAL RULE 🚨
 ⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT EXPLICIT USER APPROVAL** ⚠️

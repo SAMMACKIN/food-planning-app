@@ -48,7 +48,7 @@ jobs:
     - name: Run backend tests with coverage
       run: |
         python tests/test_runner.py
-      continue-on-error: true
+        python -m pytest tests/ -v --cov=app --cov-report=xml
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -127,7 +127,7 @@ jobs:
     - name: Start backend server
       working-directory: ./backend
       run: |
-        python simple_app.py &
+        python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         echo "BACKEND_PID=$!" >> $GITHUB_ENV
       env:
         DATABASE_URL: sqlite:///./test_e2e.db
@@ -152,7 +152,6 @@ jobs:
     - name: Run Playwright tests
       working-directory: ./frontend
       run: npm run test:e2e
-      continue-on-error: true
       env:
         CI: true
     
@@ -195,7 +194,6 @@ jobs:
     - name: Run TypeScript type checking
       working-directory: ./frontend
       run: npx tsc --noEmit --skipLibCheck
-      continue-on-error: true
     
     - name: Set up Python
       uses: actions/setup-python@v4

@@ -200,7 +200,7 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
         logger.info(f"👤 User details - Admin: {current_user['is_admin']}, Active: {current_user['is_active']}")
         
         return UserResponse(
-            id=current_user['id'],
+            id=current_user['sub'],
             email=current_user['email'],
             name=current_user['name'],
             timezone=current_user['timezone'],
@@ -226,7 +226,7 @@ async def delete_user_account(authorization: str = Header(None)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    user_id = current_user['id']
+    user_id = current_user['sub']
     
     # Prevent admin account deletion for safety
     if current_user.get('is_admin', False):

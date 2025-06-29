@@ -18,20 +18,20 @@ class Settings:
     
     @property
     def DB_PATH(self) -> str:
-        """Get environment-specific database path matching simple_app.py format"""
+        """Get environment-specific database path for modular app"""
         # Check if DB_PATH is explicitly set
         if os.getenv("DB_PATH"):
             return os.getenv("DB_PATH")
         
-        # Use the SAME database path logic as simple_app.py to eliminate dual DB issue
+        # Use consistent database path logic across environments
         env_lower = self.ENVIRONMENT.lower()
         
-        # Check Railway environment variables (matching simple_app.py logic)
+        # Check Railway environment variables for deployment detection
         railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '').lower()
         is_railway = bool(railway_domain or os.getenv('RAILWAY_PROJECT_ID'))
         
         if is_railway:
-            # Use domain-based detection (matching simple_app.py)
+            # Use domain-based detection for Railway environments
             if 'preview' in railway_domain or 'preview' in env_lower:
                 return '/app/data/preview_food_app.db'
             elif 'production' in railway_domain or env_lower == 'production':
