@@ -39,7 +39,7 @@ def get_current_user(authorization: str = None):
         cursor.execute("""
             SELECT id, email, name, timezone, is_active, is_admin, created_at 
             FROM users WHERE id = ?
-        """, (user_data,))
+        """, (user_data['sub'],))
         user = cursor.fetchone()
         
         if not user:
