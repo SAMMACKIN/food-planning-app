@@ -1,7 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
+from app.core.config import get_settings
+
+# Get settings instance
+settings = get_settings()
 
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
@@ -10,7 +13,7 @@ if settings.DATABASE_URL.startswith("sqlite"):
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
-    echo=settings.DEBUG
+    echo=getattr(settings, 'DEBUG', False)  # Safe access to DEBUG
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

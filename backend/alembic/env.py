@@ -8,8 +8,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.database import Base
-from app.models.user import User
-from app.core.config import settings
+from app.core.config import get_settings
+
+# Import simplified models that match current SQLite schema
+from app.models.simple_models import (
+    User, FamilyMember, Ingredient, PantryItem, 
+    MealPlan, SavedRecipe, RecipeRating, MealReview
+)
 
 config = context.config
 
@@ -18,6 +23,8 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# Get database URL from settings
+settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 

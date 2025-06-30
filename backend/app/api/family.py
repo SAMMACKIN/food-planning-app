@@ -1,15 +1,14 @@
 """
 Family management API endpoints
 """
-import sqlite3
 import uuid
 import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 
-from ..core.database import get_db_connection
-from ..core.security import verify_token
+from ..core.database_service import get_db_session, db_service
+from ..core.auth_service import AuthService
 from ..schemas.family import FamilyMemberCreate, FamilyMemberUpdate, FamilyMemberResponse
 
 router = APIRouter(prefix="/family", tags=["family"])
@@ -24,12 +23,18 @@ def get_current_user_dependency(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
     
     token = authorization.split(" ")[1]
-    user_data = verify_token(token)
+    user_data = AuthService.verify_user_token(token)
     
     if not user_data:
         raise HTTPException(status_code=401, detail="Invalid token")
     
-    return user_data
+    return {
+        'sub': user_data['id'],
+        'id': user_data['id'],
+        'email': user_data['email'],
+        'name': user_data['name'],
+        'is_admin': user_data['is_admin']
+    }
 
 
 def get_current_user(authorization: str = None):
@@ -41,7 +46,16 @@ def get_current_user(authorization: str = None):
         return None
     
     token = authorization.split(" ")[1]
-    return verify_token(token)
+    user_data = AuthService.verify_user_token(token)
+    if user_data:
+        return {
+            'sub': user_data['id'],
+            'id': user_data['id'],
+            'email': user_data['email'],
+            'name': user_data['name'],
+            'is_admin': user_data['is_admin']
+        }
+    return None
 
 
 @router.get("/members", response_model=List[FamilyMemberResponse])
@@ -59,27 +73,24 @@ async def get_family_members(authorization: str = Header(None)):
         # For now, just require authentication
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         if current_user.get("is_admin", False):
             # Admin can see all family members
-            cursor.execute('''
+            session.execute('''
                 SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
                 FROM family_members
                 ORDER BY created_at DESC
             ''')
         else:
             # Regular users only see their own family members
-            cursor.execute('''
+            session.execute('''
                 SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
                 FROM family_members 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
             ''', (current_user["sub"],))
         
-        rows = cursor.fetchall()
+        rows = session.fetchall()
         family_members = []
         
         for row in rows:
@@ -87,24 +98,12 @@ async def get_family_members(authorization: str = Header(None)):
             try:
                 dietary_restrictions = json.loads(row[4]) if row[4] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        dietary_restrictions = json.loads(row[4]) if row[4] else []
-                    except (json.JSONDecodeError, TypeError):
-                        dietary_restrictions = []
-                except:
-                    dietary_restrictions = []
+                dietary_restrictions = []
             
             try:
                 preferences = json.loads(row[5]) if row[5] else {}
             except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        preferences = json.loads(row[5]) if row[5] else {}
-                    except (json.JSONDecodeError, TypeError):
-                        preferences = {}
-                except:
-                    preferences = {}
+                preferences = {}
             
             family_member = FamilyMemberResponse(
                 id=row[0],
@@ -118,9 +117,6 @@ async def get_family_members(authorization: str = Header(None)):
             family_members.append(family_member)
         
         return family_members
-        
-    finally:
-        conn.close()
 
 
 @router.post("/members", response_model=FamilyMemberResponse)
@@ -129,17 +125,14 @@ async def create_family_member(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Create a new family member"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         member_id = str(uuid.uuid4())
         
         # Serialize dietary_restrictions and preferences as JSON
         dietary_restrictions_str = json.dumps(member_data.dietary_restrictions or [])
         preferences_str = json.dumps(member_data.preferences or {})
         
-        cursor.execute('''
+        session.execute('''
             INSERT INTO family_members (id, user_id, name, age, dietary_restrictions, preferences)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
@@ -151,16 +144,14 @@ async def create_family_member(
             preferences_str
         ))
         
-        conn.commit()
-        
         # Fetch the created family member
-        cursor.execute('''
+        session.execute('''
             SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
             FROM family_members 
             WHERE id = ?
         ''', (member_id,))
         
-        row = cursor.fetchone()
+        row = session.fetchone()
         if not row:
             raise HTTPException(status_code=500, detail="Failed to create family member")
         
@@ -184,9 +175,6 @@ async def create_family_member(
             preferences=preferences,
             created_at=row[6]
         )
-        
-    finally:
-        conn.close()
 
 
 @router.put("/members/{member_id}", response_model=FamilyMemberResponse)
@@ -196,18 +184,15 @@ async def update_family_member(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Update an existing family member"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         # First check if the family member exists and belongs to the user
-        cursor.execute('''
+        session.execute('''
             SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
             FROM family_members 
             WHERE id = ?
         ''', (member_id,))
         
-        existing_member = cursor.fetchone()
+        existing_member = session.fetchone()
         if not existing_member:
             raise HTTPException(status_code=404, detail="Family member not found")
         
@@ -243,17 +228,16 @@ async def update_family_member(
             update_query = f"UPDATE family_members SET {', '.join(update_fields)} WHERE id = ?"
             update_values.append(member_id)
             
-            cursor.execute(update_query, update_values)
-            conn.commit()
+            session.execute(update_query, update_values)
         
         # Fetch updated family member
-        cursor.execute('''
+        session.execute('''
             SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
             FROM family_members 
             WHERE id = ?
         ''', (member_id,))
         
-        row = cursor.fetchone()
+        row = session.fetchone()
         
         # Parse the stored data
         try:
@@ -275,9 +259,6 @@ async def update_family_member(
             preferences=preferences,
             created_at=row[6]
         )
-        
-    finally:
-        conn.close()
 
 
 @router.delete("/members/{member_id}")
@@ -286,16 +267,13 @@ async def delete_family_member(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Delete a family member"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         # Check if family member exists and belongs to user
-        cursor.execute('''
+        session.execute('''
             SELECT user_id FROM family_members WHERE id = ?
         ''', (member_id,))
         
-        result = cursor.fetchone()
+        result = session.fetchone()
         if not result:
             raise HTTPException(status_code=404, detail="Family member not found")
         
@@ -304,10 +282,6 @@ async def delete_family_member(
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the family member
-        cursor.execute('DELETE FROM family_members WHERE id = ?', (member_id,))
-        conn.commit()
+        session.execute('DELETE FROM family_members WHERE id = ?', (member_id,))
         
         return {"message": "Family member deleted successfully"}
-        
-    finally:
-        conn.close()

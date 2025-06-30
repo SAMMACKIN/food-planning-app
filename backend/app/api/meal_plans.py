@@ -1,14 +1,13 @@
 """
 Meal planning and meal review API endpoints
 """
-import sqlite3
 import uuid
 import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Query
 
-from ..core.database import get_db_connection
-from ..core.security import verify_token
+from ..core.database_service import get_db_session, db_service
+from ..core.auth_service import AuthService
 from ..schemas.meals import (
     MealPlanCreate, 
     MealPlanUpdate, 

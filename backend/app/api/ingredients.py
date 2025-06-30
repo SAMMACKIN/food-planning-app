@@ -1,12 +1,11 @@
 """
 Ingredients API endpoints
 """
-import sqlite3
 import json
 from typing import List
 from fastapi import APIRouter, HTTPException, Query
 
-from ..core.database import get_db_connection
+from ..core.database_service import get_db_session, db_service
 from ..schemas.pantry import IngredientResponse
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
@@ -15,17 +14,14 @@ router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 @router.get("", response_model=List[IngredientResponse])
 async def get_ingredients():
     """Get all available ingredients"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        session.execute('''
             SELECT id, name, category, unit, calories_per_unit, protein_per_unit, 
                    carbs_per_unit, fat_per_unit, allergens, created_at 
             FROM ingredients 
             ORDER BY category, name
         ''')
-        ingredients = cursor.fetchall()
+        ingredients = session.fetchall()
         
         result = []
         for ingredient in ingredients:
@@ -33,13 +29,7 @@ async def get_ingredients():
             try:
                 allergens = json.loads(ingredient[8]) if ingredient[8] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        allergens = json.loads(ingredient[8]) if ingredient[8] else []
-                    except (json.JSONDecodeError, TypeError):
-                        allergens = []
-                except:
-                    allergens = []
+                allergens = []
             
             result.append(IngredientResponse(
                 id=ingredient[0],
@@ -55,19 +45,13 @@ async def get_ingredients():
             ))
         
         return result
-        
-    finally:
-        conn.close()
 
 
 @router.get("/search", response_model=List[IngredientResponse])
 async def search_ingredients(q: str = Query(..., description="Search query for ingredient name")):
     """Search ingredients by name"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        session.execute('''
             SELECT id, name, category, unit, calories_per_unit, protein_per_unit, 
                    carbs_per_unit, fat_per_unit, allergens, created_at 
             FROM ingredients 
@@ -75,7 +59,7 @@ async def search_ingredients(q: str = Query(..., description="Search query for i
             ORDER BY name
             LIMIT 20
         ''', (f'%{q}%',))
-        ingredients = cursor.fetchall()
+        ingredients = session.fetchall()
         
         result = []
         for ingredient in ingredients:
@@ -83,13 +67,7 @@ async def search_ingredients(q: str = Query(..., description="Search query for i
             try:
                 allergens = json.loads(ingredient[8]) if ingredient[8] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        allergens = json.loads(ingredient[8]) if ingredient[8] else []
-                    except (json.JSONDecodeError, TypeError):
-                        allergens = []
-                except:
-                    allergens = []
+                allergens = []
             
             result.append(IngredientResponse(
                 id=ingredient[0],
@@ -105,6 +83,3 @@ async def search_ingredients(q: str = Query(..., description="Search query for i
             ))
         
         return result
-        
-    finally:
-        conn.close()

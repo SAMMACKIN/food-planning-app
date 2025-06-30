@@ -29,15 +29,48 @@ class Settings:
         
         # Validate critical security settings
         if not self.JWT_SECRET:
-            # Allow fallback in test environments only
-            if os.getenv("TESTING") == "true" or os.getenv("CI") == "true":
-                self.JWT_SECRET = "test-jwt-secret-for-testing-environments-only"
-                logger.warning("Using fallback JWT_SECRET for test/CI environment")
+            # Allow fallback in development, test, and CI environments
+            is_testing = os.getenv("TESTING") == "true"
+            is_ci = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
+            is_development = self.ENVIRONMENT.lower() == "development"
+            is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
+            
+            if is_testing or is_ci or (is_development and not is_railway):
+                self.JWT_SECRET = "dev-jwt-secret-for-local-development-only"
+                if is_testing or is_ci:
+                    logger.warning("Using fallback JWT_SECRET for test/CI environment")
+                else:
+                    logger.info("Using development JWT_SECRET for local development")
             else:
                 raise ValueError(
                     "JWT_SECRET environment variable is required for security. "
                     "Set JWT_SECRET=your-secure-secret-key in your environment."
                 )
+        
+        # CORS
+        self.CORS_ORIGINS: list = [
+            "http://localhost:3000",  # Local development
+            "https://food-planning-app.vercel.app",  # Production frontend
+            "https://food-planning-app-preview.vercel.app",  # New preview frontend
+            "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Old preview frontend (legacy)
+        ]
+        
+        # Claude AI
+        self.ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+        
+        # App info
+        self.APP_NAME: str = "Food Planning App API"
+        self.VERSION: str = "1.0.0"
+        
+        # Deployment info
+        self.RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
+        self.RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
+        
+        # Database backend selection
+        self.USE_POSTGRESQL: bool = os.getenv("USE_POSTGRESQL", "false").lower() == "true"
+        
+        # Debug mode
+        self.DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     @property
     def DB_PATH(self) -> str:
@@ -66,24 +99,43 @@ class Settings:
             # Local development
             return 'development_food_app.db'
     
-        # CORS
-        self.CORS_ORIGINS: list = [
-            "http://localhost:3000",  # Local development
-            "https://food-planning-app.vercel.app",  # Production frontend
-            "https://food-planning-app-preview.vercel.app",  # New preview frontend
-            "https://food-planning-app-git-preview-sams-projects-c6bbe2f2.vercel.app",  # Old preview frontend (legacy)
-        ]
+    @property
+    def DATABASE_URL(self) -> str:
+        """Get database URL for SQLAlchemy - supports both SQLite and PostgreSQL"""
+        # Check if DATABASE_URL is explicitly set (Railway, Docker, etc.)
+        if os.getenv("DATABASE_URL"):
+            return os.getenv("DATABASE_URL")
         
-        # Claude AI
-        self.ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+        # Environment-based database selection
+        env_lower = self.ENVIRONMENT.lower()
+        is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
+        is_testing = os.getenv("TESTING") == "true"
+        is_ci = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
         
-        # App info
-        self.APP_NAME: str = "Food Planning App API"
-        self.VERSION: str = "1.0.0"
+        # Test environments use SQLite
+        if is_testing or is_ci:
+            return "sqlite:///./test_food_app.db"
         
-        # Deployment info
-        self.RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
-        self.RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
+        # Railway deployment uses PostgreSQL
+        if is_railway or self.USE_POSTGRESQL:
+            # Default Railway PostgreSQL URL structure
+            railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '').lower()
+            
+            if 'preview' in railway_domain or 'preview' in env_lower:
+                # Preview environment PostgreSQL
+                return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning_preview")
+            elif 'production' in railway_domain or env_lower == 'production':
+                # Production environment PostgreSQL
+                return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning")
+            else:
+                # Default PostgreSQL for other Railway deployments
+                return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning")
+        
+        # Local development uses SQLite by default (can be overridden with USE_POSTGRESQL=true)
+        if self.USE_POSTGRESQL:
+            return "postgresql://food_user:food_password@localhost:5432/food_planning_dev"
+        else:
+            return f"sqlite:///{self.DB_PATH}"
     
     @property
     def deployment_info(self) -> dict:

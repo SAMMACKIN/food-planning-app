@@ -1,13 +1,12 @@
 """
 Pantry and ingredient management API endpoints
 """
-import sqlite3
 import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Depends, Query
 
-from ..core.database import get_db_connection
-from ..core.security import verify_token
+from ..core.database_service import get_db_session, db_service
+from ..core.auth_service import AuthService
 from ..schemas.pantry import (
     IngredientResponse, 
     PantryItemCreate, 
@@ -27,12 +26,18 @@ def get_current_user_dependency(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
     
     token = authorization.split(" ")[1]
-    user_data = verify_token(token)
+    user_data = AuthService.verify_user_token(token)
     
     if not user_data:
         raise HTTPException(status_code=401, detail="Invalid token")
     
-    return user_data
+    return {
+        'sub': user_data['id'],
+        'id': user_data['id'],
+        'email': user_data['email'],
+        'name': user_data['name'],
+        'is_admin': user_data['is_admin']
+    }
 
 
 def get_current_user(authorization: str = None):
@@ -44,7 +49,16 @@ def get_current_user(authorization: str = None):
         return None
     
     token = authorization.split(" ")[1]
-    return verify_token(token)
+    user_data = AuthService.verify_user_token(token)
+    if user_data:
+        return {
+            'sub': user_data['id'],
+            'id': user_data['id'],
+            'email': user_data['email'],
+            'name': user_data['name'],
+            'is_admin': user_data['is_admin']
+        }
+    return None
 
 
 
@@ -61,34 +75,27 @@ async def get_pantry_items(authorization: str = Header(None)):
             user_id = current_user['sub']
         else:
             # Fallback to admin user for compatibility
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
-            admin_user = cursor.fetchone()
-            conn.close()
-            if admin_user:
-                user_id = admin_user[0]
-            else:
-                raise HTTPException(status_code=401, detail="No admin user found")
+            with get_db_session() as session:
+                session.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
+                admin_user = session.fetchone()
+                if admin_user:
+                    user_id = admin_user[0]
+                else:
+                    raise HTTPException(status_code=401, detail="No admin user found")
     except HTTPException:
         raise
     except:
         # Final fallback
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
-        admin_user = cursor.fetchone()
-        conn.close()
-        if admin_user:
-            user_id = admin_user[0]
-        else:
-            raise HTTPException(status_code=401, detail="Authentication failed")
+        with get_db_session() as session:
+            session.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
+            admin_user = session.fetchone()
+            if admin_user:
+                user_id = admin_user[0]
+            else:
+                raise HTTPException(status_code=401, detail="Authentication failed")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        session.execute('''
             SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
                    i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
                    i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
@@ -98,7 +105,7 @@ async def get_pantry_items(authorization: str = Header(None)):
             ORDER BY i.category, i.name
         ''', (user_id,))
         
-        pantry_items = cursor.fetchall()
+        pantry_items = session.fetchall()
         
         result = []
         for item in pantry_items:
@@ -106,13 +113,7 @@ async def get_pantry_items(authorization: str = Header(None)):
             try:
                 allergens = json.loads(item[13]) if item[13] else []
             except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        allergens = json.loads(item[13]) if item[13] else []
-                    except (json.JSONDecodeError, TypeError):
-                        allergens = []
-                except:
-                    allergens = []
+                allergens = []
             
             result.append(PantryItemResponse(
                 user_id=item[0],
@@ -135,9 +136,6 @@ async def get_pantry_items(authorization: str = Header(None)):
             ))
         
         return result
-        
-    finally:
-        conn.close()
 
 
 @router.post("", response_model=PantryItemResponse)
@@ -146,26 +144,22 @@ async def add_pantry_item(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Add a new pantry item"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         user_id = current_user['sub']
         
         # Check if ingredient exists
-        cursor.execute("SELECT * FROM ingredients WHERE id = ?", (pantry_data.ingredient_id,))
-        if not cursor.fetchone():
+        session.execute("SELECT * FROM ingredients WHERE id = ?", (pantry_data.ingredient_id,))
+        if not session.fetchone():
             raise HTTPException(status_code=404, detail="Ingredient not found")
         
         # Insert or update pantry item
-        cursor.execute('''
+        session.execute('''
             INSERT OR REPLACE INTO pantry_items (user_id, ingredient_id, quantity, expiration_date)
             VALUES (?, ?, ?, ?)
         ''', (user_id, pantry_data.ingredient_id, pantry_data.quantity, pantry_data.expiration_date))
-        conn.commit()
         
         # Get the pantry item with ingredient details
-        cursor.execute('''
+        session.execute('''
             SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
                    i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
                    i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
@@ -174,7 +168,7 @@ async def add_pantry_item(
             WHERE p.user_id = ? AND p.ingredient_id = ?
         ''', (user_id, pantry_data.ingredient_id))
         
-        item = cursor.fetchone()
+        item = session.fetchone()
         if not item:
             raise HTTPException(status_code=500, detail="Failed to create pantry item")
         
@@ -182,13 +176,7 @@ async def add_pantry_item(
         try:
             allergens = json.loads(item[13]) if item[13] else []
         except (json.JSONDecodeError, TypeError):
-            try:
-                try:
-                    allergens = json.loads(item[13]) if item[13] else []
-                except (json.JSONDecodeError, TypeError):
-                    allergens = []
-            except:
-                allergens = []
+            allergens = []
         
         return PantryItemResponse(
             user_id=item[0],
@@ -209,9 +197,6 @@ async def add_pantry_item(
                 created_at=item[14]
             )
         )
-        
-    finally:
-        conn.close()
 
 
 @router.put("/{ingredient_id}", response_model=PantryItemResponse)
@@ -221,15 +206,12 @@ async def update_pantry_item(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Update an existing pantry item"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         user_id = current_user['sub']
         
         # Check if pantry item exists
-        cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
-        if not cursor.fetchone():
+        session.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
+        if not session.fetchone():
             raise HTTPException(status_code=404, detail="Pantry item not found")
         
         # Build update query dynamically
@@ -246,14 +228,13 @@ async def update_pantry_item(
         if updates:
             updates.append("updated_at = CURRENT_TIMESTAMP")
             values.extend([user_id, ingredient_id])
-            cursor.execute(
+            session.execute(
                 f"UPDATE pantry_items SET {', '.join(updates)} WHERE user_id = ? AND ingredient_id = ?",
                 values
             )
-            conn.commit()
         
         # Get updated pantry item with ingredient details
-        cursor.execute('''
+        session.execute('''
             SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
                    i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
                    i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
@@ -262,7 +243,7 @@ async def update_pantry_item(
             WHERE p.user_id = ? AND p.ingredient_id = ?
         ''', (user_id, ingredient_id))
         
-        item = cursor.fetchone()
+        item = session.fetchone()
         if not item:
             raise HTTPException(status_code=404, detail="Pantry item not found after update")
         
@@ -270,13 +251,7 @@ async def update_pantry_item(
         try:
             allergens = json.loads(item[13]) if item[13] else []
         except (json.JSONDecodeError, TypeError):
-            try:
-                try:
-                    allergens = json.loads(item[13]) if item[13] else []
-                except (json.JSONDecodeError, TypeError):
-                    allergens = []
-            except:
-                allergens = []
+            allergens = []
         
         return PantryItemResponse(
             user_id=item[0],
@@ -297,9 +272,6 @@ async def update_pantry_item(
                 created_at=item[14]
             )
         )
-        
-    finally:
-        conn.close()
 
 
 @router.delete("/{ingredient_id}")
@@ -308,21 +280,14 @@ async def remove_pantry_item(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Remove a pantry item"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         user_id = current_user['sub']
         
         # Check if pantry item exists
-        cursor.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
-        if not cursor.fetchone():
+        session.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
+        if not session.fetchone():
             raise HTTPException(status_code=404, detail="Pantry item not found")
         
-        cursor.execute("DELETE FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
-        conn.commit()
+        session.execute("DELETE FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
         
         return {"message": "Pantry item removed successfully"}
-        
-    finally:
-        conn.close()

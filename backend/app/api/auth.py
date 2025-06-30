@@ -1,14 +1,11 @@
 """
 Authentication API endpoints
 """
-import uuid
-import sqlite3
 import logging
 from fastapi import APIRouter, HTTPException, Header
 from typing import List
 
-from ..core.database import get_db_path
-from ..core.security import hash_password, verify_password, create_access_token, verify_token
+from ..core.auth_service import AuthService
 from ..schemas.auth import UserCreate, UserLogin, TokenResponse, UserResponse
 
 logger = logging.getLogger(__name__)
@@ -26,31 +23,20 @@ def get_current_user_dependency(authorization: str = Header(None)):
     try:
         # Extract token from "Bearer <token>"
         token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(status_code=401, detail="Invalid token")
         
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-            
-        conn = sqlite3.connect(get_db_path())
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        conn.close()
-        
+        user = AuthService.verify_user_token(token)
         if not user:
-            raise HTTPException(status_code=401, detail="User not found")
+            raise HTTPException(status_code=401, detail="Invalid token or user not found")
             
         return {
-            'id': user[0],
-            'email': user[1], 
-            'name': user[2],
-            'timezone': user[3],
-            'is_active': bool(user[4]),
-            'is_admin': bool(user[5]),
-            'created_at': user[6]
+            'id': user['id'],
+            'sub': user['id'],  # Add 'sub' for compatibility
+            'email': user['email'], 
+            'name': user['name'],
+            'timezone': user['timezone'],
+            'is_active': user['is_active'],
+            'is_admin': user['is_admin'],
+            'created_at': user['created_at']
         }
     except HTTPException:
         raise
@@ -67,31 +53,20 @@ def get_current_user(authorization: str = None):
     try:
         # Extract token from "Bearer <token>"
         token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-        payload = verify_token(token)
-        if not payload:
-            return None
         
-        user_id = payload.get("sub")
-        if not user_id:
-            return None
-            
-        conn = sqlite3.connect(get_db_path())
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, email, name, timezone, is_active, is_admin, created_at FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        conn.close()
-        
+        user = AuthService.verify_user_token(token)
         if not user:
             return None
             
         return {
-            'id': user[0],
-            'email': user[1], 
-            'name': user[2],
-            'timezone': user[3],
-            'is_active': bool(user[4]),
-            'is_admin': bool(user[5]),
-            'created_at': user[6]
+            'id': user['id'],
+            'sub': user['id'],  # Add 'sub' for compatibility
+            'email': user['email'], 
+            'name': user['name'],
+            'timezone': user['timezone'],
+            'is_active': user['is_active'],
+            'is_admin': user['is_admin'],
+            'created_at': user['created_at']
         }
     except Exception as e:
         logger.error(f"Authentication helper error: {e}")
@@ -101,33 +76,19 @@ def get_current_user(authorization: str = None):
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     """Register a new user"""
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
+    logger.info(f"🔐 REGISTRATION ATTEMPT - Email: {user_data.email}")
     
-    # Check if user exists
-    cursor.execute("SELECT id FROM users WHERE email = ?", (user_data.email,))
-    if cursor.fetchone():
-        conn.close()
+    result = AuthService.register_user(user_data.email, user_data.name, user_data.password)
+    
+    if not result:
+        logger.warning(f"❌ REGISTRATION FAILED - Email already exists: {user_data.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
-    user_id = str(uuid.uuid4())
-    hashed_password = hash_password(user_data.password)
-    
-    cursor.execute(
-        "INSERT INTO users (id, email, hashed_password, name) VALUES (?, ?, ?, ?)",
-        (user_id, user_data.email, hashed_password, user_data.name)
-    )
-    conn.commit()
-    conn.close()
-    
-    # Create tokens
-    access_token = create_access_token({"sub": user_id})
-    refresh_token = create_access_token({"sub": user_id})
+    logger.info(f"✅ REGISTRATION SUCCESS - User created: {user_data.email}")
     
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token=result["access_token"],
+        refresh_token=result["access_token"],  # Using same token for now
         expires_in=86400
     )
 
@@ -137,43 +98,17 @@ async def login(user_data: UserLogin):
     """Authenticate user and return tokens"""
     logger.info(f"🔐 LOGIN ATTEMPT - Email: {user_data.email}")
     
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
+    result = AuthService.login_user(user_data.email, user_data.password)
     
-    cursor.execute("SELECT id, hashed_password, is_active, is_admin FROM users WHERE email = ?", (user_data.email,))
-    user = cursor.fetchone()
-    
-    if not user:
-        logger.warning(f"❌ LOGIN FAILED - User not found: {user_data.email}")
-        conn.close()
+    if not result:
+        logger.warning(f"❌ LOGIN FAILED - Invalid credentials: {user_data.email}")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    
-    logger.info(f"📋 User found - ID: {user[0]}, Active: {user[2]}, Admin: {user[3]}")
-    
-    password_valid = verify_password(user_data.password, user[1])
-    logger.info(f"🔑 Password verification: {password_valid}")
-    
-    if not password_valid:
-        logger.warning(f"❌ LOGIN FAILED - Invalid password for: {user_data.email}")
-        conn.close()
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    
-    if not user[2]:  # Check is_active
-        logger.warning(f"❌ LOGIN FAILED - Inactive user: {user_data.email}")
-        conn.close()
-        raise HTTPException(status_code=401, detail="Account is inactive")
-    
-    conn.close()
-    
-    # Create tokens
-    access_token = create_access_token({"sub": user[0]})
-    refresh_token = create_access_token({"sub": user[0]})
     
     logger.info(f"✅ LOGIN SUCCESS - User: {user_data.email}, Token created")
     
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token=result["access_token"],
+        refresh_token=result["access_token"],  # Using same token for now
         expires_in=86400
     )
 

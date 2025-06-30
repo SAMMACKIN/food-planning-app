@@ -6,9 +6,12 @@ import json
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from ..core.database_service import get_db_session, db_service
 from ..core.auth_service import AuthService
+from ..models.simple_models import SavedRecipe, RecipeRating, User
 from ..schemas.meals import (
     SavedRecipeCreate, SavedRecipeUpdate, SavedRecipeResponse,
     RecipeRatingCreate, RecipeRatingUpdate, RecipeRatingResponse
@@ -60,7 +63,7 @@ async def get_saved_recipes(
     user_id = current_user['sub']
     
     with get_db_session() as session:
-        # Use unified database session
+        # Use SQLite for now (unified approach)
         query = '''
             SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
                    r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
@@ -207,56 +210,6 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
             times_cooked=recipe[15] or 0,
             last_cooked=recipe[16],
             rating=None,
-            created_at=recipe[17],
-            updated_at=recipe[18]
-        )
-
-
-@router.get("/{recipe_id}", response_model=SavedRecipeResponse)
-async def get_saved_recipe(recipe_id: str, authorization: str = Header(None)):
-    """Get a specific saved recipe"""
-    current_user = get_current_user(authorization)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    user_id = current_user['sub']
-    
-    with get_db_session() as session:
-        session.execute('''
-            SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
-                   r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
-                   r.pantry_usage_score, r.ai_generated, r.ai_provider, r.source,
-                   r.times_cooked, r.last_cooked, r.created_at, r.updated_at,
-                   AVG(rt.rating) as avg_rating
-            FROM saved_recipes r
-            LEFT JOIN recipe_ratings rt ON r.id = rt.recipe_id
-            WHERE r.id = ? AND r.user_id = ?
-            GROUP BY r.id
-        ''', (recipe_id, user_id))
-        
-        recipe = session.fetchone()
-        if not recipe:
-            raise HTTPException(status_code=404, detail="Recipe not found")
-        
-        return SavedRecipeResponse(
-            id=recipe[0],
-            user_id=recipe[1],
-            name=recipe[2],
-            description=recipe[3],
-            prep_time=recipe[4],
-            difficulty=recipe[5],
-            servings=recipe[6],
-            ingredients_needed=json.loads(recipe[7]) if recipe[7] else [],
-            instructions=json.loads(recipe[8]) if recipe[8] else [],
-            tags=json.loads(recipe[9]) if recipe[9] else [],
-            nutrition_notes=recipe[10],
-            pantry_usage_score=recipe[11],
-            ai_generated=bool(recipe[12]),
-            ai_provider=recipe[13],
-            source=recipe[14],
-            times_cooked=recipe[15] or 0,
-            last_cooked=recipe[16],
-            rating=float(recipe[19]) if recipe[19] else None,
             created_at=recipe[17],
             updated_at=recipe[18]
         )
