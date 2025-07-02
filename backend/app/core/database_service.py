@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .config import get_settings
 from .database import get_db_connection, get_db_cursor  # SQLite functions
 from ..db.database import Base, get_db  # SQLAlchemy setup
+from .. import models  # Import all models so Base.metadata knows about them
 
 logger = logging.getLogger(__name__)
 
