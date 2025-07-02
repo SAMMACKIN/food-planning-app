@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database_service import init_database, create_tables
+from .core.database_service import init_db, db_service
 
 
 # Configure logging
@@ -23,8 +23,8 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     logger.info("🚀 Starting Food Planning App API (PostgreSQL ready)...")
-    init_database()
-    create_tables()
+    logger.info(f"Database URL: {get_settings().DATABASE_URL}")
+    init_db()
     logger.info("✅ Database initialization complete")
     
     logger.info("✅ Application startup complete")
