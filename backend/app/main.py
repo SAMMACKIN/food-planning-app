@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
-from .core.database import init_database, populate_sample_data, ensure_separate_databases, verify_database_schema
+from .core.database_service import init_database, create_tables
 
 
 # Configure logging
@@ -22,15 +22,10 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("🚀 Starting Food Planning App API (modular app v3 - recipe fix)...")
-    ensure_separate_databases()
+    logger.info("🚀 Starting Food Planning App API (PostgreSQL ready)...")
     init_database()
-    populate_sample_data()
-    
-    # Final verification
-    if not verify_database_schema():
-        logger.error("❌ Database schema verification failed during startup")
-        raise RuntimeError("Database not properly configured")
+    create_tables()
+    logger.info("✅ Database initialization complete")
     
     logger.info("✅ Application startup complete")
     
