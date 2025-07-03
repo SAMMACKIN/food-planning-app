@@ -133,13 +133,13 @@ async def get_current_user_endpoint(authorization: str = Header(None)):
         logger.info(f"👤 User details - Admin: {current_user['is_admin']}, Active: {current_user['is_active']}")
         
         return UserResponse(
-            id=current_user['sub'],
+            id=current_user['id'],  # Use 'id' instead of 'sub'
             email=current_user['email'],
             name=current_user['name'],
             timezone=current_user['timezone'],
             is_active=current_user['is_active'],
             is_admin=current_user['is_admin'],
-            created_at=current_user['created_at']
+            created_at=current_user['created_at'].isoformat()  # Convert datetime to string
         )
     except HTTPException as e:
         logger.error(f"❌ Authentication failed with HTTP exception: {e.detail}")
