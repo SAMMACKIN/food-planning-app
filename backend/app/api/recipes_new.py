@@ -11,7 +11,8 @@ from sqlalchemy import func
 
 from ..core.database_service import get_db_session, db_service
 from ..core.auth_service import AuthService
-from ..models.simple_models import SavedRecipe, RecipeRating, User
+from ..models.user import User
+from ..models.preferences import MealRating
 from ..schemas.meals import (
     SavedRecipeCreate, SavedRecipeUpdate, SavedRecipeResponse,
     RecipeRatingCreate, RecipeRatingUpdate, RecipeRatingResponse

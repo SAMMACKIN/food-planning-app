@@ -1,220 +1,134 @@
 """
-Authentication service using the unified database abstraction layer
+Authentication service for PostgreSQL
 """
 import logging
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
-from .database_service import get_db_session, db_service
+from .database_service import get_db_session
 from .security import verify_password, hash_password, create_access_token, verify_token
-from ..models.simple_models import User
+from ..models.user import User
 
 logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    """Authentication service supporting both SQLite and PostgreSQL"""
+    """Authentication service for PostgreSQL"""
     
     @staticmethod
     def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-        """Get user by email - works with both SQLite and PostgreSQL"""
+        """Get user by email using PostgreSQL"""
         with get_db_session() as session:
-            if db_service.use_sqlite:
-                # SQLite query
-                session.execute("SELECT * FROM users WHERE email = ?", (email,))
-                row = session.fetchone()
-                if row:
-                    return {
-                        "id": row[0],
-                        "email": row[1], 
-                        "name": row[2],
-                        "hashed_password": row[3],
-                        "timezone": row[4],
-                        "is_active": bool(row[5]),
-                        "is_admin": bool(row[6]),
-                        "created_at": row[7]
-                    }
-                return None
-            else:
-                # SQLAlchemy query
-                user = session.query(User).filter(User.email == email).first()
-                if user:
-                    return {
-                        "id": user.id,
-                        "email": user.email,
-                        "name": user.name,
-                        "hashed_password": user.hashed_password,
-                        "timezone": user.timezone,
-                        "is_active": user.is_active,
-                        "is_admin": user.is_admin,
-                        "created_at": user.created_at
-                    }
-                return None
+            user = session.query(User).filter(User.email == email).first()
+            if user:
+                return {
+                    "id": str(user.id),  # Convert UUID to string
+                    "email": user.email,
+                    "name": user.name,
+                    "hashed_password": user.hashed_password,
+                    "timezone": user.timezone,
+                    "is_active": user.is_active,
+                    "is_admin": user.is_admin,
+                    "created_at": user.created_at
+                }
+            return None
     
     @staticmethod
     def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
-        """Get user by ID - works with both SQLite and PostgreSQL"""
+        """Get user by ID using PostgreSQL"""
         with get_db_session() as session:
-            if db_service.use_sqlite:
-                # SQLite query
-                session.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-                row = session.fetchone()
-                if row:
-                    return {
-                        "id": row[0],
-                        "email": row[1],
-                        "name": row[2], 
-                        "hashed_password": row[3],
-                        "timezone": row[4],
-                        "is_active": bool(row[5]),
-                        "is_admin": bool(row[6]),
-                        "created_at": row[7]
-                    }
-                return None
-            else:
-                # SQLAlchemy query
-                user = session.query(User).filter(User.id == user_id).first()
-                if user:
-                    return {
-                        "id": user.id,
-                        "email": user.email,
-                        "name": user.name,
-                        "hashed_password": user.hashed_password,
-                        "timezone": user.timezone,
-                        "is_active": user.is_active,
-                        "is_admin": user.is_admin,
-                        "created_at": user.created_at
-                    }
-                return None
+            user = session.query(User).filter(User.id == user_id).first()
+            if user:
+                return {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "name": user.name,
+                    "hashed_password": user.hashed_password,
+                    "timezone": user.timezone,
+                    "is_active": user.is_active,
+                    "is_admin": user.is_admin,
+                    "created_at": user.created_at
+                }
+            return None
     
     @staticmethod
-    def create_user(email: str, name: str, password: str, is_admin: bool = False) -> Dict[str, Any]:
-        """Create a new user - works with both SQLite and PostgreSQL"""
-        import uuid
-        
-        user_id = str(uuid.uuid4())
-        hashed_password = hash_password(password)
-        
+    def create_user(email: str, name: str, password: str, is_admin: bool = False) -> Optional[Dict[str, Any]]:
+        """Create a new user"""
         with get_db_session() as session:
-            if db_service.use_sqlite:
-                # SQLite insert
-                session.execute('''
-                    INSERT INTO users (id, email, name, hashed_password, is_admin, is_active, timezone)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, email, name, hashed_password, is_admin, True, "UTC"))
-            else:
-                # SQLAlchemy insert
-                user = User(
-                    id=user_id,
-                    email=email,
-                    name=name,
-                    hashed_password=hashed_password,
-                    is_admin=is_admin,
-                    is_active=True,
-                    timezone="UTC"
-                )
-                session.add(user)
-        
-        return {
-            "id": user_id,
-            "email": email,
-            "name": name,
-            "is_admin": is_admin,
-            "is_active": True,
-            "timezone": "UTC"
-        }
+            # Check if user already exists
+            existing_user = session.query(User).filter(User.email == email).first()
+            if existing_user:
+                return None
+            
+            # Create new user
+            import uuid
+            new_user = User(
+                id=uuid.uuid4(),
+                email=email,
+                name=name,
+                hashed_password=hash_password(password),
+                is_active=True,
+                is_admin=is_admin
+            )
+            session.add(new_user)
+            session.commit()
+            
+            return {
+                "id": str(new_user.id),
+                "email": new_user.email,
+                "name": new_user.name,
+                "is_active": new_user.is_active,
+                "is_admin": new_user.is_admin,
+                "created_at": new_user.created_at
+            }
     
     @staticmethod
-    def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
-        """Authenticate user with email and password"""
+    def login_user(email: str, password: str) -> Optional[Dict[str, Any]]:
+        """Authenticate user and return user data + token"""
+        logger.info(f"🔐 Attempting login for: {email}")
+        
         user = AuthService.get_user_by_email(email)
         if not user:
-            logger.warning(f"Authentication failed: User not found for email: {email}")
+            logger.warning(f"❌ User not found: {email}")
             return None
         
-        if not user["is_active"]:
-            logger.warning(f"Authentication failed: Inactive user: {email}")
+        if not user.get("is_active", False):
+            logger.warning(f"❌ User inactive: {email}")
             return None
         
         if not verify_password(password, user["hashed_password"]):
-            logger.warning(f"Authentication failed: Invalid password for email: {email}")
+            logger.warning(f"❌ Invalid password for: {email}")
             return None
         
-        logger.info(f"Authentication successful for user: {email}")
-        return user
-    
-    @staticmethod
-    def login_user(email: str, password: str) -> Optional[Dict[str, str]]:
-        """Login user and return access token"""
-        user = AuthService.authenticate_user(email, password)
-        if not user:
-            return None
+        # Create token
+        token = create_access_token({"sub": user["id"], "email": user["email"]})
         
-        token_data = {
-            "sub": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "is_admin": user["is_admin"]
-        }
-        
-        access_token = create_access_token(token_data)
-        
+        logger.info(f"✅ Login successful for: {email}")
         return {
-            "access_token": access_token,
+            "access_token": token,
             "token_type": "bearer",
-            "user_id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "is_admin": user["is_admin"]
-        }
-    
-    @staticmethod
-    def register_user(email: str, name: str, password: str) -> Optional[Dict[str, str]]:
-        """Register a new user and return access token"""
-        # Check if user already exists
-        existing_user = AuthService.get_user_by_email(email)
-        if existing_user:
-            logger.warning(f"Registration failed: User already exists: {email}")
-            return None
-        
-        # Create new user
-        user = AuthService.create_user(email, name, password)
-        
-        # Generate access token
-        token_data = {
-            "sub": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "is_admin": user["is_admin"]
-        }
-        
-        access_token = create_access_token(token_data)
-        
-        logger.info(f"User registered successfully: {email}")
-        
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user_id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "is_admin": user["is_admin"]
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "name": user["name"],
+                "is_admin": user["is_admin"]
+            }
         }
     
     @staticmethod
     def verify_user_token(token: str) -> Optional[Dict[str, Any]]:
-        """Verify user token and return user data"""
-        payload = verify_token(token)
-        if not payload:
-            return None
+        """Verify token and return user data"""
+        try:
+            payload = verify_token(token)
+            if not payload:
+                return None
+            
+            user_id = payload.get("sub")
+            if not user_id:
+                return None
+            
+            return AuthService.get_user_by_id(user_id)
         
-        user_id = payload.get("sub")
-        if not user_id:
+        except Exception as e:
+            logger.error(f"Token verification failed: {e}")
             return None
-        
-        user = AuthService.get_user_by_id(user_id)
-        if not user or not user["is_active"]:
-            return None
-        
-        return user
