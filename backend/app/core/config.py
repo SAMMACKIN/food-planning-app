@@ -66,8 +66,7 @@ class Settings:
         self.RAILWAY_DEPLOYMENT_ID: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_ID")
         self.RAILWAY_DEPLOYMENT_DOMAIN: Optional[str] = os.getenv("RAILWAY_DEPLOYMENT_DOMAIN")
         
-        # Database backend selection
-        self.USE_POSTGRESQL: bool = os.getenv("USE_POSTGRESQL", "false").lower() == "true"
+        # PostgreSQL is now the only database backend
         
         # Debug mode
         self.DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -101,7 +100,7 @@ class Settings:
     
     @property
     def DATABASE_URL(self) -> str:
-        """Get database URL for SQLAlchemy - supports both SQLite and PostgreSQL"""
+        """Get PostgreSQL database URL"""
         # Check if DATABASE_URL is explicitly set (Railway, Docker, etc.)
         if os.getenv("DATABASE_URL"):
             return os.getenv("DATABASE_URL")
@@ -112,12 +111,12 @@ class Settings:
         is_testing = os.getenv("TESTING") == "true"
         is_ci = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
         
-        # Test environments use SQLite
+        # Test environments use in-memory SQLite for speed
         if is_testing or is_ci:
-            return "sqlite:///./test_food_app.db"
+            return "sqlite:///:memory:"
         
         # Railway deployment uses PostgreSQL
-        if is_railway or self.USE_POSTGRESQL:
+        if is_railway:
             # Default Railway PostgreSQL URL structure
             railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '').lower()
             
@@ -131,11 +130,8 @@ class Settings:
                 # Default PostgreSQL for other Railway deployments
                 return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning")
         
-        # Local development uses SQLite by default (can be overridden with USE_POSTGRESQL=true)
-        if self.USE_POSTGRESQL:
-            return "postgresql://food_user:food_password@localhost:5432/food_planning_dev"
-        else:
-            return f"sqlite:///{self.DB_PATH}"
+        # Local development defaults to PostgreSQL
+        return "postgresql://postgres:whbutb2012@localhost:5432/food_planning_dev"
     
     @property
     def deployment_info(self) -> dict:
