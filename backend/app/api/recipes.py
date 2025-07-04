@@ -60,7 +60,9 @@ async def get_saved_recipes(
     user_id = current_user['sub']
     
     with get_db_session() as session:
-        # Use unified database session
+        from sqlalchemy import text
+        
+        # Use PostgreSQL parameter syntax
         query = '''
             SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
                    r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
@@ -69,30 +71,29 @@ async def get_saved_recipes(
                    AVG(rt.rating) as avg_rating
             FROM saved_recipes r
             LEFT JOIN recipe_ratings rt ON r.id = rt.recipe_id
-            WHERE r.user_id = ?
+            WHERE r.user_id = :user_id
         '''
-        params = [user_id]
+        params = {'user_id': user_id}
         
         # Add search filter
         if search:
-            query += ' AND (r.name LIKE ? OR r.description LIKE ? OR r.tags LIKE ?)'
-            search_term = f'%{search}%'
-            params.extend([search_term, search_term, search_term])
+            query += ' AND (r.name ILIKE :search OR r.description ILIKE :search OR r.tags ILIKE :search)'
+            params['search'] = f'%{search}%'
         
         # Add difficulty filter
         if difficulty:
-            query += ' AND r.difficulty = ?'
-            params.append(difficulty)
+            query += ' AND r.difficulty = :difficulty'
+            params['difficulty'] = difficulty
         
         # Add tags filter
         if tags:
-            query += ' AND r.tags LIKE ?'
-            params.append(f'%{tags}%')
+            query += ' AND r.tags ILIKE :tags'
+            params['tags'] = f'%{tags}%'
         
         query += ' GROUP BY r.id ORDER BY r.updated_at DESC'
         
-        session.execute(query, params)
-        recipes_data = session.fetchall()
+        result = session.execute(text(query), params)
+        recipes_data = result.fetchall()
         
         recipes = []
         for recipe in recipes_data:
@@ -112,8 +113,8 @@ async def get_saved_recipes(
                 tags_list = []
             
             recipes.append(SavedRecipeResponse(
-                id=recipe[0],
-                user_id=recipe[1],
+                id=str(recipe[0]),  # Convert UUID to string
+                user_id=str(recipe[1]),  # Convert UUID to string
                 name=recipe[2],
                 description=recipe[3],
                 prep_time=recipe[4],
@@ -128,10 +129,10 @@ async def get_saved_recipes(
                 ai_provider=recipe[13],
                 source=recipe[14],
                 times_cooked=recipe[15] or 0,
-                last_cooked=recipe[16],
+                last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
                 rating=float(recipe[19]) if recipe[19] else None,
-                created_at=recipe[17],
-                updated_at=recipe[18]
+                created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
+                updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
             ))
         
         return recipes
@@ -150,6 +151,8 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
     recipe_id = str(uuid.uuid4())
     
     with get_db_session() as session:
+        from sqlalchemy import text
+        
         # Validate required fields
         if not recipe_data.name or not recipe_data.description:
             raise HTTPException(status_code=400, detail="Recipe name and description are required")
@@ -157,31 +160,33 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
         if recipe_data.prep_time <= 0 or recipe_data.servings <= 0:
             raise HTTPException(status_code=400, detail="Prep time and servings must be positive numbers")
         
-        # Insert new saved recipe
-        session.execute('''
+        # Insert new saved recipe using PostgreSQL syntax
+        session.execute(text('''
             INSERT INTO saved_recipes 
             (id, user_id, name, description, prep_time, difficulty, servings, 
              ingredients_needed, instructions, tags, nutrition_notes, pantry_usage_score,
              ai_generated, ai_provider, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            recipe_id, user_id, recipe_data.name, recipe_data.description,
-            recipe_data.prep_time, recipe_data.difficulty, recipe_data.servings,
-            json.dumps(recipe_data.ingredients_needed), 
-            json.dumps(recipe_data.instructions),
-            json.dumps(recipe_data.tags),
-            recipe_data.nutrition_notes, recipe_data.pantry_usage_score,
-            recipe_data.ai_generated, recipe_data.ai_provider, recipe_data.source
-        ))
+            VALUES (:id, :user_id, :name, :description, :prep_time, :difficulty, :servings, 
+                    :ingredients_needed, :instructions, :tags, :nutrition_notes, :pantry_usage_score,
+                    :ai_generated, :ai_provider, :source)
+        '''), {
+            'id': recipe_id, 'user_id': user_id, 'name': recipe_data.name, 'description': recipe_data.description,
+            'prep_time': recipe_data.prep_time, 'difficulty': recipe_data.difficulty, 'servings': recipe_data.servings,
+            'ingredients_needed': json.dumps(recipe_data.ingredients_needed), 
+            'instructions': json.dumps(recipe_data.instructions),
+            'tags': json.dumps(recipe_data.tags),
+            'nutrition_notes': recipe_data.nutrition_notes, 'pantry_usage_score': recipe_data.pantry_usage_score,
+            'ai_generated': recipe_data.ai_generated, 'ai_provider': recipe_data.ai_provider, 'source': recipe_data.source
+        })
         
         # Get the created recipe
-        session.execute('''
+        result = session.execute(text('''
             SELECT id, user_id, name, description, prep_time, difficulty, servings, 
                    ingredients_needed, instructions, tags, nutrition_notes, pantry_usage_score,
                    ai_generated, ai_provider, source, times_cooked, last_cooked, created_at, updated_at
-            FROM saved_recipes WHERE id = ?
-        ''', (recipe_id,))
-        recipe = session.fetchone()
+            FROM saved_recipes WHERE id = :recipe_id
+        '''), {'recipe_id': recipe_id})
+        recipe = result.fetchone()
         
         if not recipe:
             raise HTTPException(status_code=500, detail="Recipe was not saved properly")
@@ -189,8 +194,8 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
         logger.info(f"✅ Recipe saved successfully: {recipe_id}")
         
         return SavedRecipeResponse(
-            id=recipe[0],
-            user_id=recipe[1],
+            id=str(recipe[0]),  # Convert UUID to string
+            user_id=str(recipe[1]),  # Convert UUID to string
             name=recipe[2],
             description=recipe[3],
             prep_time=recipe[4],
@@ -205,10 +210,10 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
             ai_provider=recipe[13],
             source=recipe[14],
             times_cooked=recipe[15] or 0,
-            last_cooked=recipe[16],
+            last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
             rating=None,
-            created_at=recipe[17],
-            updated_at=recipe[18]
+            created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
+            updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
         )
 
 
@@ -222,7 +227,9 @@ async def get_saved_recipe(recipe_id: str, authorization: str = Header(None)):
     user_id = current_user['sub']
     
     with get_db_session() as session:
-        session.execute('''
+        from sqlalchemy import text
+        
+        result = session.execute(text('''
             SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
                    r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
                    r.pantry_usage_score, r.ai_generated, r.ai_provider, r.source,
@@ -230,17 +237,17 @@ async def get_saved_recipe(recipe_id: str, authorization: str = Header(None)):
                    AVG(rt.rating) as avg_rating
             FROM saved_recipes r
             LEFT JOIN recipe_ratings rt ON r.id = rt.recipe_id
-            WHERE r.id = ? AND r.user_id = ?
+            WHERE r.id = :recipe_id AND r.user_id = :user_id
             GROUP BY r.id
-        ''', (recipe_id, user_id))
+        '''), {'recipe_id': recipe_id, 'user_id': user_id})
         
-        recipe = session.fetchone()
+        recipe = result.fetchone()
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found")
         
         return SavedRecipeResponse(
-            id=recipe[0],
-            user_id=recipe[1],
+            id=str(recipe[0]),  # Convert UUID to string
+            user_id=str(recipe[1]),  # Convert UUID to string
             name=recipe[2],
             description=recipe[3],
             prep_time=recipe[4],
@@ -255,10 +262,10 @@ async def get_saved_recipe(recipe_id: str, authorization: str = Header(None)):
             ai_provider=recipe[13],
             source=recipe[14],
             times_cooked=recipe[15] or 0,
-            last_cooked=recipe[16],
+            last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
             rating=float(recipe[19]) if recipe[19] else None,
-            created_at=recipe[17],
-            updated_at=recipe[18]
+            created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
+            updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
         )
 
 

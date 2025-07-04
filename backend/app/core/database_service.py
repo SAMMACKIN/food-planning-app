@@ -77,6 +77,24 @@ def get_db_session():
 def init_db():
     """Initialize database tables"""
     db_service.create_tables()
+    
+    # Create admin user if it doesn't exist
+    from .auth_service import AuthService
+    admin_user = AuthService.get_user_by_email("admin")
+    if not admin_user:
+        logger.info("🔑 Creating admin user...")
+        admin_user = AuthService.create_user(
+            email="admin",
+            name="Admin User",
+            password="admin123",
+            is_admin=True
+        )
+        if admin_user:
+            logger.info("✅ Admin user created successfully")
+        else:
+            logger.error("❌ Failed to create admin user")
+    else:
+        logger.info("✅ Admin user already exists")
 
 
 def test_db_connection() -> bool:

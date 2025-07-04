@@ -116,6 +116,16 @@ class AuthService:
         }
     
     @staticmethod
+    def register_user(email: str, name: str, password: str) -> Optional[Dict[str, Any]]:
+        """Register a new user and return login data"""
+        user = AuthService.create_user(email, name, password, is_admin=False)
+        if not user:
+            return None
+        
+        # Automatically log in the new user
+        return AuthService.login_user(email, password)
+    
+    @staticmethod
     def verify_user_token(token: str) -> Optional[Dict[str, Any]]:
         """Verify token and return user data"""
         try:
