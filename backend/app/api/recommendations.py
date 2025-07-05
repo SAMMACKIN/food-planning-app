@@ -116,14 +116,31 @@ async def get_meal_recommendations(
         with get_db_session() as session:
             from sqlalchemy import text
             
-            # Get family members
+            # Get family members - use flexible query to handle different schema versions
             logger.info("🔥 Querying family members...")
-            result = session.execute(text('''
-                SELECT id, name, age, dietary_restrictions, preferences 
-                FROM family_members 
-                WHERE user_id = :user_id
-            '''), {'user_id': user_id})
-            family_data = result.fetchall()
+            try:
+                # Try new schema with dietary_restrictions and preferences columns
+                result = session.execute(text('''
+                    SELECT id, name, age, dietary_restrictions, preferences 
+                    FROM family_members 
+                    WHERE user_id = :user_id
+                '''), {'user_id': user_id})
+                family_data = result.fetchall()
+                logger.info("🔥 Using new schema with dietary_restrictions column")
+            except Exception as e:
+                logger.warning(f"🔥 New schema failed: {e}")
+                try:
+                    # Fallback to simplified schema
+                    result = session.execute(text('''
+                        SELECT id, name, age, NULL as dietary_restrictions, NULL as preferences 
+                        FROM family_members 
+                        WHERE user_id = :user_id
+                    '''), {'user_id': user_id})
+                    family_data = result.fetchall()
+                    logger.info("🔥 Using fallback schema without dietary_restrictions")
+                except Exception as e2:
+                    logger.error(f"🔥 Both schema queries failed: {e2}")
+                    family_data = []
         logger.info(f"🔥 Found {len(family_data)} family members")
         
         family_members = []
