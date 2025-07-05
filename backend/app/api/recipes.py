@@ -364,14 +364,14 @@ async def rate_recipe(
         logger.info(f"✅ Recipe rated successfully: {rating_id}")
         
         return RecipeRatingResponse(
-            id=rating[0],
-            recipe_id=rating[1],
-            user_id=rating[2],
+            id=str(rating[0]),
+            recipe_id=str(rating[1]),
+            user_id=str(rating[2]),
             rating=rating[3],
             review_text=rating[4],
             would_make_again=bool(rating[5]),
             cooking_notes=rating[6],
-            created_at=rating[7]
+            created_at=rating[7].isoformat() if rating[7] else None
         )
 
 

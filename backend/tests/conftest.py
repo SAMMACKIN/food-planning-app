@@ -26,6 +26,13 @@ from app.db.database import Base
 from app.core.auth_service import AuthService
 from app.models import *  # Import all models to register them
 
+# Test ingredient IDs for consistent testing
+TEST_INGREDIENT_IDS = {
+    'chicken_breast': 'df914ffc-6377-405e-a397-d5a0171c3e40',
+    'rice': 'a420e989-5c87-42fb-85eb-2117f548845b', 
+    'broccoli': 'be300a0f-642d-4578-96e5-62d5afcb0f64'
+}
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
@@ -69,10 +76,11 @@ def test_db():
                 ON CONFLICT (id) DO NOTHING
             """)
             
+            # Use predictable UUIDs for testing
             session.execute(ingredients_sql, {
-                'id1': uuid.uuid4(),
-                'id2': uuid.uuid4(), 
-                'id3': uuid.uuid4()
+                'id1': TEST_INGREDIENT_IDS['chicken_breast'],
+                'id2': TEST_INGREDIENT_IDS['rice'],  
+                'id3': TEST_INGREDIENT_IDS['broccoli']
             })
             session.commit()
             
@@ -96,6 +104,12 @@ def test_db():
         except:
             pass
         engine.dispose()
+
+
+@pytest.fixture
+def test_ingredient_ids():
+    """Provide consistent ingredient IDs for tests"""
+    return TEST_INGREDIENT_IDS
 
 
 @pytest.fixture

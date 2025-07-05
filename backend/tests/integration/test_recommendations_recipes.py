@@ -6,7 +6,7 @@ import pytest
 import json
 
 @pytest.fixture
-def test_user_with_data(client):
+def test_user_with_data(client, test_ingredient_ids):
     """Create a test user with family and pantry data"""
     import uuid
     # Register user
@@ -31,11 +31,11 @@ def test_user_with_data(client):
     response = client.post("/api/v1/family/members", json=family_data, headers=headers)
     assert response.status_code == 200
     
-    # Add pantry items
+    # Add pantry items using proper UUIDs
     pantry_items = [
-        {"ingredient_id": "ingredient-1", "quantity": 2.0, "expiration_date": "2025-01-15"},
-        {"ingredient_id": "ingredient-2", "quantity": 0.5, "expiration_date": "2025-03-01"},
-        {"ingredient_id": "ingredient-3", "quantity": 3.0, "expiration_date": "2024-12-28"}
+        {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2025-01-15"},
+        {"ingredient_id": test_ingredient_ids['rice'], "quantity": 0.5, "expiration_date": "2025-03-01"},
+        {"ingredient_id": test_ingredient_ids['broccoli'], "quantity": 3.0, "expiration_date": "2024-12-28"}
     ]
     
     for item in pantry_items:
