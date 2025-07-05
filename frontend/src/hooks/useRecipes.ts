@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { SavedRecipe, SavedRecipeCreate, RecipeRating, RecipeRatingCreate, MealRecommendation } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 export const useRecipes = () => {
+  const { isAuthenticated } = useAuthStore();
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -260,13 +262,12 @@ export const useRecipes = () => {
     return await addRecipeToMealPlan(savedRecipe.id, mealDate, mealType);
   }, [saveRecommendationAsRecipe, addRecipeToMealPlan]);
 
-  // Auto-fetch recipes on mount with cache check
+  // Auto-fetch recipes when user becomes authenticated
   useEffect(() => {
-    // Only fetch if we don't have any recipes cached
-    if (savedRecipes.length === 0) {
+    if (isAuthenticated && savedRecipes.length === 0) {
       fetchSavedRecipes();
     }
-  }, []); // Remove fetchSavedRecipes dependency to prevent unnecessary refetches
+  }, [isAuthenticated, savedRecipes.length, fetchSavedRecipes]);
 
   return {
     savedRecipes,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MealRecommendation, MealRecommendationRequest } from '../types';
 import { apiRequest } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 interface CacheEntry {
   data: MealRecommendation[];
@@ -12,6 +13,7 @@ const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 const CACHE_KEY = 'meal_recommendations_cache';
 
 export const useRecommendationsCache = () => {
+  const { isAuthenticated } = useAuthStore();
   const [recommendations, setRecommendations] = useState<MealRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,12 +145,12 @@ export const useRecommendationsCache = () => {
     checkAIStatus();
   }, [checkAIStatus]);
 
-  // Fetch recommendations when provider changes or on mount
+  // Fetch recommendations when provider changes or on mount, but only when authenticated
   useEffect(() => {
-    if (availableProviders.length > 0) {
+    if (isAuthenticated && availableProviders.length > 0) {
       fetchRecommendations();
     }
-  }, [selectedProvider, availableProviders]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, selectedProvider, availableProviders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     recommendations,
