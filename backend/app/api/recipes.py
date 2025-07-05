@@ -289,34 +289,36 @@ async def rate_recipe(
     rating_id = str(uuid.uuid4())
     
     with get_db_session() as session:
+        from sqlalchemy import text
+        
         # Check if recipe exists and belongs to user
-        session.execute("SELECT id, name FROM saved_recipes WHERE id = ? AND user_id = ?", (recipe_id, user_id))
-        recipe = session.fetchone()
+        result = session.execute(text("SELECT id, name FROM saved_recipes WHERE id = :recipe_id AND user_id = :user_id"), 
+                               {"recipe_id": recipe_id, "user_id": user_id})
+        recipe = result.fetchone()
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found")
         
         # Insert new rating
-        session.execute('''
+        session.execute(text('''
             INSERT INTO recipe_ratings 
             (id, recipe_id, user_id, rating, review_text, would_make_again, cooking_notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            rating_id, recipe_id, user_id, rating_data.rating,
-            rating_data.review_text, rating_data.would_make_again, rating_data.cooking_notes
-        ))
+            VALUES (:rating_id, :recipe_id, :user_id, :rating, :review_text, :would_make_again, :cooking_notes)
+        '''), {
+            'rating_id': rating_id, 'recipe_id': recipe_id, 'user_id': user_id, 'rating': rating_data.rating,
+            'review_text': rating_data.review_text, 'would_make_again': rating_data.would_make_again, 'cooking_notes': rating_data.cooking_notes
+        })
         
         # Update recipe last_cooked timestamp
-        session.execute(
-            "UPDATE saved_recipes SET last_cooked = CURRENT_TIMESTAMP, times_cooked = times_cooked + 1 WHERE id = ?",
-            (recipe_id,)
-        )
+        session.execute(text(
+            "UPDATE saved_recipes SET last_cooked = CURRENT_TIMESTAMP, times_cooked = times_cooked + 1 WHERE id = :recipe_id"
+        ), {'recipe_id': recipe_id})
         
         # Get the created rating
-        session.execute('''
+        result = session.execute(text('''
             SELECT id, recipe_id, user_id, rating, review_text, would_make_again, cooking_notes, created_at
-            FROM recipe_ratings WHERE id = ?
-        ''', (rating_id,))
-        rating = session.fetchone()
+            FROM recipe_ratings WHERE id = :rating_id
+        '''), {"rating_id": rating_id})
+        rating = result.fetchone()
         
         if not rating:
             raise HTTPException(status_code=500, detail="Rating was not saved properly")

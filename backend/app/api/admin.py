@@ -60,33 +60,27 @@ async def get_all_users(authorization: str = Header(None)):
     """Admin endpoint to view all users"""
     require_admin(authorization)
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        result = session.execute(text('''
             SELECT id, email, name, timezone, is_active, is_admin, created_at, hashed_password
             FROM users 
             ORDER BY created_at DESC
-        ''')
-        users = cursor.fetchall()
+        '''))
+        users = result.fetchall()
         
         return [
             {
-                'id': user[0],
+                'id': str(user[0]),
                 'email': user[1],
                 'name': user[2],
                 'timezone': user[3],
                 'is_active': bool(user[4]),
                 'is_admin': bool(user[5]),
-                'created_at': user[6],
+                'created_at': user[6].isoformat() if user[6] else None,
                 'hashed_password': user[7]
             }
             for user in users
         ]
-        
-    finally:
-        conn.close()
 
 
 @router.get("/family/all")
@@ -94,18 +88,15 @@ async def get_all_family_members(authorization: str = Header(None)):
     """Admin endpoint to view all family members across all users"""
     require_admin(authorization)
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        result = session.execute(text('''
             SELECT fm.id, fm.user_id, fm.name, fm.age, fm.dietary_restrictions, fm.preferences, fm.created_at,
                    u.email as user_email, u.name as user_name
             FROM family_members fm
             JOIN users u ON fm.user_id = u.id
             ORDER BY u.email, fm.name
-        ''')
-        family_members = cursor.fetchall()
+        '''))
+        family_members = result.fetchall()
         
         result = []
         for member in family_members:
@@ -145,9 +136,6 @@ async def get_all_family_members(authorization: str = Header(None)):
             })
         
         return result
-        
-    finally:
-        conn.close()
 
 
 @router.get("/stats")
@@ -155,34 +143,31 @@ async def get_admin_stats(authorization: str = Header(None)):
     """Admin endpoint to get platform statistics"""
     require_admin(authorization)
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
         # Get total users (excluding admins)
-        cursor.execute("SELECT COUNT(*) FROM users WHERE is_admin = 0")
-        total_users = cursor.fetchone()[0]
+        result = session.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = false"))
+        total_users = result.fetchone()[0]
         
         # Get total family members
-        cursor.execute("SELECT COUNT(*) FROM family_members")
-        total_family_members = cursor.fetchone()[0]
+        result = session.execute(text("SELECT COUNT(*) FROM family_members"))
+        total_family_members = result.fetchone()[0]
         
         # Get total pantry items
-        cursor.execute("SELECT COUNT(*) FROM pantry_items")
-        total_pantry_items = cursor.fetchone()[0]
+        result = session.execute(text("SELECT COUNT(*) FROM pantry_items"))
+        total_pantry_items = result.fetchone()[0]
         
         # Get recent registrations (last 30 days)
-        cursor.execute("""
+        result = session.execute(text("""
             SELECT COUNT(*) FROM users 
-            WHERE is_admin = 0 AND created_at >= datetime('now', '-30 days')
-        """)
-        recent_registrations = cursor.fetchone()[0]
+            WHERE is_admin = false AND created_at >= NOW() - INTERVAL '30 days'
+        """))
+        recent_registrations = result.fetchone()[0]
         
-        # Get total meal plans (if table exists)
+        # Get total meal plans
         try:
-            cursor.execute("SELECT COUNT(*) FROM meal_plans")
-            total_meal_plans = cursor.fetchone()[0]
-        except sqlite3.OperationalError:
+            result = session.execute(text("SELECT COUNT(*) FROM meal_plans"))
+            total_meal_plans = result.fetchone()[0]
+        except Exception:
             total_meal_plans = 0
         
         return {
@@ -192,9 +177,6 @@ async def get_admin_stats(authorization: str = Header(None)):
             'total_meal_plans': total_meal_plans,
             'recent_registrations': recent_registrations
         }
-        
-    finally:
-        conn.close()
 
 
 @router.delete("/users/{user_id}")
@@ -203,56 +185,47 @@ async def admin_delete_user(user_id: str, authorization: str = Header(None)):
     current_user = require_admin(authorization)
     
     # Prevent admin from deleting themselves
-    if current_user['sub'] == user_id:
+    if current_user['id'] == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        # Check if user exists
-        cursor.execute("SELECT id, email, is_admin FROM users WHERE id = ?", (user_id,))
-        target_user = cursor.fetchone()
-        if not target_user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Prevent deleting other admin accounts for safety
-        if target_user[2]:  # is_admin
-            raise HTTPException(status_code=400, detail="Cannot delete other admin accounts")
-        
-        # Delete user data in order (foreign key constraints)
-        # Check if meal_reviews table exists
-        try:
-            cursor.execute("DELETE FROM meal_reviews WHERE user_id = ?", (user_id,))
-        except sqlite3.OperationalError:
-            # Table doesn't exist, skip
-            pass
-        
-        # Check if meal_plans table exists
-        try:
-            cursor.execute("DELETE FROM meal_plans WHERE user_id = ?", (user_id,))
-        except sqlite3.OperationalError:
-            # Table doesn't exist, skip
-            pass
-        
-        cursor.execute("DELETE FROM pantry_items WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM family_members WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        
-        conn.commit()
-        
-        return {
-            "message": "User account deleted successfully", 
-            "deleted_user_email": target_user[1]
-        }
+        with get_db_session() as session:
+            # Check if user exists
+            result = session.execute(text("SELECT id, email, is_admin FROM users WHERE id = :user_id"), {"user_id": user_id})
+            target_user = result.fetchone()
+            if not target_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Prevent deleting other admin accounts for safety
+            if target_user[2]:  # is_admin
+                raise HTTPException(status_code=400, detail="Cannot delete other admin accounts")
+            
+            # Delete user data in order (foreign key constraints)
+            try:
+                session.execute(text("DELETE FROM meal_reviews WHERE user_id = :user_id"), {"user_id": user_id})
+            except Exception:
+                # Table doesn't exist, skip
+                pass
+            
+            try:
+                session.execute(text("DELETE FROM meal_plans WHERE user_id = :user_id"), {"user_id": user_id})
+            except Exception:
+                # Table doesn't exist, skip
+                pass
+            
+            session.execute(text("DELETE FROM pantry_items WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM family_members WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM users WHERE id = :user_id"), {"user_id": user_id})
+            
+            return {
+                "message": "User account deleted successfully", 
+                "deleted_user_email": target_user[1]
+            }
         
     except HTTPException:
         raise
     except Exception as e:
-        conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error deleting user account: {str(e)}")
-    finally:
-        conn.close()
 
 
 @router.post("/users/{user_id}/reset-password")
@@ -264,35 +237,30 @@ async def admin_reset_user_password(
     """Admin endpoint to reset a user's password"""
     require_admin(authorization)
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        # Check if user exists
-        cursor.execute("SELECT id, email FROM users WHERE id = ?", (user_id,))
-        target_user = cursor.fetchone()
-        if not target_user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Hash the new password
-        hashed_password = hash_password(request.new_password)
-        
-        # Update user's password
-        cursor.execute("UPDATE users SET hashed_password = ? WHERE id = ?", (hashed_password, user_id))
-        conn.commit()
-        
-        return {
-            "message": "Password reset successfully for user", 
-            "user_email": target_user[1]
-        }
+        with get_db_session() as session:
+            # Check if user exists
+            result = session.execute(text("SELECT id, email FROM users WHERE id = :user_id"), {"user_id": user_id})
+            target_user = result.fetchone()
+            if not target_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Hash the new password
+            hashed_password = hash_password(request.new_password)
+            
+            # Update user's password
+            session.execute(text("UPDATE users SET hashed_password = :hashed_password WHERE id = :user_id"), 
+                          {"hashed_password": hashed_password, "user_id": user_id})
+            
+            return {
+                "message": "Password reset successfully for user", 
+                "user_email": target_user[1]
+            }
         
     except HTTPException:
         raise
     except Exception as e:
-        conn.rollback()
         raise HTTPException(status_code=500, detail=f"Error resetting password: {str(e)}")
-    finally:
-        conn.close()
 
 
 @router.get("/pantry/all")
@@ -300,28 +268,25 @@ async def get_all_pantry_items(authorization: str = Header(None)):
     """Admin endpoint to view all pantry items across all users"""
     require_admin(authorization)
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
+    with get_db_session() as session:
+        result = session.execute(text('''
             SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                   i.name as ingredient_name, i.category, i.unit,
+                   i.name as ingredient_name, i.category_id, i.unit,
                    u.email as user_email, u.name as user_name
             FROM pantry_items p
             JOIN ingredients i ON p.ingredient_id = i.id
             JOIN users u ON p.user_id = u.id
-            ORDER BY u.email, i.category, i.name
-        ''')
-        pantry_items = cursor.fetchall()
+            ORDER BY u.email, i.category_id, i.name
+        '''))
+        pantry_items = result.fetchall()
         
         return [
             {
-                'user_id': item[0],
-                'ingredient_id': item[1],
+                'user_id': str(item[0]),
+                'ingredient_id': str(item[1]),
                 'quantity': item[2],
-                'expiration_date': item[3],
-                'updated_at': item[4],
+                'expiration_date': item[3].isoformat() if item[3] else None,
+                'updated_at': item[4].isoformat() if item[4] else None,
                 'ingredient_name': item[5],
                 'ingredient_category': item[6],
                 'ingredient_unit': item[7],
@@ -330,6 +295,3 @@ async def get_all_pantry_items(authorization: str = Header(None)):
             }
             for item in pantry_items
         ]
-        
-    finally:
-        conn.close()

@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Header, Depends, Query
 
 from ..core.database_service import get_db_session, db_service
 from ..core.auth_service import AuthService
+from ..models.ingredient import Ingredient, PantryItem
+from ..models.user import User
 from ..schemas.pantry import (
     IngredientResponse, 
     PantryItemCreate, 
@@ -64,74 +66,32 @@ def get_current_user(authorization: str = None):
 
 # Pantry management endpoints
 @router.get("", response_model=List[PantryItemResponse])
-async def get_pantry_items(authorization: str = Header(None)):
+async def get_pantry_items(current_user: dict = Depends(get_current_user_dependency)):
     """Get all pantry items for the authenticated user"""
-    # Try to get authenticated user, fallback to admin for compatibility
-    user_id = None
-    
-    try:
-        if authorization:
-            current_user = get_current_user_dependency(authorization)
-            user_id = current_user['sub']
-        else:
-            # Fallback to admin user for compatibility
-            with get_db_session() as session:
-                session.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
-                admin_user = session.fetchone()
-                if admin_user:
-                    user_id = admin_user[0]
-                else:
-                    raise HTTPException(status_code=401, detail="No admin user found")
-    except HTTPException:
-        raise
-    except:
-        # Final fallback
-        with get_db_session() as session:
-            session.execute("SELECT id FROM users WHERE email = 'admin' LIMIT 1")
-            admin_user = session.fetchone()
-            if admin_user:
-                user_id = admin_user[0]
-            else:
-                raise HTTPException(status_code=401, detail="Authentication failed")
-    
     with get_db_session() as session:
-        session.execute('''
-            SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                   i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
-                   i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
-            FROM pantry_items p
-            JOIN ingredients i ON p.ingredient_id = i.id
-            WHERE p.user_id = ?
-            ORDER BY i.category, i.name
-        ''', (user_id,))
-        
-        pantry_items = session.fetchall()
+        pantry_items = session.query(PantryItem).join(Ingredient).filter(
+            PantryItem.user_id == current_user["id"]
+        ).all()
         
         result = []
         for item in pantry_items:
-            # Parse allergens from JSON string
-            try:
-                allergens = json.loads(item[13]) if item[13] else []
-            except (json.JSONDecodeError, TypeError):
-                allergens = []
-            
             result.append(PantryItemResponse(
-                user_id=item[0],
-                ingredient_id=item[1],
-                quantity=item[2],
-                expiration_date=item[3],
-                updated_at=item[4],
+                user_id=str(item.user_id),
+                ingredient_id=str(item.ingredient_id),
+                quantity=item.quantity,
+                expiration_date=item.expiration_date.isoformat() if item.expiration_date else None,
+                updated_at=item.updated_at.isoformat() if item.updated_at else None,
                 ingredient=IngredientResponse(
-                    id=item[5],
-                    name=item[6],
-                    category=item[7],
-                    unit=item[8],
-                    calories_per_unit=item[9] or 0,
-                    protein_per_unit=item[10] or 0,
-                    carbs_per_unit=item[11] or 0,
-                    fat_per_unit=item[12] or 0,
-                    allergens=allergens,
-                    created_at=item[14]
+                    id=str(item.ingredient.id),
+                    name=item.ingredient.name,
+                    category=item.ingredient.category.name if item.ingredient.category else "Other",
+                    unit=item.ingredient.unit,
+                    calories_per_unit=item.ingredient.nutritional_info.get("calories", 0) if item.ingredient.nutritional_info else 0,
+                    protein_per_unit=item.ingredient.nutritional_info.get("protein", 0) if item.ingredient.nutritional_info else 0,
+                    carbs_per_unit=item.ingredient.nutritional_info.get("carbs", 0) if item.ingredient.nutritional_info else 0,
+                    fat_per_unit=item.ingredient.nutritional_info.get("fat", 0) if item.ingredient.nutritional_info else 0,
+                    allergens=item.ingredient.allergens or [],
+                    created_at=None  # Not available in new model
                 )
             ))
         
@@ -145,56 +105,56 @@ async def add_pantry_item(
 ):
     """Add a new pantry item"""
     with get_db_session() as session:
-        user_id = current_user['sub']
-        
         # Check if ingredient exists
-        session.execute("SELECT * FROM ingredients WHERE id = ?", (pantry_data.ingredient_id,))
-        if not session.fetchone():
+        ingredient = session.query(Ingredient).filter(
+            Ingredient.id == pantry_data.ingredient_id
+        ).first()
+        
+        if not ingredient:
             raise HTTPException(status_code=404, detail="Ingredient not found")
         
-        # Insert or update pantry item
-        session.execute('''
-            INSERT OR REPLACE INTO pantry_items (user_id, ingredient_id, quantity, expiration_date)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, pantry_data.ingredient_id, pantry_data.quantity, pantry_data.expiration_date))
+        # Check if pantry item already exists
+        existing_item = session.query(PantryItem).filter(
+            PantryItem.user_id == current_user["id"],
+            PantryItem.ingredient_id == pantry_data.ingredient_id
+        ).first()
         
-        # Get the pantry item with ingredient details
-        session.execute('''
-            SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                   i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
-                   i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
-            FROM pantry_items p
-            JOIN ingredients i ON p.ingredient_id = i.id
-            WHERE p.user_id = ? AND p.ingredient_id = ?
-        ''', (user_id, pantry_data.ingredient_id))
-        
-        item = session.fetchone()
-        if not item:
-            raise HTTPException(status_code=500, detail="Failed to create pantry item")
-        
-        # Parse allergens from JSON string
-        try:
-            allergens = json.loads(item[13]) if item[13] else []
-        except (json.JSONDecodeError, TypeError):
-            allergens = []
+        if existing_item:
+            # Update existing item
+            existing_item.quantity = pantry_data.quantity
+            existing_item.expiration_date = pantry_data.expiration_date
+            session.commit()
+            session.refresh(existing_item)
+            pantry_item = existing_item
+        else:
+            # Create new pantry item
+            pantry_item = PantryItem(
+                user_id=current_user["id"],
+                ingredient_id=pantry_data.ingredient_id,
+                quantity=pantry_data.quantity,
+                expiration_date=pantry_data.expiration_date
+            )
+            session.add(pantry_item)
+            session.commit()
+            session.refresh(pantry_item)
         
         return PantryItemResponse(
-            user_id=item[0],
-            ingredient_id=item[1],
-            quantity=item[2],
-            expiration_date=item[3],
-            updated_at=item[4],
+            user_id=str(pantry_item.user_id),
+            ingredient_id=str(pantry_item.ingredient_id),
+            quantity=pantry_item.quantity,
+            expiration_date=pantry_item.expiration_date.isoformat() if pantry_item.expiration_date else None,
+            updated_at=pantry_item.updated_at.isoformat() if pantry_item.updated_at else None,
             ingredient=IngredientResponse(
-                id=item[5],
-                name=item[6],
-                category=item[7],
-                unit=item[8],
-                calories_per_unit=item[9] or 0,
-                protein_per_unit=item[10] or 0,
-                carbs_per_unit=item[11] or 0,
-                fat_per_unit=item[12] or 0,
-                allergens=allergens,
-                created_at=item[14]
+                id=str(ingredient.id),
+                name=ingredient.name,
+                category=ingredient.category.name if ingredient.category else "Other",
+                unit=ingredient.unit,
+                calories_per_unit=ingredient.nutritional_info.get("calories", 0) if ingredient.nutritional_info else 0,
+                protein_per_unit=ingredient.nutritional_info.get("protein", 0) if ingredient.nutritional_info else 0,
+                carbs_per_unit=ingredient.nutritional_info.get("carbs", 0) if ingredient.nutritional_info else 0,
+                fat_per_unit=ingredient.nutritional_info.get("fat", 0) if ingredient.nutritional_info else 0,
+                allergens=ingredient.allergens or [],
+                created_at=None  # Not available in new model
             )
         )
 
@@ -207,69 +167,46 @@ async def update_pantry_item(
 ):
     """Update an existing pantry item"""
     with get_db_session() as session:
-        user_id = current_user['sub']
+        # Find the pantry item
+        pantry_item = session.query(PantryItem).filter(
+            PantryItem.user_id == current_user["id"],
+            PantryItem.ingredient_id == ingredient_id
+        ).first()
         
-        # Check if pantry item exists
-        session.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
-        if not session.fetchone():
+        if not pantry_item:
             raise HTTPException(status_code=404, detail="Pantry item not found")
         
-        # Build update query dynamically
-        updates = []
-        values = []
-        
+        # Update fields that were provided
         if pantry_data.quantity is not None:
-            updates.append("quantity = ?")
-            values.append(pantry_data.quantity)
+            pantry_item.quantity = pantry_data.quantity
         if pantry_data.expiration_date is not None:
-            updates.append("expiration_date = ?")
-            values.append(pantry_data.expiration_date)
+            pantry_item.expiration_date = pantry_data.expiration_date
         
-        if updates:
-            updates.append("updated_at = CURRENT_TIMESTAMP")
-            values.extend([user_id, ingredient_id])
-            session.execute(
-                f"UPDATE pantry_items SET {', '.join(updates)} WHERE user_id = ? AND ingredient_id = ?",
-                values
-            )
+        session.commit()
+        session.refresh(pantry_item)
         
-        # Get updated pantry item with ingredient details
-        session.execute('''
-            SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                   i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
-                   i.carbs_per_unit, i.fat_per_unit, i.allergens, i.created_at
-            FROM pantry_items p
-            JOIN ingredients i ON p.ingredient_id = i.id
-            WHERE p.user_id = ? AND p.ingredient_id = ?
-        ''', (user_id, ingredient_id))
-        
-        item = session.fetchone()
-        if not item:
-            raise HTTPException(status_code=404, detail="Pantry item not found after update")
-        
-        # Parse allergens from JSON string
-        try:
-            allergens = json.loads(item[13]) if item[13] else []
-        except (json.JSONDecodeError, TypeError):
-            allergens = []
+        # Get ingredient details
+        ingredient = session.query(Ingredient).filter(
+            Ingredient.id == ingredient_id
+        ).first()
         
         return PantryItemResponse(
-            user_id=item[0],
-            ingredient_id=item[1],
-            quantity=item[2],
-            expiration_date=item[3],
-            updated_at=item[4],
+            user_id=str(pantry_item.user_id),
+            ingredient_id=str(pantry_item.ingredient_id),
+            quantity=pantry_item.quantity,
+            expiration_date=pantry_item.expiration_date.isoformat() if pantry_item.expiration_date else None,
+            updated_at=pantry_item.updated_at.isoformat() if pantry_item.updated_at else None,
             ingredient=IngredientResponse(
-                id=item[5],
-                name=item[6],
-                category=item[7],
-                unit=item[8],
-                calories_per_unit=item[9] or 0,
-                protein_per_unit=item[10] or 0,
-                carbs_per_unit=item[11] or 0,
-                fat_per_unit=item[12] or 0,
-                allergens=allergens,
-                created_at=item[14]
+                id=str(ingredient.id),
+                name=ingredient.name,
+                category=ingredient.category.name if ingredient.category else "Other",
+                unit=ingredient.unit,
+                calories_per_unit=ingredient.nutritional_info.get("calories", 0) if ingredient.nutritional_info else 0,
+                protein_per_unit=ingredient.nutritional_info.get("protein", 0) if ingredient.nutritional_info else 0,
+                carbs_per_unit=ingredient.nutritional_info.get("carbs", 0) if ingredient.nutritional_info else 0,
+                fat_per_unit=ingredient.nutritional_info.get("fat", 0) if ingredient.nutritional_info else 0,
+                allergens=ingredient.allergens or [],
+                created_at=None  # Not available in new model
             )
         )
 
@@ -281,13 +218,16 @@ async def remove_pantry_item(
 ):
     """Remove a pantry item"""
     with get_db_session() as session:
-        user_id = current_user['sub']
+        # Find the pantry item
+        pantry_item = session.query(PantryItem).filter(
+            PantryItem.user_id == current_user["id"],
+            PantryItem.ingredient_id == ingredient_id
+        ).first()
         
-        # Check if pantry item exists
-        session.execute("SELECT * FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
-        if not session.fetchone():
+        if not pantry_item:
             raise HTTPException(status_code=404, detail="Pantry item not found")
         
-        session.execute("DELETE FROM pantry_items WHERE user_id = ? AND ingredient_id = ?", (user_id, ingredient_id))
+        session.delete(pantry_item)
+        session.commit()
         
         return {"message": "Pantry item removed successfully"}

@@ -21,18 +21,27 @@ router = APIRouter(prefix="/meal-plans", tags=["meal-plans"])
 
 
 def get_current_user(authorization: str = None):
-    """Get current user with admin fallback"""
+    """Get current user using AuthService"""
     if not authorization:
         return None
     
     if not authorization.startswith("Bearer "):
         return None
     
-    token = authorization.split(" ")[1]
-    payload = verify_token(token)
-    if payload and 'sub' in payload:
-        return payload
-    return None
+    try:
+        token = authorization.split(" ")[1]
+        user = AuthService.verify_user_token(token)
+        if user:
+            return {
+                'sub': user['id'],
+                'id': user['id'],
+                'email': user['email'],
+                'name': user['name'],
+                'is_admin': user['is_admin']
+            }
+        return None
+    except Exception:
+        return None
 
 
 @router.get("", response_model=List[MealPlanResponse])
@@ -47,18 +56,17 @@ async def get_meal_plans(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         user_id = current_user['sub']
         
         # Build query with optional date filtering
         if start_date and end_date:
-            cursor.execute('''
+            result = session.execute(text('''
                 SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
                 FROM meal_plans 
-                WHERE user_id = ? AND date BETWEEN ? AND ?
+                WHERE user_id = :user_id AND date BETWEEN :start_date AND :end_date
                 ORDER BY date, 
                     CASE meal_type 
                         WHEN 'breakfast' THEN 1 
@@ -66,12 +74,12 @@ async def get_meal_plans(
                         WHEN 'dinner' THEN 3 
                         WHEN 'snack' THEN 4 
                     END
-            ''', (user_id, start_date, end_date))
+            '''), {'user_id': user_id, 'start_date': start_date, 'end_date': end_date})
         else:
-            cursor.execute('''
+            result = session.execute(text('''
                 SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
                 FROM meal_plans 
-                WHERE user_id = ?
+                WHERE user_id = :user_id
                 ORDER BY date DESC, 
                     CASE meal_type 
                         WHEN 'breakfast' THEN 1 
@@ -79,9 +87,9 @@ async def get_meal_plans(
                         WHEN 'dinner' THEN 3 
                         WHEN 'snack' THEN 4 
                     END
-            ''', (user_id,))
+            '''), {'user_id': user_id})
         
-        meal_plans = cursor.fetchall()
+        meal_plans = result.fetchall()
         
         result = []
         for plan in meal_plans:
@@ -89,12 +97,11 @@ async def get_meal_plans(
             try:
                 recipe_data = json.loads(plan[6]) if plan[6] else None
             except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse recipe_data for meal plan {plan[0]} - setting to None")
                 recipe_data = None
             
             result.append(MealPlanResponse(
-                id=plan[0],
-                user_id=plan[1],
+                id=str(plan[0]),
+                user_id=str(plan[1]),
                 date=plan[2],
                 meal_type=plan[3],
                 meal_name=plan[4] or "",
@@ -102,13 +109,10 @@ async def get_meal_plans(
                 recipe_data=recipe_data,
                 ai_generated=plan[7] or False,
                 ai_provider=plan[8],
-                created_at=plan[9]
+                created_at=plan[9].isoformat() if plan[9] else None
             ))
         
         return result
-        
-    finally:
-        conn.close()
 
 
 @router.post("", response_model=MealPlanResponse)
@@ -122,47 +126,45 @@ async def create_meal_plan(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         user_id = current_user['sub']
         meal_plan_id = str(uuid.uuid4())
         
         # Check if meal already exists for this slot
-        cursor.execute(
-            "SELECT id FROM meal_plans WHERE user_id = ? AND date = ? AND meal_type = ?",
-            (user_id, meal_plan_data.date, meal_plan_data.meal_type)
-        )
-        if cursor.fetchone():
+        result = session.execute(text(
+            "SELECT id FROM meal_plans WHERE user_id = :user_id AND date = :date AND meal_type = :meal_type"
+        ), {'user_id': user_id, 'date': meal_plan_data.date, 'meal_type': meal_plan_data.meal_type})
+        
+        if result.fetchone():
             raise HTTPException(status_code=400, detail="Meal already planned for this time slot")
         
         # Insert new meal plan
         recipe_data_str = json.dumps(meal_plan_data.recipe_data) if meal_plan_data.recipe_data else None
         
-        cursor.execute('''
+        session.execute(text('''
             INSERT INTO meal_plans 
             (id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            meal_plan_id,
-            user_id,
-            meal_plan_data.date,
-            meal_plan_data.meal_type,
-            meal_plan_data.meal_name,
-            meal_plan_data.meal_description,
-            recipe_data_str,
-            meal_plan_data.ai_generated,
-            meal_plan_data.ai_provider
-        ))
-        conn.commit()
+            VALUES (:id, :user_id, :date, :meal_type, :meal_name, :meal_description, :recipe_data, :ai_generated, :ai_provider)
+        '''), {
+            'id': meal_plan_id,
+            'user_id': user_id,
+            'date': meal_plan_data.date,
+            'meal_type': meal_plan_data.meal_type,
+            'meal_name': meal_plan_data.meal_name,
+            'meal_description': meal_plan_data.meal_description,
+            'recipe_data': recipe_data_str,
+            'ai_generated': meal_plan_data.ai_generated,
+            'ai_provider': meal_plan_data.ai_provider
+        })
         
         # Get the created meal plan
-        cursor.execute('''
+        result = session.execute(text('''
             SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
-            FROM meal_plans WHERE id = ?
-        ''', (meal_plan_id,))
-        meal_plan = cursor.fetchone()
+            FROM meal_plans WHERE id = :meal_plan_id
+        '''), {'meal_plan_id': meal_plan_id})
+        meal_plan = result.fetchone()
         
         if not meal_plan:
             raise HTTPException(status_code=500, detail="Failed to create meal plan")
@@ -174,8 +176,8 @@ async def create_meal_plan(
             recipe_data = None
         
         return MealPlanResponse(
-            id=meal_plan[0],
-            user_id=meal_plan[1],
+            id=str(meal_plan[0]),
+            user_id=str(meal_plan[1]),
             date=meal_plan[2],
             meal_type=meal_plan[3],
             meal_name=meal_plan[4] or "",
@@ -183,11 +185,8 @@ async def create_meal_plan(
             recipe_data=recipe_data,
             ai_generated=meal_plan[7] or False,
             ai_provider=meal_plan[8],
-            created_at=meal_plan[9]
+            created_at=meal_plan[9].isoformat() if meal_plan[9] else None
         )
-        
-    finally:
-        conn.close()
 
 
 @router.put("/{meal_plan_id}", response_model=MealPlanResponse)

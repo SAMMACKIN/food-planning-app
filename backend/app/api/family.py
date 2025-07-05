@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ..core.database_service import get_db_session, db_service
 from ..core.auth_service import AuthService
+from ..models.family import FamilyMember
 from ..schemas.family import FamilyMemberCreate, FamilyMemberUpdate, FamilyMemberResponse
 
 router = APIRouter(prefix="/family", tags=["family"])
@@ -59,64 +60,29 @@ def get_current_user(authorization: str = None):
 
 
 @router.get("/members", response_model=List[FamilyMemberResponse])
-async def get_family_members(authorization: str = Header(None)):
+async def get_family_members(current_user: dict = Depends(get_current_user_dependency)):
     """Get family members for the authenticated user"""
-    # Try to get current user, with admin fallback
-    current_user = get_current_user(authorization)
-    
-    if not current_user:
-        # Admin fallback - check for admin credentials in environment
-        import os
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@foodplanning.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-        
-        # For now, just require authentication
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
     with get_db_session() as session:
         if current_user.get("is_admin", False):
             # Admin can see all family members
-            session.execute('''
-                SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
-                FROM family_members
-                ORDER BY created_at DESC
-            ''')
+            family_members = session.query(FamilyMember).order_by(FamilyMember.created_at.desc()).all()
         else:
             # Regular users only see their own family members
-            session.execute('''
-                SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
-                FROM family_members 
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-            ''', (current_user["sub"],))
+            family_members = session.query(FamilyMember).filter(
+                FamilyMember.user_id == current_user["id"]
+            ).order_by(FamilyMember.created_at.desc()).all()
         
-        rows = session.fetchall()
-        family_members = []
-        
-        for row in rows:
-            # Parse dietary_restrictions and preferences from JSON strings
-            try:
-                dietary_restrictions = json.loads(row[4]) if row[4] else []
-            except (json.JSONDecodeError, TypeError):
-                dietary_restrictions = []
-            
-            try:
-                preferences = json.loads(row[5]) if row[5] else {}
-            except (json.JSONDecodeError, TypeError):
-                preferences = {}
-            
-            family_member = FamilyMemberResponse(
-                id=row[0],
-                user_id=row[1],
-                name=row[2],
-                age=row[3],
-                dietary_restrictions=dietary_restrictions,
-                preferences=preferences,
-                created_at=row[6]
+        return [
+            FamilyMemberResponse(
+                id=str(member.id),
+                user_id=str(member.user_id),
+                name=member.name,
+                age=member.age,
+                preferences=member.preferences or {},
+                created_at=member.created_at.isoformat()
             )
-            family_members.append(family_member)
-        
-        return family_members
+            for member in family_members
+        ]
 
 
 @router.post("/members", response_model=FamilyMemberResponse)
@@ -126,54 +92,26 @@ async def create_family_member(
 ):
     """Create a new family member"""
     with get_db_session() as session:
-        member_id = str(uuid.uuid4())
+        # Create new family member using SQLAlchemy model
+        new_member = FamilyMember(
+            id=uuid.uuid4(),
+            user_id=current_user["id"],  # Use 'id' instead of 'sub'
+            name=member_data.name,
+            age=member_data.age,
+            preferences=member_data.preferences or {}
+        )
         
-        # Serialize dietary_restrictions and preferences as JSON
-        dietary_restrictions_str = json.dumps(member_data.dietary_restrictions or [])
-        preferences_str = json.dumps(member_data.preferences or {})
-        
-        session.execute('''
-            INSERT INTO family_members (id, user_id, name, age, dietary_restrictions, preferences)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            member_id,
-            current_user["sub"],
-            member_data.name,
-            member_data.age,
-            dietary_restrictions_str,
-            preferences_str
-        ))
-        
-        # Fetch the created family member
-        session.execute('''
-            SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
-            FROM family_members 
-            WHERE id = ?
-        ''', (member_id,))
-        
-        row = session.fetchone()
-        if not row:
-            raise HTTPException(status_code=500, detail="Failed to create family member")
-        
-        # Parse the stored data
-        try:
-            dietary_restrictions = json.loads(row[4]) if row[4] else []
-        except (json.JSONDecodeError, TypeError):
-            dietary_restrictions = []
-        
-        try:
-            preferences = json.loads(row[5]) if row[5] else {}
-        except (json.JSONDecodeError, TypeError):
-            preferences = {}
+        session.add(new_member)
+        session.commit()
+        session.refresh(new_member)
         
         return FamilyMemberResponse(
-            id=row[0],
-            user_id=row[1],
-            name=row[2],
-            age=row[3],
-            dietary_restrictions=dietary_restrictions,
-            preferences=preferences,
-            created_at=row[6]
+            id=str(new_member.id),
+            user_id=str(new_member.user_id),
+            name=new_member.name,
+            age=new_member.age,
+            preferences=new_member.preferences,
+            created_at=new_member.created_at.isoformat()
         )
 
 
@@ -185,79 +123,38 @@ async def update_family_member(
 ):
     """Update an existing family member"""
     with get_db_session() as session:
-        # First check if the family member exists and belongs to the user
-        session.execute('''
-            SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
-            FROM family_members 
-            WHERE id = ?
-        ''', (member_id,))
+        # Find the existing family member using SQLAlchemy
+        existing_member = session.query(FamilyMember).filter(
+            FamilyMember.id == member_id
+        ).first()
         
-        existing_member = session.fetchone()
         if not existing_member:
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and existing_member[1] != current_user["sub"]:
+        if not current_user.get("is_admin", False) and existing_member.user_id != current_user["id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        # Build update query dynamically based on provided fields
-        update_fields = []
-        update_values = []
-        
+        # Update fields that were provided
         if member_data.name is not None:
-            update_fields.append("name = ?")
-            update_values.append(member_data.name)
+            existing_member.name = member_data.name
         
         if member_data.age is not None:
-            update_fields.append("age = ?")
-            update_values.append(member_data.age)
-        
-        if member_data.dietary_restrictions is not None:
-            update_fields.append("dietary_restrictions = ?")
-            update_values.append(json.dumps(member_data.dietary_restrictions))
+            existing_member.age = member_data.age
         
         if member_data.preferences is not None:
-            update_fields.append("preferences = ?")
-            update_values.append(json.dumps(member_data.preferences))
+            existing_member.preferences = member_data.preferences
         
-        if not update_fields:
-            # No fields to update, return current data
-            pass
-        else:
-            # Perform the update
-            update_query = f"UPDATE family_members SET {', '.join(update_fields)} WHERE id = ?"
-            update_values.append(member_id)
-            
-            session.execute(update_query, update_values)
-        
-        # Fetch updated family member
-        session.execute('''
-            SELECT id, user_id, name, age, dietary_restrictions, preferences, created_at 
-            FROM family_members 
-            WHERE id = ?
-        ''', (member_id,))
-        
-        row = session.fetchone()
-        
-        # Parse the stored data
-        try:
-            dietary_restrictions = json.loads(row[4]) if row[4] else []
-        except (json.JSONDecodeError, TypeError):
-            dietary_restrictions = []
-        
-        try:
-            preferences = json.loads(row[5]) if row[5] else {}
-        except (json.JSONDecodeError, TypeError):
-            preferences = {}
+        session.commit()
+        session.refresh(existing_member)
         
         return FamilyMemberResponse(
-            id=row[0],
-            user_id=row[1],
-            name=row[2],
-            age=row[3],
-            dietary_restrictions=dietary_restrictions,
-            preferences=preferences,
-            created_at=row[6]
+            id=str(existing_member.id),
+            user_id=str(existing_member.user_id),
+            name=existing_member.name,
+            age=existing_member.age,
+            preferences=existing_member.preferences,
+            created_at=existing_member.created_at.isoformat()
         )
 
 
@@ -268,20 +165,20 @@ async def delete_family_member(
 ):
     """Delete a family member"""
     with get_db_session() as session:
-        # Check if family member exists and belongs to user
-        session.execute('''
-            SELECT user_id FROM family_members WHERE id = ?
-        ''', (member_id,))
+        # Find the family member using SQLAlchemy
+        family_member = session.query(FamilyMember).filter(
+            FamilyMember.id == member_id
+        ).first()
         
-        result = session.fetchone()
-        if not result:
+        if not family_member:
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and result[0] != current_user["sub"]:
+        if not current_user.get("is_admin", False) and family_member.user_id != current_user["id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the family member
-        session.execute('DELETE FROM family_members WHERE id = ?', (member_id,))
+        session.delete(family_member)
+        session.commit()
         
         return {"message": "Family member deleted successfully"}

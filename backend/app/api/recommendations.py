@@ -16,18 +16,28 @@ logger = logging.getLogger(__name__)
 
 
 def get_current_user(authorization: str = None):
-    """Get current user with admin fallback"""
+    """Get current user using AuthService"""
     if not authorization:
         return None
     
     if not authorization.startswith("Bearer "):
         return None
     
-    token = authorization.split(" ")[1]
-    payload = verify_token(token)
-    if payload and 'sub' in payload:
-        return payload
-    return None
+    try:
+        token = authorization.split(" ")[1]
+        user = AuthService.verify_user_token(token)
+        if user:
+            return {
+                'sub': user['id'],
+                'id': user['id'],
+                'email': user['email'],
+                'name': user['name'],
+                'is_admin': user['is_admin']
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        return None
 
 
 # Import AI service from existing service module
@@ -100,26 +110,20 @@ async def get_meal_recommendations(
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        logger.info("🔥 Getting database connection...")
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        logger.info("🔥 Database connection successful")
-    except Exception as e:
-        logger.error(f"🔥 Database connection failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
-    
-    try:
         user_id = current_user['sub']
         logger.info(f"🔥 Processing request for user: {user_id}")
         
-        # Get family members
-        logger.info("🔥 Querying family members...")
-        cursor.execute('''
-            SELECT id, name, age, dietary_restrictions, preferences 
-            FROM family_members 
-            WHERE user_id = ?
-        ''', (user_id,))
-        family_data = cursor.fetchall()
+        with get_db_session() as session:
+            from sqlalchemy import text
+            
+            # Get family members
+            logger.info("🔥 Querying family members...")
+            result = session.execute(text('''
+                SELECT id, name, age, dietary_restrictions, preferences 
+                FROM family_members 
+                WHERE user_id = :user_id
+            '''), {'user_id': user_id})
+            family_data = result.fetchall()
         logger.info(f"🔥 Found {len(family_data)} family members")
         
         family_members = []
@@ -150,56 +154,55 @@ async def get_meal_recommendations(
             logger.info(f"🔥 Added family member: {family_member}")
             family_members.append(family_member)
         
-        # Get pantry items
-        logger.info("🔥 Querying pantry items...")
-        cursor.execute('''
-            SELECT p.quantity, p.expiration_date,
-                   i.id, i.name, i.category, i.unit, i.calories_per_unit, i.protein_per_unit,
-                   i.carbs_per_unit, i.fat_per_unit, i.allergens
-            FROM pantry_items p
-            JOIN ingredients i ON p.ingredient_id = i.id
-            WHERE p.user_id = ?
-        ''', (user_id,))
-        pantry_data = cursor.fetchall()
+            # Get pantry items
+            logger.info("🔥 Querying pantry items...")
+            result = session.execute(text('''
+                SELECT p.quantity, p.expiration_date,
+                       i.id, i.name, i.category_id, i.unit, i.nutritional_info
+                FROM pantry_items p
+                JOIN ingredients i ON p.ingredient_id = i.id
+                WHERE p.user_id = :user_id
+            '''), {'user_id': user_id})
+            pantry_data = result.fetchall()
         logger.info(f"🔥 Found {len(pantry_data)} pantry items")
         
-        pantry_items = []
-        for item in pantry_data:
-            # Parse allergens from JSON only
-            try:
-                allergens = json.loads(item[10]) if item[10] else []
-            except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse allergens for item {item[3]} - using empty list")
-                allergens = []
-            
-            pantry_items.append({
-                'quantity': item[0],
-                'expiration_date': item[1],
-                'ingredient': {
-                    'id': item[2],
-                    'name': item[3],
-                    'category': item[4],
-                    'unit': item[5],
-                    'calories_per_unit': item[6] or 0,
-                    'protein_per_unit': item[7] or 0,
-                    'carbs_per_unit': item[8] or 0,
-                    'fat_per_unit': item[9] or 0,
-                    'allergens': allergens
-                }
-            })
+            pantry_items = []
+            for item in pantry_data:
+                # Parse nutritional info from JSON
+                try:
+                    nutritional_info = json.loads(item[6]) if item[6] else {}
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Failed to parse nutritional info for item {item[3]} - using empty dict")
+                    nutritional_info = {}
+                
+                pantry_items.append({
+                    'quantity': item[0],
+                    'expiration_date': item[1],
+                    'ingredient': {
+                        'id': str(item[2]),
+                        'name': item[3],
+                        'category': item[4],
+                        'unit': item[5],
+                        'calories_per_unit': nutritional_info.get('calories', 0),
+                        'protein_per_unit': nutritional_info.get('protein', 0),
+                        'carbs_per_unit': nutritional_info.get('carbs', 0),
+                        'fat_per_unit': nutritional_info.get('fat', 0),
+                        'allergens': nutritional_info.get('allergens', [])
+                    }
+                })
         
-        # Get user recipe ratings to inform AI suggestions
-        cursor.execute('''
-            SELECT r.name, r.difficulty, r.tags, r.nutrition_notes, 
-                   rt.rating, rt.review_text, rt.would_make_again,
-                   r.ai_generated, r.ai_provider
-            FROM saved_recipes r
-            JOIN recipe_ratings rt ON r.id = rt.recipe_id
-            WHERE r.user_id = ? AND rt.rating >= 4
-            ORDER BY rt.created_at DESC
-            LIMIT 20
-        ''', (user_id,))
-        liked_recipes_data = cursor.fetchall()
+            # Get user recipe ratings to inform AI suggestions
+            result = session.execute(text('''
+                SELECT r.name, r.difficulty, r.tags, r.nutrition_notes, 
+                       rt.rating, rt.review_text, rt.would_make_again,
+                       r.ai_generated, r.ai_provider
+                FROM saved_recipes r
+                JOIN recipe_ratings rt ON r.id = rt.recipe_id
+                WHERE r.user_id = :user_id AND rt.rating >= 4
+                ORDER BY rt.created_at DESC
+                LIMIT 20
+            '''), {'user_id': user_id})
+            liked_recipes_data = result.fetchall()
         
         liked_recipes = []
         for recipe in liked_recipes_data:
@@ -221,17 +224,17 @@ async def get_meal_recommendations(
                 'ai_provider': recipe[8]
             })
         
-        # Get disliked recipes (rating <= 2) to avoid similar suggestions
-        cursor.execute('''
-            SELECT r.name, r.difficulty, r.tags, r.nutrition_notes,
-                   rt.rating, rt.review_text, rt.would_make_again
-            FROM saved_recipes r
-            JOIN recipe_ratings rt ON r.id = rt.recipe_id
-            WHERE r.user_id = ? AND rt.rating <= 2
-            ORDER BY rt.created_at DESC
-            LIMIT 10
-        ''', (user_id,))
-        disliked_recipes_data = cursor.fetchall()
+            # Get disliked recipes (rating <= 2) to avoid similar suggestions
+            result = session.execute(text('''
+                SELECT r.name, r.difficulty, r.tags, r.nutrition_notes,
+                       rt.rating, rt.review_text, rt.would_make_again
+                FROM saved_recipes r
+                JOIN recipe_ratings rt ON r.id = rt.recipe_id
+                WHERE r.user_id = :user_id AND rt.rating <= 2
+                ORDER BY rt.created_at DESC
+                LIMIT 10
+            '''), {'user_id': user_id})
+            disliked_recipes_data = result.fetchall()
         
         disliked_recipes = []
         for recipe in disliked_recipes_data:
@@ -251,29 +254,29 @@ async def get_meal_recommendations(
                 'would_make_again': bool(recipe[6])
             })
         
-        # Get recently saved/viewed recipes to avoid suggesting very similar ones
-        cursor.execute('''
-            SELECT name, tags, difficulty, created_at
-            FROM saved_recipes 
-            WHERE user_id = ? 
-            ORDER BY created_at DESC 
-            LIMIT 15
-        ''', (user_id,))
-        recent_recipes_data = cursor.fetchall()
+            # Get recently saved/viewed recipes to avoid suggesting very similar ones
+            result = session.execute(text('''
+                SELECT name, tags, difficulty, created_at
+                FROM saved_recipes 
+                WHERE user_id = :user_id 
+                ORDER BY created_at DESC 
+                LIMIT 15
+            '''), {'user_id': user_id})
+            recent_recipes_data = result.fetchall()
         
-        recent_recipes = []
-        for recipe in recent_recipes_data:
-            try:
-                tags = json.loads(recipe[1]) if recipe[1] else []
-            except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse recent recipe tags - using empty list")
-                tags = []
-            
-            recent_recipes.append({
-                'name': recipe[0],
-                'tags': tags,
-                'difficulty': recipe[2]
-            })
+            recent_recipes = []
+            for recipe in recent_recipes_data:
+                try:
+                    tags = json.loads(recipe[1]) if recipe[1] else []
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Failed to parse recent recipe tags - using empty list")
+                    tags = []
+                
+                recent_recipes.append({
+                    'name': recipe[0],
+                    'tags': tags,
+                    'difficulty': recipe[2]
+                })
         
         # Get recommendations from selected AI provider
         provider = request.ai_provider or "perplexity"
@@ -328,9 +331,6 @@ async def get_meal_recommendations(
     except Exception as e:
         logger.error(f"Error generating recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
-    
-    finally:
-        conn.close()
 
 
 @router.get("/status")
