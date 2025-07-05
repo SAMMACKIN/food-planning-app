@@ -109,6 +109,15 @@ def create_app() -> FastAPI:
             logger.error(f"❌ Recipes router error: {e}")
         
         try:
+            from .api import recipes_optimized
+            app.include_router(recipes_optimized.router, prefix="/api/v1/recipes-perf", tags=["recipes-performance"])
+            router_status["recipes_optimized"] = "✅ Success"
+            logger.info(f"🚀 Optimized recipes router registered at: /api/v1/recipes-perf")
+        except Exception as e:
+            router_status["recipes_optimized"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Optimized recipes router error: {e}")
+        
+        try:
             from .api import meal_plans
             app.include_router(meal_plans.router, prefix="/api/v1", tags=["meal-plans"])
             router_status["meal_plans"] = "✅ Success"

@@ -75,16 +75,21 @@ async def get_saved_recipes(
                 logger.error(f"Invalid UUID format: {user_id} - {e}")
                 raise HTTPException(status_code=400, detail="Invalid user ID format")
             
-            # Use SQLAlchemy ORM query like AuthService does - this handles UUID properly
-            query = session.query(SavedRecipe).filter(SavedRecipe.user_id == user_uuid)
+            # Use optimized SQLAlchemy ORM query with eager loading
+            from sqlalchemy.orm import joinedload
+            from sqlalchemy import or_
             
-            # Add search filter
+            query = session.query(SavedRecipe).options(
+                joinedload(SavedRecipe.recipe_ratings)
+            ).filter(SavedRecipe.user_id == user_uuid)
+            
+            # Add search filter using OR instead of AND
             if search:
                 search_filter = f'%{search}%'
                 query = query.filter(
-                    and_(
-                        SavedRecipe.name.ilike(search_filter) |
-                        SavedRecipe.description.ilike(search_filter) |
+                    or_(
+                        SavedRecipe.name.ilike(search_filter),
+                        SavedRecipe.description.ilike(search_filter),
                         SavedRecipe.tags.ilike(search_filter)
                     )
                 )
@@ -97,31 +102,36 @@ async def get_saved_recipes(
             if tags:
                 query = query.filter(SavedRecipe.tags.ilike(f'%{tags}%'))
             
-            # Order by updated_at DESC
+            # Order by updated_at DESC (uses compound index if available)
             query = query.order_by(SavedRecipe.updated_at.desc())
             
-            # Execute query
+            # Execute query with eager loading
             recipes_data = query.all()
             
-            # Process ORM objects
+            def safe_json_parse(json_str: str, default_value=None):
+                """Safely parse JSON string with fallback"""
+                if not json_str:
+                    return default_value or []
+                try:
+                    return json.loads(json_str)
+                except (json.JSONDecodeError, TypeError):
+                    return default_value or []
+            
+            # Process ORM objects efficiently
             recipes = []
             for recipe in recipes_data:
                 try:
-                    # Parse JSON fields
-                    try:
-                        ingredients_needed = json.loads(recipe.ingredients_needed) if recipe.ingredients_needed else []
-                    except (json.JSONDecodeError, TypeError):
-                        ingredients_needed = []
+                    # Calculate average rating from pre-loaded ratings
+                    ratings = recipe.recipe_ratings
+                    avg_rating = None
+                    if ratings:
+                        total_rating = sum(r.rating for r in ratings)
+                        avg_rating = round(total_rating / len(ratings), 1)
                     
-                    try:
-                        instructions = json.loads(recipe.instructions) if recipe.instructions else []
-                    except (json.JSONDecodeError, TypeError):
-                        instructions = []
-                    
-                    try:
-                        tags = json.loads(recipe.tags) if recipe.tags else []
-                    except (json.JSONDecodeError, TypeError):
-                        tags = []
+                    # Parse JSON fields with safe error handling
+                    ingredients_needed = safe_json_parse(recipe.ingredients_needed, [])
+                    instructions = safe_json_parse(recipe.instructions, [])
+                    tags_list = safe_json_parse(recipe.tags, [])
                     
                     # Create response using ORM object attributes
                     recipe_response = SavedRecipeResponse(
@@ -134,7 +144,7 @@ async def get_saved_recipes(
                         servings=recipe.servings,
                         ingredients_needed=ingredients_needed,
                         instructions=instructions,
-                        tags=tags,
+                        tags=tags_list,
                         nutrition_notes=recipe.nutrition_notes or "",
                         pantry_usage_score=recipe.pantry_usage_score or 0,
                         ai_generated=recipe.ai_generated or False,
@@ -142,7 +152,7 @@ async def get_saved_recipes(
                         source=recipe.source or "manual",
                         times_cooked=recipe.times_cooked or 0,
                         last_cooked=recipe.last_cooked.isoformat() if recipe.last_cooked else None,
-                        rating=None,  # No rating data for now
+                        rating=avg_rating,
                         created_at=recipe.created_at.isoformat() if recipe.created_at else None,
                         updated_at=recipe.updated_at.isoformat() if recipe.updated_at else None
                     )
