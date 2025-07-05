@@ -27,6 +27,11 @@ class Settings:
         self.JWT_ALGORITHM: str = "HS256"
         self.JWT_EXPIRATION_HOURS: int = 24
         
+        # Validate PostgreSQL URL in CI/production
+        if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+            assert self.DATABASE_URL.startswith("postgresql"), \
+                f"CI/GitHub Actions requires PostgreSQL URL, got: {self.DATABASE_URL}"
+        
         # Validate critical security settings
         if not self.JWT_SECRET:
             # Allow fallback in development, test, and CI environments
