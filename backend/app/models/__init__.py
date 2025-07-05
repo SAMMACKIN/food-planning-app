@@ -4,6 +4,7 @@ from .ingredient import Ingredient, IngredientCategory, PantryItem
 from .meal import Meal, MealIngredient, MealCategory
 from .planning import MealPlan, PlannedMeal, MealAttendance
 from .preferences import MealRating, UserPreference, RecommendationHistory
+from .recipe import SavedRecipe, RecipeRating
 
 __all__ = [
     "User",
@@ -20,5 +21,7 @@ __all__ = [
     "MealAttendance",
     "MealRating",
     "UserPreference",
-    "RecommendationHistory"
+    "RecommendationHistory",
+    "SavedRecipe",
+    "RecipeRating"
 ]

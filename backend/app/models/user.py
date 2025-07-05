@@ -27,3 +27,5 @@ class User(Base):
     meal_ratings = relationship("MealRating", back_populates="user", cascade="all, delete-orphan")
     user_preferences = relationship("UserPreference", back_populates="user", cascade="all, delete-orphan")
     recommendation_history = relationship("RecommendationHistory", back_populates="user", cascade="all, delete-orphan")
+    saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
+    recipe_ratings = relationship("RecipeRating", back_populates="user", cascade="all, delete-orphan")
