@@ -220,26 +220,26 @@ async def get_meal_recommendations(
                 LIMIT 20
             '''), {'user_id': user_id})
             liked_recipes_data = result.fetchall()
-        
-        liked_recipes = []
-        for recipe in liked_recipes_data:
-            try:
-                tags = json.loads(recipe[2]) if recipe[2] else []
-            except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse recipe tags - using empty list")
-                tags = []
             
-            liked_recipes.append({
-                'name': recipe[0],
-                'difficulty': recipe[1],
-                'tags': tags,
-                'nutrition_notes': recipe[3],
-                'rating': recipe[4],
-                'review_text': recipe[5],
-                'would_make_again': bool(recipe[6]),
-                'ai_generated': bool(recipe[7]),
-                'ai_provider': recipe[8]
-            })
+            liked_recipes = []
+            for recipe in liked_recipes_data:
+                try:
+                    tags = json.loads(recipe[2]) if recipe[2] else []
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Failed to parse recipe tags - using empty list")
+                    tags = []
+                
+                liked_recipes.append({
+                    'name': recipe[0],
+                    'difficulty': recipe[1],
+                    'tags': tags,
+                    'nutrition_notes': recipe[3],
+                    'rating': recipe[4],
+                    'review_text': recipe[5],
+                    'would_make_again': bool(recipe[6]),
+                    'ai_generated': bool(recipe[7]),
+                    'ai_provider': recipe[8]
+                })
         
             # Get disliked recipes (rating <= 2) to avoid similar suggestions
             result = session.execute(text('''
@@ -252,24 +252,24 @@ async def get_meal_recommendations(
                 LIMIT 10
             '''), {'user_id': user_id})
             disliked_recipes_data = result.fetchall()
-        
-        disliked_recipes = []
-        for recipe in disliked_recipes_data:
-            try:
-                tags = json.loads(recipe[2]) if recipe[2] else []
-            except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse recipe tags - using empty list")
-                tags = []
             
-            disliked_recipes.append({
-                'name': recipe[0],
-                'difficulty': recipe[1],
-                'tags': tags,
-                'nutrition_notes': recipe[3],
-                'rating': recipe[4],
-                'review_text': recipe[5],
-                'would_make_again': bool(recipe[6])
-            })
+            disliked_recipes = []
+            for recipe in disliked_recipes_data:
+                try:
+                    tags = json.loads(recipe[2]) if recipe[2] else []
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Failed to parse recipe tags - using empty list")
+                    tags = []
+                
+                disliked_recipes.append({
+                    'name': recipe[0],
+                    'difficulty': recipe[1],
+                    'tags': tags,
+                    'nutrition_notes': recipe[3],
+                    'rating': recipe[4],
+                    'review_text': recipe[5],
+                    'would_make_again': bool(recipe[6])
+                })
         
             # Get recently saved/viewed recipes to avoid suggesting very similar ones
             result = session.execute(text('''
