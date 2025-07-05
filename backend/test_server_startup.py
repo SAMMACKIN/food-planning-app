@@ -18,7 +18,7 @@ try:
     print(f"   ✅ Settings loaded - DB: {settings.DATABASE_URL}")
     
     from app.core.database_service import db_service, init_db
-    print(f"   ✅ Database service loaded - SQLite: {db_service.use_sqlite}")
+    print(f"   ✅ Database service loaded - PostgreSQL: {settings.DATABASE_URL.startswith('postgresql')}")
     
     # Test database initialization
     print("2. Testing database initialization...")
