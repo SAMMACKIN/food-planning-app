@@ -15,7 +15,7 @@ class IngredientResponse(BaseModel):
     carbs_per_unit: float = 0
     fat_per_unit: float = 0
     allergens: list = []
-    created_at: str
+    created_at: Optional[str] = None
 
 
 class PantryItemCreate(BaseModel):
