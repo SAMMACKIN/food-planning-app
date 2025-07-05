@@ -167,7 +167,7 @@ async def get_meal_recommendations(
             result = session.execute(text('''
                 SELECT p.quantity, p.expiration_date,
                        i.id, i.name, i.category_id, i.unit, i.nutritional_info
-                FROM pantry_items p
+                FROM user_pantry p
                 JOIN ingredients i ON p.ingredient_id = i.id
                 WHERE p.user_id = :user_id
             '''), {'user_id': user_id})
