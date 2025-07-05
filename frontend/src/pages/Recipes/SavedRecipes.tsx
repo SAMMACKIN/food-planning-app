@@ -23,7 +23,6 @@ import {
   Rating,
 } from '@mui/material';
 import {
-  Restaurant,
   Timer,
   People,
   Delete,
@@ -113,9 +112,13 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
   };
 
-  const handleCreateCustomRecipe = async (recipeData: any) => {
-    await saveRecipe(recipeData);
-    setCreateRecipeDialogOpen(false);
+  const handleCreateCustomRecipe = async (recipeData: any): Promise<boolean> => {
+    const result = await saveRecipe(recipeData);
+    if (result) {
+      setCreateRecipeDialogOpen(false);
+      return true;
+    }
+    return false;
   };
 
   const filteredRecipes = savedRecipes.filter(recipe =>

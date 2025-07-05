@@ -36,7 +36,6 @@ import {
   People as PeopleIcon,
   Kitchen as KitchenIcon,
   CalendarMonth as CalendarIcon,
-  Restaurant as RestaurantIcon,
   AutoAwesome as RecommendationsIcon,
   MenuBook as SavedRecipesIcon,
   Help as HelpIcon,

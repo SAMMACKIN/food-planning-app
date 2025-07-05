@@ -66,7 +66,6 @@ const MealRecommendations: React.FC = () => {
     saveRecommendationAsRecipe,
     addRecommendationToMealPlan,
     rateRecipe,
-    saveRecipe,
     error: recipeError,
     clearError: clearRecipeError
   } = useRecipes();
