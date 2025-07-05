@@ -113,6 +113,13 @@ async def get_meal_recommendations(
         user_id = current_user['sub']
         logger.info(f"🔥 Processing request for user: {user_id}")
         
+        # Initialize variables that will be populated from database
+        family_members = []
+        pantry_items = []
+        liked_recipes = []
+        disliked_recipes = []
+        recent_recipes = []
+        
         with get_db_session() as session:
             from sqlalchemy import text
             
@@ -142,8 +149,6 @@ async def get_meal_recommendations(
                     logger.error(f"🔥 Both schema queries failed: {e2}")
                     family_data = []
         logger.info(f"🔥 Found {len(family_data)} family members")
-        
-        family_members = []
         for i, member in enumerate(family_data):
             logger.info(f"🔥 Processing family member {i+1}: {member}")
             # Parse dietary_restrictions and preferences from JSON/eval
@@ -182,8 +187,6 @@ async def get_meal_recommendations(
             '''), {'user_id': user_id})
             pantry_data = result.fetchall()
             logger.info(f"🔥 Found {len(pantry_data)} pantry items")
-            
-            pantry_items = []
             for item in pantry_data:
                 # Parse nutritional info from JSON
                 try:
@@ -220,8 +223,6 @@ async def get_meal_recommendations(
                 LIMIT 20
             '''), {'user_id': user_id})
             liked_recipes_data = result.fetchall()
-            
-            liked_recipes = []
             for recipe in liked_recipes_data:
                 try:
                     tags = json.loads(recipe[2]) if recipe[2] else []
@@ -252,8 +253,6 @@ async def get_meal_recommendations(
                 LIMIT 10
             '''), {'user_id': user_id})
             disliked_recipes_data = result.fetchall()
-            
-            disliked_recipes = []
             for recipe in disliked_recipes_data:
                 try:
                     tags = json.loads(recipe[2]) if recipe[2] else []
@@ -280,8 +279,6 @@ async def get_meal_recommendations(
                 LIMIT 15
             '''), {'user_id': user_id})
             recent_recipes_data = result.fetchall()
-        
-            recent_recipes = []
             for recipe in recent_recipes_data:
                 try:
                     tags = json.loads(recipe[1]) if recipe[1] else []
