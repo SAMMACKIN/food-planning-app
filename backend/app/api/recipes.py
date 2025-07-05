@@ -101,46 +101,63 @@ async def get_saved_recipes(
         logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
         
         recipes = []
-        for recipe in recipes_data:
+        for i, recipe in enumerate(recipes_data):
             try:
-                ingredients_needed = json.loads(recipe[7]) if recipe[7] else []
-            except (json.JSONDecodeError, TypeError):
-                ingredients_needed = []
-            
-            try:
-                instructions = json.loads(recipe[8]) if recipe[8] else []
-            except (json.JSONDecodeError, TypeError):
-                instructions = []
-            
-            try:
-                tags_list = json.loads(recipe[9]) if recipe[9] else []
-            except (json.JSONDecodeError, TypeError):
-                tags_list = []
-            
-            recipes.append(SavedRecipeResponse(
-                id=str(recipe[0]),  # Convert UUID to string
-                user_id=str(recipe[1]),  # Convert UUID to string
-                name=recipe[2],
-                description=recipe[3],
-                prep_time=recipe[4],
-                difficulty=recipe[5],
-                servings=recipe[6],
-                ingredients_needed=ingredients_needed,
-                instructions=instructions,
-                tags=tags_list,
-                nutrition_notes=recipe[10],
-                pantry_usage_score=recipe[11],
-                ai_generated=bool(recipe[12]),
-                ai_provider=recipe[13],
-                source=recipe[14],
-                times_cooked=recipe[15] or 0,
-                last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
-                rating=float(recipe[19]) if recipe[19] else None,
-                created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
-                updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
-            ))
+                logger.info(f"🔍 Processing recipe {i+1}: {recipe[2]} (ID: {recipe[0]})")
+                
+                try:
+                    ingredients_needed = json.loads(recipe[7]) if recipe[7] else []
+                except (json.JSONDecodeError, TypeError):
+                    ingredients_needed = []
+                
+                try:
+                    instructions = json.loads(recipe[8]) if recipe[8] else []
+                except (json.JSONDecodeError, TypeError):
+                    instructions = []
+                
+                try:
+                    tags_list = json.loads(recipe[9]) if recipe[9] else []
+                except (json.JSONDecodeError, TypeError):
+                    tags_list = []
+                
+                recipe_response = SavedRecipeResponse(
+                    id=str(recipe[0]),  # Convert UUID to string
+                    user_id=str(recipe[1]),  # Convert UUID to string
+                    name=recipe[2],
+                    description=recipe[3],
+                    prep_time=recipe[4],
+                    difficulty=recipe[5],
+                    servings=recipe[6],
+                    ingredients_needed=ingredients_needed,
+                    instructions=instructions,
+                    tags=tags_list,
+                    nutrition_notes=recipe[10],
+                    pantry_usage_score=recipe[11],
+                    ai_generated=bool(recipe[12]),
+                    ai_provider=recipe[13],
+                    source=recipe[14],
+                    times_cooked=recipe[15] or 0,
+                    last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
+                    rating=float(recipe[19]) if recipe[19] else None,
+                    created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
+                    updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
+                )
+                recipes.append(recipe_response)
+                logger.info(f"✅ Successfully processed recipe {i+1}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing recipe {i+1} ({recipe[2] if len(recipe) > 2 else 'unknown'}): {e}")
+                # Continue processing other recipes instead of failing completely
+                continue
         
+        logger.info(f"✅ Returning {len(recipes)} recipes to frontend")
         return recipes
+    
+    except Exception as e:
+        logger.error(f"💥 Critical error in get_saved_recipes: {e}")
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error fetching saved recipes: {str(e)}")
 
 
 @router.post("", response_model=SavedRecipeResponse)
