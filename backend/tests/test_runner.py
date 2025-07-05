@@ -8,6 +8,16 @@ import os
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Set up test environment early
+os.environ["TESTING"] = "true"
+if not os.environ.get("JWT_SECRET"):
+    os.environ["JWT_SECRET"] = "dev-jwt-secret-for-testing-only"
+
+# Set PostgreSQL URL for CI if not already set
+if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+    if not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/food_planning_test"
+
 # Test security functions
 def test_security_functions():
     """Test security functions directly"""
