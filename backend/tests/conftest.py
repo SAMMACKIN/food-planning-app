@@ -59,13 +59,13 @@ def test_db():
                 is_admin=True
             )
             
-            # Add basic ingredients for testing using raw SQL for now
+            # Add basic ingredients for testing using proper model schema
             ingredients_sql = text("""
-                INSERT INTO ingredients (id, name, category_id, unit, nutritional_info, allergens, created_at)
+                INSERT INTO ingredients (id, name, category_id, unit, nutritional_info, allergens)
                 VALUES 
-                    (:id1, 'Chicken Breast', NULL, 'piece', '{"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6}', '[]', NOW()),
-                    (:id2, 'Rice', NULL, 'cup', '{"calories": 205, "protein": 4, "carbs": 45, "fat": 0.5}', '[]', NOW()),
-                    (:id3, 'Broccoli', NULL, 'cup', '{"calories": 25, "protein": 3, "carbs": 5, "fat": 0}', '[]', NOW())
+                    (:id1, 'Chicken Breast', NULL, 'piece', '{"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6}', '[]'),
+                    (:id2, 'Rice', NULL, 'cup', '{"calories": 205, "protein": 4, "carbs": 45, "fat": 0.5}', '[]'),
+                    (:id3, 'Broccoli', NULL, 'cup', '{"calories": 25, "protein": 3, "carbs": 5, "fat": 0}', '[]')
                 ON CONFLICT (id) DO NOTHING
             """)
             

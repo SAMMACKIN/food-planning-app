@@ -215,34 +215,33 @@ async def update_meal_plan(
         if meal_plan[0] != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        # Build update query dynamically
-        updates = []
-        values = []
+        # Build update query dynamically using SQLAlchemy
+        update_data = {}
         
         if meal_plan_data.meal_name is not None:
-            updates.append("meal_name = ?")
-            values.append(meal_plan_data.meal_name)
+            update_data['meal_name'] = meal_plan_data.meal_name
         if meal_plan_data.meal_description is not None:
-            updates.append("meal_description = ?")
-            values.append(meal_plan_data.meal_description)
+            update_data['meal_description'] = meal_plan_data.meal_description
         if meal_plan_data.recipe_data is not None:
-            updates.append("recipe_data = ?")
-            values.append(json.dumps(meal_plan_data.recipe_data))
+            update_data['recipe_data'] = json.dumps(meal_plan_data.recipe_data)
         
-        if updates:
-            values.append(meal_plan_id)
-            cursor.execute(
-                f"UPDATE meal_plans SET {', '.join(updates)} WHERE id = ?",
-                values
+        if update_data:
+            # Perform the update
+            session.execute(
+                text("UPDATE meal_plans SET " + ", ".join([f"{key} = :{key}" for key in update_data.keys()]) + " WHERE id = :meal_plan_id"),
+                {**update_data, "meal_plan_id": meal_plan_id}
             )
-            conn.commit()
+            session.commit()
         
         # Get updated meal plan
-        cursor.execute('''
+        result = session.execute(text('''
             SELECT id, user_id, date, meal_type, meal_name, meal_description, recipe_data, ai_generated, ai_provider, created_at
-            FROM meal_plans WHERE id = ?
-        ''', (meal_plan_id,))
-        meal_plan = cursor.fetchone()
+            FROM meal_plans WHERE id = :meal_plan_id
+        '''), {"meal_plan_id": meal_plan_id})
+        meal_plan = result.fetchone()
+        
+        if not meal_plan:
+            raise HTTPException(status_code=404, detail="Meal plan not found after update")
         
         # Parse recipe_data from JSON
         try:
@@ -251,8 +250,8 @@ async def update_meal_plan(
             recipe_data = None
         
         return MealPlanResponse(
-            id=meal_plan[0],
-            user_id=meal_plan[1],
+            id=str(meal_plan[0]),
+            user_id=str(meal_plan[1]),
             date=meal_plan[2],
             meal_type=meal_plan[3],
             meal_name=meal_plan[4] or "",
@@ -262,9 +261,6 @@ async def update_meal_plan(
             ai_provider=meal_plan[8],
             created_at=meal_plan[9]
         )
-        
-    finally:
-        conn.close()
 
 
 @router.delete("/{meal_plan_id}")
