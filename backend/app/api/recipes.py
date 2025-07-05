@@ -52,12 +52,15 @@ async def get_saved_recipes(
 ):
     """Get user's saved recipes with optional filtering"""
     logger.info("🍽️ GET SAVED RECIPES ENDPOINT CALLED")
+    logger.info(f"🔑 Authorization header present: {bool(authorization)}")
     
     current_user = get_current_user(authorization)
     if not current_user:
+        logger.warning("🚫 No authentication provided")
         raise HTTPException(status_code=401, detail="Authentication required")
     
     user_id = current_user['sub']
+    logger.info(f"👤 User authenticated: {current_user.get('email', 'unknown')} (ID: {user_id})")
     
     with get_db_session() as session:
         from sqlalchemy import text
@@ -94,6 +97,8 @@ async def get_saved_recipes(
         
         result = session.execute(text(query), params)
         recipes_data = result.fetchall()
+        
+        logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
         
         recipes = []
         for recipe in recipes_data:
