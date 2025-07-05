@@ -64,148 +64,95 @@ async def get_saved_recipes(
         logger.info(f"👤 User authenticated: {current_user.get('email', 'unknown')} (ID: {user_id})")
         
         with get_db_session() as session:
-            from sqlalchemy import text
-            from sqlalchemy.dialects.postgresql import UUID
+            from ..models.recipe import SavedRecipe
+            from sqlalchemy import and_
             import uuid as uuid_module
             
-            # First, let's check what recipes exist in the database
-            logger.info(f"🔍 DEBUG: Checking all recipes in database")
-            all_recipes_query = "SELECT id, user_id, name FROM saved_recipes LIMIT 10"
-            all_recipes_result = session.execute(text(all_recipes_query))
-            all_recipes = all_recipes_result.fetchall()
-            logger.info(f"🔍 DEBUG: Found {len(all_recipes)} total recipes in database")
-            for recipe in all_recipes:
-                logger.info(f"🔍 DEBUG: Recipe ID: {recipe[0]}, User ID: {recipe[1]}, Name: {recipe[2]}")
-            
-            # Check if our user_id exists in the database
-            user_recipes_check = "SELECT COUNT(*) FROM saved_recipes WHERE user_id = :user_id"
-            user_count_result = session.execute(text(user_recipes_check), {'user_id': user_id})
-            user_recipe_count = user_count_result.scalar()
-            logger.info(f"🔍 DEBUG: User {user_id} has {user_recipe_count} recipes")
-            
-            # Log the exact user_id we're searching for
-            logger.info(f"🔍 DEBUG: Searching for user_id: {user_id} (type: {type(user_id)})")
-            
-            # Try different user_id formats
-            user_id_str = str(user_id)
-            logger.info(f"🔍 DEBUG: Trying user_id as string: {user_id_str}")
-            
-            # Convert user_id string to UUID object for proper parameter binding
+            # Convert user_id string to UUID object, same as AuthService
             try:
                 user_uuid = uuid_module.UUID(user_id)
-                logger.info(f"🔍 DEBUG: Converted user_id to UUID object: {user_uuid} (type: {type(user_uuid)})")
             except ValueError as e:
-                logger.error(f"🔍 DEBUG: Failed to convert user_id to UUID: {e}")
-                user_uuid = user_id  # fallback to string
+                logger.error(f"Invalid UUID format: {user_id} - {e}")
+                raise HTTPException(status_code=400, detail="Invalid user ID format")
             
-            # Simplified query with only essential columns for now
-            query = '''
-                SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
-                       r.servings, r.ingredients_needed, r.instructions
-                FROM saved_recipes r
-                WHERE r.user_id = :user_id
-            '''
-            params = {'user_id': user_uuid}
+            # Use SQLAlchemy ORM query like AuthService does - this handles UUID properly
+            query = session.query(SavedRecipe).filter(SavedRecipe.user_id == user_uuid)
             
             # Add search filter
             if search:
-                query += ' AND (r.name ILIKE :search OR r.description ILIKE :search OR r.tags ILIKE :search)'
-                params['search'] = f'%{search}%'
+                search_filter = f'%{search}%'
+                query = query.filter(
+                    and_(
+                        SavedRecipe.name.ilike(search_filter) |
+                        SavedRecipe.description.ilike(search_filter) |
+                        SavedRecipe.tags.ilike(search_filter)
+                    )
+                )
             
-            # Add difficulty filter
+            # Add difficulty filter  
             if difficulty:
-                query += ' AND r.difficulty = :difficulty'
-                params['difficulty'] = difficulty
-            
+                query = query.filter(SavedRecipe.difficulty == difficulty)
+                
             # Add tags filter
             if tags:
-                query += ' AND r.tags ILIKE :tags'
-                params['tags'] = f'%{tags}%'
+                query = query.filter(SavedRecipe.tags.ilike(f'%{tags}%'))
             
-            query += ' ORDER BY r.updated_at DESC'
+            # Order by updated_at DESC
+            query = query.order_by(SavedRecipe.updated_at.desc())
             
-            logger.info(f"🔍 DEBUG: Executing query: {query}")
-            logger.info(f"🔍 DEBUG: Query parameters: {params}")
-            logger.info(f"🔍 DEBUG: Parameter types: {[(k, type(v)) for k, v in params.items()]}")
+            # Execute query
+            recipes_data = query.all()
             
-            result = session.execute(text(query), params)
-            recipes_data = result.fetchall()
-            
-            logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
-            logger.info(f"🔍 DEBUG: Raw query result: {[tuple(row) for row in recipes_data]}")
-            
-            # If no results, try alternative approaches
-            if len(recipes_data) == 0:
-                logger.info(f"🔍 DEBUG: No results found with UUID cast, trying alternative approaches")
-                
-                # Try casting the column to text instead
-                logger.info(f"🔍 DEBUG: Trying column cast to text")
-                text_query = '''
-                    SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
-                           r.servings, r.ingredients_needed, r.instructions
-                    FROM saved_recipes r
-                    WHERE r.user_id::text = :user_id
-                '''
-                result_text = session.execute(text(text_query), {'user_id': user_id_str})
-                recipes_data_text = result_text.fetchall()
-                logger.info(f"🔍 DEBUG: Text cast query returned {len(recipes_data_text)} recipes")
-                
-                if len(recipes_data_text) > 0:
-                    recipes_data = recipes_data_text
-                    logger.info(f"🔍 DEBUG: Using text cast results!")
-                else:
-                    logger.error(f"🔍 DEBUG: All query attempts failed for user_id: {user_id}")
-            
-            # Skip ratings for now to simplify the query and avoid issues
-            ratings_dict = {}
-            
+            # Process ORM objects
             recipes = []
-            for i, recipe in enumerate(recipes_data):
+            for recipe in recipes_data:
                 try:
-                    logger.info(f"🔍 Processing recipe {i+1}: {recipe[2]} (ID: {recipe[0]})")
-                    
+                    # Parse JSON fields
                     try:
-                        ingredients_needed = json.loads(recipe[7]) if recipe[7] else []
+                        ingredients_needed = json.loads(recipe.ingredients_needed) if recipe.ingredients_needed else []
                     except (json.JSONDecodeError, TypeError):
                         ingredients_needed = []
                     
                     try:
-                        instructions = json.loads(recipe[8]) if recipe[8] else []
+                        instructions = json.loads(recipe.instructions) if recipe.instructions else []
                     except (json.JSONDecodeError, TypeError):
                         instructions = []
                     
-                    # Use defaults for missing columns
+                    try:
+                        tags = json.loads(recipe.tags) if recipe.tags else []
+                    except (json.JSONDecodeError, TypeError):
+                        tags = []
+                    
+                    # Create response using ORM object attributes
                     recipe_response = SavedRecipeResponse(
-                        id=str(recipe[0]),  # Convert UUID to string
-                        user_id=str(recipe[1]),  # Convert UUID to string
-                        name=recipe[2],
-                        description=recipe[3],
-                        prep_time=recipe[4],
-                        difficulty=recipe[5],
-                        servings=recipe[6],
+                        id=str(recipe.id),
+                        user_id=str(recipe.user_id),
+                        name=recipe.name,
+                        description=recipe.description or "",
+                        prep_time=recipe.prep_time,
+                        difficulty=recipe.difficulty,
+                        servings=recipe.servings,
                         ingredients_needed=ingredients_needed,
                         instructions=instructions,
-                        tags=[],  # Default empty tags
-                        nutrition_notes="",  # Default empty nutrition notes
-                        pantry_usage_score=0,  # Default pantry usage score
-                        ai_generated=False,  # Default not AI generated
-                        ai_provider=None,  # Default no AI provider
-                        source="manual",  # Default manual source
-                        times_cooked=0,  # Default times cooked
-                        last_cooked=None,  # Default last cooked
+                        tags=tags,
+                        nutrition_notes=recipe.nutrition_notes or "",
+                        pantry_usage_score=recipe.pantry_usage_score or 0,
+                        ai_generated=recipe.ai_generated or False,
+                        ai_provider=recipe.ai_provider,
+                        source=recipe.source or "manual",
+                        times_cooked=recipe.times_cooked or 0,
+                        last_cooked=recipe.last_cooked.isoformat() if recipe.last_cooked else None,
                         rating=None,  # No rating data for now
-                        created_at=None,  # Default created_at
-                        updated_at=None   # Default updated_at
+                        created_at=recipe.created_at.isoformat() if recipe.created_at else None,
+                        updated_at=recipe.updated_at.isoformat() if recipe.updated_at else None
                     )
                     recipes.append(recipe_response)
-                    logger.info(f"✅ Successfully processed recipe {i+1}")
                     
                 except Exception as e:
-                    logger.error(f"❌ Error processing recipe {i+1} ({recipe[2] if len(recipe) > 2 else 'unknown'}): {e}")
+                    logger.error(f"Error processing recipe {recipe.name if hasattr(recipe, 'name') else 'unknown'}: {e}")
                     # Continue processing other recipes instead of failing completely
                     continue
             
-            logger.info(f"✅ Returning {len(recipes)} recipes to frontend")
             return recipes
         
     except Exception as e:
