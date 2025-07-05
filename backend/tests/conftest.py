@@ -1,14 +1,15 @@
 import pytest
-import tempfile
 import os
-import sqlite3
 import uuid
 from fastapi.testclient import TestClient
 from unittest.mock import patch
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
-from app.core.database import init_database
-from app.core.security import hash_password
+from app.db.database import Base
+from app.core.auth_service import AuthService
+from app.models import *  # Import all models to register them
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -18,62 +19,81 @@ def setup_test_environment():
     # Set test JWT secret if not already set
     if not os.environ.get("JWT_SECRET"):
         os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-not-production"
+    # Set test PostgreSQL database URL
+    os.environ["DATABASE_URL"] = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
+    os.environ["ENVIRONMENT"] = "test"
     yield
     # Cleanup
     if "TESTING" in os.environ:
         del os.environ["TESTING"]
-    if "TEST_DB_PATH" in os.environ:
-        del os.environ["TEST_DB_PATH"]
+    if "DATABASE_URL" in os.environ:
+        del os.environ["DATABASE_URL"]
+    if "ENVIRONMENT" in os.environ:
+        del os.environ["ENVIRONMENT"]
 
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a temporary test database"""
-    # Create a temporary file for the test database
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    """Create and setup PostgreSQL test database"""
+    # Create test database engine
+    test_db_url = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
+    engine = create_engine(test_db_url)
     
     try:
-        # Set the test database path environment variable
-        os.environ["TEST_DB_PATH"] = db_path
+        # Drop all tables if they exist and recreate them
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
         
-        # Initialize the database with proper schema
-        init_database()
+        # Create session for initial data setup
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        session = SessionLocal()
         
-        # Add admin user and test data directly
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        try:
+            # Create admin user using AuthService
+            admin_user = AuthService.create_user(
+                email="admin",
+                name="Admin User", 
+                password="admin123",
+                is_admin=True
+            )
+            
+            # Add basic ingredients for testing using raw SQL for now
+            ingredients_sql = text("""
+                INSERT INTO ingredients (id, name, category_id, unit, nutritional_info, allergens, created_at)
+                VALUES 
+                    (:id1, 'Chicken Breast', NULL, 'piece', '{"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6}', '[]', NOW()),
+                    (:id2, 'Rice', NULL, 'cup', '{"calories": 205, "protein": 4, "carbs": 45, "fat": 0.5}', '[]', NOW()),
+                    (:id3, 'Broccoli', NULL, 'cup', '{"calories": 25, "protein": 3, "carbs": 5, "fat": 0}', '[]', NOW())
+                ON CONFLICT (id) DO NOTHING
+            """)
+            
+            session.execute(ingredients_sql, {
+                'id1': uuid.uuid4(),
+                'id2': uuid.uuid4(), 
+                'id3': uuid.uuid4()
+            })
+            session.commit()
+            
+        finally:
+            session.close()
         
-        # Create admin user
-        admin_id = str(uuid.uuid4())
-        admin_password = hash_password("admin123")
-        cursor.execute('''
-            INSERT OR IGNORE INTO users (id, email, name, hashed_password, is_admin, is_active, timezone)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (admin_id, "admin", "Admin User", admin_password, True, True, "UTC"))
+        yield test_db_url
         
-        # Add basic ingredients for testing
-        ingredients = [
-            ("ingredient-1", "Chicken Breast", "Protein", "piece", 165, 31, 0, 3.6, ""),
-            ("ingredient-2", "Rice", "Grain", "cup", 205, 4, 45, 0.5, ""),
-            ("ingredient-3", "Broccoli", "Vegetable", "cup", 25, 3, 5, 0, "")
-        ]
-        
-        for ing_id, name, category, unit, calories, protein, carbs, fat, allergens in ingredients:
-            cursor.execute('''
-                INSERT OR IGNORE INTO ingredients (id, name, category, unit, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, allergens)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (ing_id, name, category, unit, calories, protein, carbs, fat, allergens))
-        
-        conn.commit()
-        conn.close()
-        
-        yield db_path
-        
+    except Exception as e:
+        print(f"Test database setup failed: {e}")
+        # Try to drop tables even if setup failed
+        try:
+            Base.metadata.drop_all(bind=engine)
+        except:
+            pass
+        raise
     finally:
-        # Cleanup
-        os.close(db_fd)
-        if os.path.exists(db_path):
-            os.unlink(db_path)
+        # Cleanup - drop all tables after tests
+        try:
+            Base.metadata.drop_all(bind=engine)
+        except:
+            pass
+        engine.dispose()
 
 
 @pytest.fixture

@@ -165,23 +165,19 @@ async def delete_user_account(authorization: str = Header(None)):
     if current_user.get('is_admin', False):
         raise HTTPException(status_code=403, detail="Cannot delete admin account. Use admin panel to manage accounts.")
     
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
+    from sqlalchemy import text
+    from ..core.database_service import get_db_session
     
     try:
-        # Delete user data in order (foreign key constraints)
-        cursor.execute("DELETE FROM meal_reviews WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM meal_plans WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM pantry_items WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM family_members WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        
-        conn.commit()
-        conn.close()
-        
+        with get_db_session() as session:
+            # Delete user data in order (foreign key constraints)
+            session.execute(text("DELETE FROM meal_reviews WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM meal_plans WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM pantry_items WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM family_members WHERE user_id = :user_id"), {"user_id": user_id})
+            session.execute(text("DELETE FROM users WHERE id = :user_id"), {"user_id": user_id})
+            
         return {"message": "Account deleted successfully"}
         
     except Exception as e:
-        conn.rollback()
-        conn.close()
         raise HTTPException(status_code=500, detail=f"Error deleting account: {str(e)}")

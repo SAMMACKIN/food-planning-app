@@ -1,14 +1,15 @@
 """
 Admin-only API endpoints for user management and platform statistics
 """
-import sqlite3
 import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
+from sqlalchemy import text
 
-from ..core.database import get_db_connection
-from ..core.security import verify_token, hash_password
+from ..core.database_service import get_db_session
+from ..core.auth_service import AuthService
+from ..core.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -18,44 +19,32 @@ class PasswordResetRequest(BaseModel):
 
 
 def get_current_user(authorization: str = None):
-    """Get current user with admin fallback"""
+    """Get current user using AuthService"""
     if not authorization:
         return None
     
     if not authorization.startswith("Bearer "):
         return None
     
-    token = authorization.split(" ")[1]
-    user_data = verify_token(token)
-    
-    if not user_data:
-        return None
-    
-    # Get full user details from database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute("""
-            SELECT id, email, name, timezone, is_active, is_admin, created_at 
-            FROM users WHERE id = ?
-        """, (user_data['sub'],))
-        user = cursor.fetchone()
+        token = authorization.split(" ")[1]
+        user_data = AuthService.verify_user_token(token)
         
-        if not user:
+        if not user_data:
             return None
         
         return {
-            'id': user[0],
-            'email': user[1],
-            'name': user[2],
-            'timezone': user[3],
-            'is_active': bool(user[4]),
-            'is_admin': bool(user[5]),
-            'created_at': user[6]
+            'id': user_data['id'],
+            'email': user_data['email'],
+            'name': user_data['name'],
+            'timezone': user_data['timezone'],
+            'is_active': user_data['is_active'],
+            'is_admin': user_data['is_admin'],
+            'created_at': user_data['created_at'].isoformat() if user_data['created_at'] else None
         }
-    finally:
-        conn.close()
+    
+    except Exception:
+        return None
 
 
 def require_admin(authorization: str = Header(None)):
