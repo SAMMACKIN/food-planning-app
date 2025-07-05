@@ -123,13 +123,14 @@ async def get_meal_recommendations(
         with get_db_session() as session:
             from sqlalchemy import text
             
-            # Get family members with simplified query
+            # Get family members with simplified query - limit processing for speed
             logger.info("🔥 Querying family members...")
             try:
                 result = session.execute(text('''
                     SELECT id, name, age, preferences 
                     FROM family_members 
                     WHERE user_id = :user_id
+                    LIMIT 20
                 '''), {'user_id': user_id})
                 family_data = result.fetchall()
                 logger.info("🔥 Using simplified family schema")
@@ -162,14 +163,16 @@ async def get_meal_recommendations(
             logger.info(f"🔥 Added family member: {family_member}")
             family_members.append(family_member)
         
-            # Get pantry items
+            # Get pantry items - limit and optimize query for speed
             logger.info("🔥 Querying pantry items...")
             result = session.execute(text('''
                 SELECT p.quantity, p.expiration_date,
                        i.id, i.name, i.category_id, i.unit, i.nutritional_info
                 FROM user_pantry p
                 JOIN ingredients i ON p.ingredient_id = i.id
-                WHERE p.user_id = :user_id
+                WHERE p.user_id = :user_id AND p.quantity > 0
+                ORDER BY p.updated_at DESC
+                LIMIT 100
             '''), {'user_id': user_id})
             pantry_data = result.fetchall()
             logger.info(f"🔥 Found {len(pantry_data)} pantry items")
@@ -197,7 +200,7 @@ async def get_meal_recommendations(
                     }
                 })
         
-            # Get user recipe ratings to inform AI suggestions
+            # Get user recipe ratings to inform AI suggestions - optimized query
             result = session.execute(text('''
                 SELECT r.name, r.difficulty, r.tags, r.nutrition_notes, 
                        rt.rating, rt.review_text, rt.would_make_again,
@@ -206,7 +209,7 @@ async def get_meal_recommendations(
                 JOIN recipe_ratings rt ON r.id = rt.recipe_id
                 WHERE r.user_id = :user_id AND rt.rating >= 4
                 ORDER BY rt.created_at DESC
-                LIMIT 20
+                LIMIT 10
             '''), {'user_id': user_id})
             liked_recipes_data = result.fetchall()
             for recipe in liked_recipes_data:
@@ -228,7 +231,7 @@ async def get_meal_recommendations(
                     'ai_provider': recipe[8]
                 })
         
-            # Get disliked recipes (rating <= 2) to avoid similar suggestions
+            # Get disliked recipes (rating <= 2) to avoid similar suggestions - reduced limit
             result = session.execute(text('''
                 SELECT r.name, r.difficulty, r.tags, r.nutrition_notes,
                        rt.rating, rt.review_text, rt.would_make_again
@@ -236,7 +239,7 @@ async def get_meal_recommendations(
                 JOIN recipe_ratings rt ON r.id = rt.recipe_id
                 WHERE r.user_id = :user_id AND rt.rating <= 2
                 ORDER BY rt.created_at DESC
-                LIMIT 10
+                LIMIT 5
             '''), {'user_id': user_id})
             disliked_recipes_data = result.fetchall()
             for recipe in disliked_recipes_data:
@@ -256,13 +259,13 @@ async def get_meal_recommendations(
                     'would_make_again': bool(recipe[6])
                 })
         
-            # Get recently saved/viewed recipes to avoid suggesting very similar ones
+            # Get recently saved/viewed recipes to avoid suggesting very similar ones - reduced limit
             result = session.execute(text('''
                 SELECT name, tags, difficulty, created_at
                 FROM saved_recipes 
                 WHERE user_id = :user_id 
                 ORDER BY created_at DESC 
-                LIMIT 15
+                LIMIT 10
             '''), {'user_id': user_id})
             recent_recipes_data = result.fetchall()
             for recipe in recent_recipes_data:

@@ -66,15 +66,13 @@ async def get_saved_recipes(
         with get_db_session() as session:
             from sqlalchemy import text
             
-            # Use PostgreSQL parameter syntax
+            # Optimized query - get ratings separately to avoid expensive JOIN on every load
             query = '''
                 SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
                        r.servings, r.ingredients_needed, r.instructions, r.tags, r.nutrition_notes,
                        r.pantry_usage_score, r.ai_generated, r.ai_provider, r.source,
-                       r.times_cooked, r.last_cooked, r.created_at, r.updated_at,
-                       AVG(rt.rating) as avg_rating
+                       r.times_cooked, r.last_cooked, r.created_at, r.updated_at
                 FROM saved_recipes r
-                LEFT JOIN recipe_ratings rt ON r.id = rt.recipe_id
                 WHERE r.user_id = :user_id
             '''
             params = {'user_id': user_id}
@@ -94,12 +92,26 @@ async def get_saved_recipes(
                 query += ' AND r.tags ILIKE :tags'
                 params['tags'] = f'%{tags}%'
             
-            query += ' GROUP BY r.id ORDER BY r.updated_at DESC'
+            query += ' ORDER BY r.updated_at DESC'
             
             result = session.execute(text(query), params)
             recipes_data = result.fetchall()
             
             logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
+            
+            # Get ratings for all recipes in a single query
+            if recipes_data:
+                recipe_ids = [str(recipe[0]) for recipe in recipes_data]
+                rating_query = '''
+                    SELECT recipe_id, AVG(rating) as avg_rating
+                    FROM recipe_ratings
+                    WHERE recipe_id = ANY(:recipe_ids)
+                    GROUP BY recipe_id
+                '''
+                rating_result = session.execute(text(rating_query), {'recipe_ids': recipe_ids})
+                ratings_dict = {str(row[0]): float(row[1]) for row in rating_result.fetchall()}
+            else:
+                ratings_dict = {}
             
             recipes = []
             for i, recipe in enumerate(recipes_data):
@@ -121,6 +133,9 @@ async def get_saved_recipes(
                     except (json.JSONDecodeError, TypeError):
                         tags_list = []
                     
+                    # Get rating from our separate query
+                    rating = ratings_dict.get(str(recipe[0]))
+                    
                     recipe_response = SavedRecipeResponse(
                         id=str(recipe[0]),  # Convert UUID to string
                         user_id=str(recipe[1]),  # Convert UUID to string
@@ -139,7 +154,7 @@ async def get_saved_recipes(
                         source=recipe[14],
                         times_cooked=recipe[15] or 0,
                         last_cooked=recipe[16].isoformat() if recipe[16] else None,  # Convert datetime to string
-                        rating=float(recipe[19]) if recipe[19] else None,
+                        rating=rating,
                         created_at=recipe[17].isoformat() if recipe[17] else None,  # Convert datetime to string
                         updated_at=recipe[18].isoformat() if recipe[18] else None   # Convert datetime to string
                     )

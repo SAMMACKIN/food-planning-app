@@ -85,6 +85,18 @@ export const useRecipes = () => {
   }, []);
 
   const saveRecommendationAsRecipe = useCallback(async (recommendation: MealRecommendation): Promise<SavedRecipe | null> => {
+    // Check if we already have this recipe saved to avoid duplicates
+    const existingRecipe = savedRecipes.find(recipe => 
+      recipe.name === recommendation.name && 
+      recipe.source === 'recommendation' &&
+      recipe.ai_generated === recommendation.ai_generated
+    );
+    
+    if (existingRecipe) {
+      console.log('🔄 Recipe already saved, returning existing:', existingRecipe.name);
+      return existingRecipe;
+    }
+
     const recipeData: SavedRecipeCreate = {
       name: recommendation.name,
       description: recommendation.description,
@@ -102,7 +114,7 @@ export const useRecipes = () => {
     };
 
     return await saveRecipe(recipeData);
-  }, [saveRecipe]);
+  }, [saveRecipe, savedRecipes]);
 
   const deleteRecipe = useCallback(async (recipeId: string): Promise<boolean> => {
     try {
@@ -248,10 +260,13 @@ export const useRecipes = () => {
     return await addRecipeToMealPlan(savedRecipe.id, mealDate, mealType);
   }, [saveRecommendationAsRecipe, addRecipeToMealPlan]);
 
-  // Auto-fetch recipes on mount
+  // Auto-fetch recipes on mount with cache check
   useEffect(() => {
-    fetchSavedRecipes();
-  }, [fetchSavedRecipes]);
+    // Only fetch if we don't have any recipes cached
+    if (savedRecipes.length === 0) {
+      fetchSavedRecipes();
+    }
+  }, []); // Remove fetchSavedRecipes dependency to prevent unnecessary refetches
 
   return {
     savedRecipes,
