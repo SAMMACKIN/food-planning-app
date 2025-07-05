@@ -164,8 +164,8 @@ async def get_meal_recommendations(
                 WHERE p.user_id = :user_id
             '''), {'user_id': user_id})
             pantry_data = result.fetchall()
-        logger.info(f"🔥 Found {len(pantry_data)} pantry items")
-        
+            logger.info(f"🔥 Found {len(pantry_data)} pantry items")
+            
             pantry_items = []
             for item in pantry_data:
                 # Parse nutritional info from JSON
