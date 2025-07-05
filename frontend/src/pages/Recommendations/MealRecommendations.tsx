@@ -42,13 +42,11 @@ import {
   Save,
   Star,
   CalendarToday,
-  Add,
 } from '@mui/icons-material';
 import { MealRecommendation } from '../../types';
 import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';
 import { useRecipes } from '../../hooks/useRecipes';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
-import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 import RecipeDebugPanel from '../../components/Recipe/RecipeDebugPanel';
 
 const MealRecommendations: React.FC = () => {
@@ -89,7 +87,6 @@ const MealRecommendations: React.FC = () => {
     difficulty: 'all',
     prepTime: 'all'
   });
-  const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
 
   const handleSaveRecipe = async (meal: MealRecommendation) => {
     console.log('🍽️ Attempting to save recipe:', meal.name);
@@ -209,25 +206,13 @@ const MealRecommendations: React.FC = () => {
     setFilteredRecommendations(filtered);
   }, [recommendations, activeFilters]);
 
-  const handleCreateCustomRecipe = async (recipeData: any) => {
-    console.log('🍽️ Creating custom recipe:', recipeData.name);
-    const saved = await saveRecipe(recipeData);
-    if (saved) {
-      setSnackbarMessage(`"${recipeData.name}" created and saved successfully!`);
-      setSnackbarOpen(true);
-      console.log('✅ Custom recipe created:', saved.id);
-      return true;
-    } else {
-      console.error('❌ Custom recipe creation failed');
-      return false;
-    }
-  };
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
+          <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AutoAwesome color="primary" />
             Meal Recommendations
           </Typography>
           {availableProviders.length === 0 && (
@@ -237,23 +222,14 @@ const MealRecommendations: React.FC = () => {
             </Alert>
           )}
         </Box>
-        <Box display="flex" gap={2}>
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() => setCreateRecipeDialogOpen(true)}
-          >
-            Create Recipe
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Refresh />}
-            onClick={() => refreshRecommendations()}
-            disabled={loading}
-          >
-            Get New Ideas
-          </Button>
-        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Refresh />}
+          onClick={() => refreshRecommendations()}
+          disabled={loading}
+        >
+          Get New Ideas
+        </Button>
       </Box>
 
       {(error || recipeError) && (
@@ -830,12 +806,6 @@ const MealRecommendations: React.FC = () => {
         message={snackbarMessage}
       />
 
-      {/* Create Recipe Dialog */}
-      <CreateRecipeForm
-        open={createRecipeDialogOpen}
-        onClose={() => setCreateRecipeDialogOpen(false)}
-        onSave={handleCreateCustomRecipe}
-      />
     </Box>
   );
 };

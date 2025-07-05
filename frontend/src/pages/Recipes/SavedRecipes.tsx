@@ -33,10 +33,13 @@ import {
   Refresh,
   Search,
   FilterList,
+  Add,
+  MenuBook,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
 import { SavedRecipe } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
+import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 
 const SavedRecipes: React.FC = () => {
   const {
@@ -46,6 +49,7 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes,
     deleteRecipe,
     rateRecipe,
+    saveRecipe,
     clearError
   } = useRecipes();
 
@@ -59,6 +63,7 @@ const SavedRecipes: React.FC = () => {
   const [ratingRecipe, setRatingRecipe] = useState<SavedRecipe | null>(null);
   const [rating, setRating] = useState<number>(5);
   const [reviewText, setReviewText] = useState('');
+  const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
 
   const handleViewRecipe = (recipe: SavedRecipe) => {
     setSelectedRecipe(recipe);
@@ -108,6 +113,11 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
   };
 
+  const handleCreateCustomRecipe = async (recipeData: any) => {
+    await saveRecipe(recipeData);
+    setCreateRecipeDialogOpen(false);
+  };
+
   const filteredRecipes = savedRecipes.filter(recipe =>
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -126,17 +136,26 @@ const SavedRecipes: React.FC = () => {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Restaurant color="primary" />
+          <MenuBook color="primary" />
           Saved Recipes
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={() => fetchSavedRecipes()}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setCreateRecipeDialogOpen(true)}
+          >
+            Create Recipe
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => fetchSavedRecipes()}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -371,6 +390,13 @@ const SavedRecipes: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Create Recipe Dialog */}
+      <CreateRecipeForm
+        open={createRecipeDialogOpen}
+        onClose={() => setCreateRecipeDialogOpen(false)}
+        onSave={handleCreateCustomRecipe}
+      />
     </Box>
   );
 };
