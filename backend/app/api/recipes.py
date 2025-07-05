@@ -65,6 +65,8 @@ async def get_saved_recipes(
         
         with get_db_session() as session:
             from sqlalchemy import text
+            from sqlalchemy.dialects.postgresql import UUID
+            import uuid as uuid_module
             
             # First, let's check what recipes exist in the database
             logger.info(f"🔍 DEBUG: Checking all recipes in database")
@@ -88,6 +90,14 @@ async def get_saved_recipes(
             user_id_str = str(user_id)
             logger.info(f"🔍 DEBUG: Trying user_id as string: {user_id_str}")
             
+            # Convert user_id string to UUID object for proper parameter binding
+            try:
+                user_uuid = uuid_module.UUID(user_id)
+                logger.info(f"🔍 DEBUG: Converted user_id to UUID object: {user_uuid} (type: {type(user_uuid)})")
+            except ValueError as e:
+                logger.error(f"🔍 DEBUG: Failed to convert user_id to UUID: {e}")
+                user_uuid = user_id  # fallback to string
+            
             # Simplified query with only essential columns for now
             query = '''
                 SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
@@ -95,7 +105,7 @@ async def get_saved_recipes(
                 FROM saved_recipes r
                 WHERE r.user_id = :user_id
             '''
-            params = {'user_id': user_id}
+            params = {'user_id': user_uuid}
             
             # Add search filter
             if search:
@@ -116,39 +126,35 @@ async def get_saved_recipes(
             
             logger.info(f"🔍 DEBUG: Executing query: {query}")
             logger.info(f"🔍 DEBUG: Query parameters: {params}")
+            logger.info(f"🔍 DEBUG: Parameter types: {[(k, type(v)) for k, v in params.items()]}")
             
             result = session.execute(text(query), params)
             recipes_data = result.fetchall()
             
             logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
+            logger.info(f"🔍 DEBUG: Raw query result: {[tuple(row) for row in recipes_data]}")
             
-            # If no results, try with string conversion
+            # If no results, try alternative approaches
             if len(recipes_data) == 0:
-                logger.info(f"🔍 DEBUG: No results found, trying with string user_id")
-                params_str = {'user_id': user_id_str}
-                result_str = session.execute(text(query), params_str)
-                recipes_data_str = result_str.fetchall()
-                logger.info(f"🔍 DEBUG: String query returned {len(recipes_data_str)} recipes")
+                logger.info(f"🔍 DEBUG: No results found with UUID cast, trying alternative approaches")
                 
-                if len(recipes_data_str) > 0:
-                    recipes_data = recipes_data_str
-                    logger.info(f"🔍 DEBUG: Using string results!")
+                # Try casting the column to text instead
+                logger.info(f"🔍 DEBUG: Trying column cast to text")
+                text_query = '''
+                    SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
+                           r.servings, r.ingredients_needed, r.instructions
+                    FROM saved_recipes r
+                    WHERE r.user_id::text = :user_id
+                '''
+                result_text = session.execute(text(text_query), {'user_id': user_id_str})
+                recipes_data_text = result_text.fetchall()
+                logger.info(f"🔍 DEBUG: Text cast query returned {len(recipes_data_text)} recipes")
+                
+                if len(recipes_data_text) > 0:
+                    recipes_data = recipes_data_text
+                    logger.info(f"🔍 DEBUG: Using text cast results!")
                 else:
-                    # Try UUID casting
-                    logger.info(f"🔍 DEBUG: Trying UUID casting")
-                    uuid_query = '''
-                        SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
-                               r.servings, r.ingredients_needed, r.instructions
-                        FROM saved_recipes r
-                        WHERE r.user_id::text = :user_id
-                    '''
-                    result_uuid = session.execute(text(uuid_query), {'user_id': user_id_str})
-                    recipes_data_uuid = result_uuid.fetchall()
-                    logger.info(f"🔍 DEBUG: UUID cast query returned {len(recipes_data_uuid)} recipes")
-                    
-                    if len(recipes_data_uuid) > 0:
-                        recipes_data = recipes_data_uuid
-                        logger.info(f"🔍 DEBUG: Using UUID cast results!")
+                    logger.error(f"🔍 DEBUG: All query attempts failed for user_id: {user_id}")
             
             # Skip ratings for now to simplify the query and avoid issues
             ratings_dict = {}
