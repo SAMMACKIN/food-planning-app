@@ -66,6 +66,28 @@ async def get_saved_recipes(
         with get_db_session() as session:
             from sqlalchemy import text
             
+            # First, let's check what recipes exist in the database
+            logger.info(f"🔍 DEBUG: Checking all recipes in database")
+            all_recipes_query = "SELECT id, user_id, name FROM saved_recipes LIMIT 10"
+            all_recipes_result = session.execute(text(all_recipes_query))
+            all_recipes = all_recipes_result.fetchall()
+            logger.info(f"🔍 DEBUG: Found {len(all_recipes)} total recipes in database")
+            for recipe in all_recipes:
+                logger.info(f"🔍 DEBUG: Recipe ID: {recipe[0]}, User ID: {recipe[1]}, Name: {recipe[2]}")
+            
+            # Check if our user_id exists in the database
+            user_recipes_check = "SELECT COUNT(*) FROM saved_recipes WHERE user_id = :user_id"
+            user_count_result = session.execute(text(user_recipes_check), {'user_id': user_id})
+            user_recipe_count = user_count_result.scalar()
+            logger.info(f"🔍 DEBUG: User {user_id} has {user_recipe_count} recipes")
+            
+            # Log the exact user_id we're searching for
+            logger.info(f"🔍 DEBUG: Searching for user_id: {user_id} (type: {type(user_id)})")
+            
+            # Try different user_id formats
+            user_id_str = str(user_id)
+            logger.info(f"🔍 DEBUG: Trying user_id as string: {user_id_str}")
+            
             # Simplified query with only essential columns for now
             query = '''
                 SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
@@ -92,10 +114,41 @@ async def get_saved_recipes(
             
             query += ' ORDER BY r.updated_at DESC'
             
+            logger.info(f"🔍 DEBUG: Executing query: {query}")
+            logger.info(f"🔍 DEBUG: Query parameters: {params}")
+            
             result = session.execute(text(query), params)
             recipes_data = result.fetchall()
             
             logger.info(f"📊 Query returned {len(recipes_data)} recipes for user {user_id}")
+            
+            # If no results, try with string conversion
+            if len(recipes_data) == 0:
+                logger.info(f"🔍 DEBUG: No results found, trying with string user_id")
+                params_str = {'user_id': user_id_str}
+                result_str = session.execute(text(query), params_str)
+                recipes_data_str = result_str.fetchall()
+                logger.info(f"🔍 DEBUG: String query returned {len(recipes_data_str)} recipes")
+                
+                if len(recipes_data_str) > 0:
+                    recipes_data = recipes_data_str
+                    logger.info(f"🔍 DEBUG: Using string results!")
+                else:
+                    # Try UUID casting
+                    logger.info(f"🔍 DEBUG: Trying UUID casting")
+                    uuid_query = '''
+                        SELECT r.id, r.user_id, r.name, r.description, r.prep_time, r.difficulty,
+                               r.servings, r.ingredients_needed, r.instructions
+                        FROM saved_recipes r
+                        WHERE r.user_id::text = :user_id
+                    '''
+                    result_uuid = session.execute(text(uuid_query), {'user_id': user_id_str})
+                    recipes_data_uuid = result_uuid.fetchall()
+                    logger.info(f"🔍 DEBUG: UUID cast query returned {len(recipes_data_uuid)} recipes")
+                    
+                    if len(recipes_data_uuid) > 0:
+                        recipes_data = recipes_data_uuid
+                        logger.info(f"🔍 DEBUG: Using UUID cast results!")
             
             # Skip ratings for now to simplify the query and avoid issues
             ratings_dict = {}
