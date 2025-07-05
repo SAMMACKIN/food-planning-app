@@ -201,15 +201,14 @@ async def update_meal_plan(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         user_id = current_user['sub']
         
         # Check if meal plan exists and belongs to user
-        cursor.execute("SELECT user_id FROM meal_plans WHERE id = ?", (meal_plan_id,))
-        meal_plan = cursor.fetchone()
+        result = session.execute(text("SELECT user_id FROM meal_plans WHERE id = :meal_plan_id"), {"meal_plan_id": meal_plan_id})
+        meal_plan = result.fetchone()
         if not meal_plan:
             raise HTTPException(status_code=404, detail="Meal plan not found")
         

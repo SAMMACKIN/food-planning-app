@@ -37,25 +37,19 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 def migrate_legacy_password_hash(user_id: str, new_password: str) -> None:
     """Migrate a user's password from legacy SHA-256 to bcrypt"""
-    from .database import get_db_connection
+    from .database_service import get_db_session
+    from sqlalchemy import text
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        new_hash = hash_password(new_password)
-        cursor.execute(
-            "UPDATE users SET hashed_password = ? WHERE id = ?",
-            (new_hash, user_id)
-        )
-        conn.commit()
-        conn.close()
+        with get_db_session() as session:
+            new_hash = hash_password(new_password)
+            session.execute(text(
+                "UPDATE users SET hashed_password = :new_hash WHERE id = :user_id"
+            ), {"new_hash": new_hash, "user_id": user_id})
+            
         logger.info(f"Successfully migrated password hash for user {user_id} to bcrypt")
     except Exception as e:
         logger.error(f"Failed to migrate password hash for user {user_id}: {e}")
-        if conn:
-            conn.rollback()
-            conn.close()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
