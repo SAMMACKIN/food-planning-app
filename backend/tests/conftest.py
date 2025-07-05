@@ -1,5 +1,20 @@
-import pytest
+# Set up test environment BEFORE any imports that might load settings
 import os
+os.environ["TESTING"] = "true"
+if not os.environ.get("JWT_SECRET"):
+    os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-not-production"
+
+# Set PostgreSQL URL for CI if not already set
+if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+    if not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/food_planning_test"
+else:
+    # Local testing
+    os.environ["DATABASE_URL"] = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
+
+os.environ["ENVIRONMENT"] = "test"
+
+import pytest
 import uuid
 from fastapi.testclient import TestClient
 from unittest.mock import patch
@@ -14,29 +29,16 @@ from app.models import *  # Import all models to register them
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
-    """Set up test environment variables"""
-    os.environ["TESTING"] = "true"
-    # Set test JWT secret if not already set
-    if not os.environ.get("JWT_SECRET"):
-        os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-not-production"
-    # Set test PostgreSQL database URL
-    os.environ["DATABASE_URL"] = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
-    os.environ["ENVIRONMENT"] = "test"
+    """Test environment is already set up at module level"""
     yield
-    # Cleanup
-    if "TESTING" in os.environ:
-        del os.environ["TESTING"]
-    if "DATABASE_URL" in os.environ:
-        del os.environ["DATABASE_URL"]
-    if "ENVIRONMENT" in os.environ:
-        del os.environ["ENVIRONMENT"]
+    # Cleanup is handled by pytest automatically
 
 
 @pytest.fixture(scope="session")
 def test_db():
     """Create and setup PostgreSQL test database"""
-    # Create test database engine
-    test_db_url = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
+    # Use the same DATABASE_URL that was set earlier
+    test_db_url = os.environ.get("DATABASE_URL")
     engine = create_engine(test_db_url)
     
     try:
