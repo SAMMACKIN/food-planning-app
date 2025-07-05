@@ -373,3 +373,50 @@ async def rate_recipe(
             cooking_notes=rating[6],
             created_at=rating[7]
         )
+
+
+@router.delete("/{recipe_id}")
+async def delete_recipe(recipe_id: str, authorization: str = Header(None)):
+    """Delete a saved recipe"""
+    logger.info(f"🗑️ Delete recipe request: {recipe_id}")
+    
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user_id = current_user['sub']
+    
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
+        # Check if recipe exists and belongs to user
+        result = session.execute(text("""
+            SELECT id, name FROM saved_recipes 
+            WHERE id = :recipe_id AND user_id = :user_id
+        """), {"recipe_id": recipe_id, "user_id": user_id})
+        recipe = result.fetchone()
+        
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        
+        recipe_name = recipe[1]
+        
+        # Delete associated ratings first (foreign key constraint)
+        session.execute(text("""
+            DELETE FROM recipe_ratings 
+            WHERE recipe_id = :recipe_id
+        """), {"recipe_id": recipe_id})
+        logger.info(f"🗑️ Deleted ratings for recipe: {recipe_name}")
+        
+        # Delete the recipe
+        result = session.execute(text("""
+            DELETE FROM saved_recipes 
+            WHERE id = :recipe_id AND user_id = :user_id
+        """), {"recipe_id": recipe_id, "user_id": user_id})
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found or already deleted")
+        
+        logger.info(f"✅ Recipe deleted successfully: {recipe_name}")
+        
+        return {"message": f"Recipe '{recipe_name}' deleted successfully"}
