@@ -14,8 +14,7 @@ class FamilyMember(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     age = Column(Integer)
-    dietary_restrictions = Column(Text)  # JSON string to match AI expectations
-    preferences = Column(Text)  # JSON string to match AI expectations
+    preferences = Column(JSON, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="family_members")

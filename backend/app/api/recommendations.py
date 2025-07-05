@@ -123,51 +123,37 @@ async def get_meal_recommendations(
         with get_db_session() as session:
             from sqlalchemy import text
             
-            # Get family members - use flexible query to handle different schema versions
+            # Get family members with simplified query
             logger.info("🔥 Querying family members...")
             try:
-                # Try new schema with dietary_restrictions and preferences columns
                 result = session.execute(text('''
-                    SELECT id, name, age, dietary_restrictions, preferences 
+                    SELECT id, name, age, preferences 
                     FROM family_members 
                     WHERE user_id = :user_id
                 '''), {'user_id': user_id})
                 family_data = result.fetchall()
-                logger.info("🔥 Using new schema with dietary_restrictions column")
+                logger.info("🔥 Using simplified family schema")
             except Exception as e:
-                logger.warning(f"🔥 New schema failed: {e}")
-                try:
-                    # Fallback to simplified schema
-                    result = session.execute(text('''
-                        SELECT id, name, age, NULL as dietary_restrictions, NULL as preferences 
-                        FROM family_members 
-                        WHERE user_id = :user_id
-                    '''), {'user_id': user_id})
-                    family_data = result.fetchall()
-                    logger.info("🔥 Using fallback schema without dietary_restrictions")
-                except Exception as e2:
-                    logger.error(f"🔥 Both schema queries failed: {e2}")
-                    family_data = []
+                logger.error(f"🔥 Family query failed: {e}")
+                family_data = []
         logger.info(f"🔥 Found {len(family_data)} family members")
         for i, member in enumerate(family_data):
             logger.info(f"🔥 Processing family member {i+1}: {member}")
-            # Parse dietary_restrictions and preferences from JSON/eval
+            # Parse preferences from JSON and extract dietary restrictions if available
             try:
-                dietary_restrictions = json.loads(member[3]) if member[3] else []
-                logger.info(f"🔥 Parsed dietary restrictions via JSON: {dietary_restrictions}")
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"🔥 JSON parse failed for dietary restrictions: {e} - returning empty list")
-                dietary_restrictions = []
-            
-            try:
-                preferences = json.loads(member[4]) if member[4] else {}
-                logger.info(f"🔥 Parsed preferences via JSON: {preferences}")
+                preferences = member[3] if isinstance(member[3], dict) else (json.loads(member[3]) if member[3] else {})
+                logger.info(f"🔥 Parsed preferences: {preferences}")
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"🔥 JSON parse failed for preferences: {e} - returning empty dict")
                 preferences = {}
             
+            # Extract dietary restrictions from preferences if available
+            dietary_restrictions = preferences.get('dietary_restrictions', [])
+            if not isinstance(dietary_restrictions, list):
+                dietary_restrictions = []
+            
             family_member = {
-                'id': member[0],
+                'id': str(member[0]),
                 'name': member[1],
                 'age': member[2],
                 'dietary_restrictions': dietary_restrictions,
