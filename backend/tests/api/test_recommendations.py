@@ -125,8 +125,8 @@ class TestRecommendationsAPI:
         # Should cap at reasonable limit
         assert len(data) <= 10
     
-    @patch('app.services.ai_service.is_ai_available', return_value=False)
-    def test_get_recommendations_claude_unavailable(self, client, auth_user):
+    @patch('ai_service.ai_service.is_provider_available', return_value=False)
+    def test_get_recommendations_claude_unavailable(self, mock_ai_unavailable, client, auth_user):
         """Test recommendations when Claude API is unavailable"""
         request_data = {
             "num_recommendations": 3
@@ -146,7 +146,7 @@ class TestRecommendationsAPI:
     
     def test_get_recommendations_empty_request(self, client, auth_user):
         """Test recommendations with empty request body"""
-        response = client.post("/api/v1/recommendations", json={})
+        response = client.post("/api/v1/recommendations", json={}, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()

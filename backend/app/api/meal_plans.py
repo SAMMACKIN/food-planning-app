@@ -6,7 +6,7 @@ import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Query
 
-from ..core.database_service import get_db_session, db_service
+from ..core.database_service import get_db_session
 from ..core.auth_service import AuthService
 from ..schemas.meals import (
     MealPlanCreate, 
@@ -259,7 +259,7 @@ async def update_meal_plan(
             recipe_data=recipe_data,
             ai_generated=meal_plan[7] or False,
             ai_provider=meal_plan[8],
-            created_at=meal_plan[9]
+            created_at=meal_plan[9].isoformat() if meal_plan[9] else None
         )
 
 
@@ -274,15 +274,14 @@ async def delete_meal_plan(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         user_id = current_user['sub']
         
         # Check if meal plan exists and belongs to user
-        cursor.execute("SELECT user_id FROM meal_plans WHERE id = ?", (meal_plan_id,))
-        meal_plan = cursor.fetchone()
+        result = session.execute(text("SELECT user_id FROM meal_plans WHERE id = :meal_plan_id"), {"meal_plan_id": meal_plan_id})
+        meal_plan = result.fetchone()
         if not meal_plan:
             raise HTTPException(status_code=404, detail="Meal plan not found")
         
@@ -290,48 +289,37 @@ async def delete_meal_plan(
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete meal plan (reviews will be cascade deleted if table exists)
-        cursor.execute("DELETE FROM meal_plans WHERE id = ?", (meal_plan_id,))
-        conn.commit()
+        session.execute(text("DELETE FROM meal_plans WHERE id = :meal_plan_id"), {"meal_plan_id": meal_plan_id})
+        session.commit()
         
         return {"message": "Meal plan deleted successfully"}
-        
-    finally:
-        conn.close()
 
 
 # Meal Review endpoints (if meal_reviews table exists)
 @router.get("/{meal_plan_id}/reviews", response_model=List[MealReviewResponse])
 async def get_meal_reviews(meal_plan_id: str):
     """Get reviews for a specific meal plan"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         # Check if meal_reviews table exists (PostgreSQL compatible)
-        try:
-            cursor.execute("""
-                SELECT table_name FROM information_schema.tables 
-                WHERE table_name='meal_reviews' AND table_schema='public'
-            """)
-        except Exception:
-            # Fallback for SQLite
-            cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' AND name='meal_reviews'
-            """)
-        if not cursor.fetchone():
+        result = session.execute(text("""
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_name='meal_reviews' AND table_schema='public'
+        """))
+        if not result.fetchone():
             # Table doesn't exist, return empty list
             return []
         
-        cursor.execute('''
+        result = session.execute(text('''
             SELECT id, meal_plan_id, user_id, rating, review_text, 
                    would_make_again, preparation_notes, reviewed_at
             FROM meal_reviews 
-            WHERE meal_plan_id = ?
+            WHERE meal_plan_id = :meal_plan_id
             ORDER BY reviewed_at DESC
-        ''', (meal_plan_id,))
+        '''), {"meal_plan_id": meal_plan_id})
         
-        reviews = cursor.fetchall()
+        reviews = result.fetchall()
         
         return [
             MealReviewResponse(
@@ -346,9 +334,6 @@ async def get_meal_reviews(meal_plan_id: str):
             )
             for review in reviews
         ]
-        
-    finally:
-        conn.close()
 
 
 @router.post("/{meal_plan_id}/reviews", response_model=MealReviewResponse)
@@ -363,65 +348,56 @@ async def create_meal_review(
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
+    with get_db_session() as session:
+        from sqlalchemy import text
+        
         user_id = current_user['sub']
         
         # Check if meal_reviews table exists (PostgreSQL compatible)
-        try:
-            cursor.execute("""
-                SELECT table_name FROM information_schema.tables 
-                WHERE table_name='meal_reviews' AND table_schema='public'
-            """)
-        except Exception:
-            # Fallback for SQLite
-            cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' AND name='meal_reviews'
-            """)
-        if not cursor.fetchone():
+        result = session.execute(text("""
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_name='meal_reviews' AND table_schema='public'
+        """))
+        if not result.fetchone():
             raise HTTPException(status_code=501, detail="Meal reviews feature not implemented yet")
         
         # Check if meal plan exists
-        cursor.execute("SELECT id FROM meal_plans WHERE id = ?", (meal_plan_id,))
-        if not cursor.fetchone():
+        result = session.execute(text("SELECT id FROM meal_plans WHERE id = :meal_plan_id"), {"meal_plan_id": meal_plan_id})
+        if not result.fetchone():
             raise HTTPException(status_code=404, detail="Meal plan not found")
         
         # Check if user already reviewed this meal
-        cursor.execute(
-            "SELECT id FROM meal_reviews WHERE meal_plan_id = ? AND user_id = ?",
-            (meal_plan_id, user_id)
-        )
-        if cursor.fetchone():
+        result = session.execute(text(
+            "SELECT id FROM meal_reviews WHERE meal_plan_id = :meal_plan_id AND user_id = :user_id"
+        ), {"meal_plan_id": meal_plan_id, "user_id": user_id})
+        if result.fetchone():
             raise HTTPException(status_code=400, detail="You have already reviewed this meal")
         
         review_id = str(uuid.uuid4())
         
         # Insert new review
-        cursor.execute('''
+        session.execute(text('''
             INSERT INTO meal_reviews 
             (id, meal_plan_id, user_id, rating, review_text, would_make_again, preparation_notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            review_id,
-            meal_plan_id,
-            user_id,
-            review_data.rating,
-            review_data.review_text,
-            review_data.would_make_again,
-            review_data.preparation_notes
-        ))
-        conn.commit()
+            VALUES (:id, :meal_plan_id, :user_id, :rating, :review_text, :would_make_again, :preparation_notes)
+        '''), {
+            "id": review_id,
+            "meal_plan_id": meal_plan_id,
+            "user_id": user_id,
+            "rating": review_data.rating,
+            "review_text": review_data.review_text,
+            "would_make_again": review_data.would_make_again,
+            "preparation_notes": review_data.preparation_notes
+        })
+        session.commit()
         
         # Get the created review
-        cursor.execute('''
+        result = session.execute(text('''
             SELECT id, meal_plan_id, user_id, rating, review_text, 
                    would_make_again, preparation_notes, reviewed_at
-            FROM meal_reviews WHERE id = ?
-        ''', (review_id,))
-        review = cursor.fetchone()
+            FROM meal_reviews WHERE id = :review_id
+        '''), {"review_id": review_id})
+        review = result.fetchone()
         
         if not review:
             raise HTTPException(status_code=500, detail="Failed to create review")
@@ -436,6 +412,3 @@ async def create_meal_review(
             preparation_notes=review[6],
             reviewed_at=review[7]
         )
-        
-    finally:
-        conn.close()

@@ -14,6 +14,7 @@ class FamilyMember(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     age = Column(Integer)
+    dietary_restrictions = Column(JSON, default=[])
     preferences = Column(JSON, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -78,6 +78,7 @@ async def get_family_members(current_user: dict = Depends(get_current_user_depen
                 user_id=str(member.user_id),
                 name=member.name,
                 age=member.age,
+                dietary_restrictions=member.dietary_restrictions or [],
                 preferences=member.preferences or {},
                 created_at=member.created_at.isoformat()
             )
@@ -98,6 +99,7 @@ async def create_family_member(
             user_id=current_user["id"],  # Use 'id' instead of 'sub'
             name=member_data.name,
             age=member_data.age,
+            dietary_restrictions=member_data.dietary_restrictions or [],
             preferences=member_data.preferences or {}
         )
         
@@ -110,7 +112,8 @@ async def create_family_member(
             user_id=str(new_member.user_id),
             name=new_member.name,
             age=new_member.age,
-            preferences=new_member.preferences,
+            dietary_restrictions=new_member.dietary_restrictions or [],
+            preferences=new_member.preferences or {},
             created_at=new_member.created_at.isoformat()
         )
 
@@ -143,6 +146,9 @@ async def update_family_member(
         
         if member_data.age is not None:
             existing_member.age = member_data.age
+            
+        if member_data.dietary_restrictions is not None:
+            existing_member.dietary_restrictions = member_data.dietary_restrictions
         
         if member_data.preferences is not None:
             existing_member.preferences = member_data.preferences
@@ -155,7 +161,8 @@ async def update_family_member(
             user_id=str(existing_member.user_id),
             name=existing_member.name,
             age=existing_member.age,
-            preferences=existing_member.preferences,
+            dietary_restrictions=existing_member.dietary_restrictions or [],
+            preferences=existing_member.preferences or {},
             created_at=existing_member.created_at.isoformat()
         )
 
