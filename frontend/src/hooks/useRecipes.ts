@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
-import { Recipe, RecipeCreate, MealRecommendation, RecipeRating, RecipeRatingCreate } from '../types';
+import { Recipe, RecipeCreate, MealRecommendation } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 export const useRecipes = () => {
@@ -134,46 +134,8 @@ export const useRecipes = () => {
     }
   }, []);
 
-  // Recipe Rating functionality
-  const rateRecipe = useCallback(async (ratingData: RecipeRatingCreate): Promise<RecipeRating | null> => {
-    try {
-      setError(null);
-      console.log('⭐ Rating recipe:', ratingData);
-      
-      const rating = await apiRequest<RecipeRating>('POST', `/recipes/${ratingData.recipe_id}/ratings`, ratingData);
-      console.log('✅ Recipe rated successfully:', rating);
-      
-      return rating;
-    } catch (error: any) {
-      console.error('❌ Error rating recipe:', error);
-      
-      let errorMessage = 'Failed to rate recipe';
-      if (error.response?.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Recipe not found.';
-      } else if (error.response?.status === 400) {
-        errorMessage = 'You have already rated this recipe.';
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      }
-      
-      setError(errorMessage);
-      return null;
-    }
-  }, []);
-
-  const getRecipeRatings = useCallback(async (recipeId: string): Promise<RecipeRating[]> => {
-    try {
-      setError(null);
-      const ratings = await apiRequest<RecipeRating[]>('GET', `/recipes/${recipeId}/ratings`);
-      return ratings;
-    } catch (error: any) {
-      console.error('❌ Error fetching recipe ratings:', error);
-      setError('Failed to fetch recipe ratings');
-      return [];
-    }
-  }, []);
+  // Recipe rating functionality temporarily removed (no ratings in RecipeV2)
+  // Can be re-added when rating system is implemented for RecipeV2
 
   const addRecipeToMealPlan = useCallback(async (
     recipeId: string, 
@@ -257,8 +219,6 @@ export const useRecipes = () => {
     saveRecipe,
     saveRecommendationAsRecipe,
     deleteRecipe,
-    rateRecipe,
-    getRecipeRatings,
     addRecipeToMealPlan,
     addRecommendationToMealPlan,
     clearError: () => setError(null)

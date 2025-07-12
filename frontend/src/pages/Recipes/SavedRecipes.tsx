@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -32,14 +32,11 @@ import {
   FilterList,
   Add,
   MenuBook,
-  Star,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
-import { Recipe, RecipeRatingCreate } from '../../types';
+import { Recipe } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
-import StarRating from '../../components/Recipe/StarRating';
-import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
 
 const SavedRecipes: React.FC = () => {
   const {
@@ -49,8 +46,6 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes,
     deleteRecipe,
     saveRecipe,
-    rateRecipe,
-    getRecipeRatings,
     clearError
   } = useRecipes();
 
@@ -61,11 +56,6 @@ const SavedRecipes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
-  const [rateRecipeDialogOpen, setRateRecipeDialogOpen] = useState(false);
-  const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
-  const [ratings, setRatings] = useState<{[recipeId: string]: number}>({});
-  const [loadingRatings, setLoadingRatings] = useState<Set<string>>(new Set());
-  const ratingsLoadedRef = useRef<Set<string>>(new Set());
 
   const handleViewRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -89,61 +79,7 @@ const SavedRecipes: React.FC = () => {
     }
   };
 
-  // Rating functionality
-  const handleRateRecipe = (recipe: Recipe) => {
-    setRecipeToRate(recipe);
-    setRateRecipeDialogOpen(true);
-  };
-
-  const handleSubmitRating = async (ratingData: RecipeRatingCreate) => {
-    const result = await rateRecipe(ratingData);
-    if (result) {
-      setRateRecipeDialogOpen(false);
-      setRecipeToRate(null);
-      // Update local ratings cache
-      try {
-        const recipeRatings = await getRecipeRatings(ratingData.recipe_id);
-        if (recipeRatings.length > 0) {
-          const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
-          setRatings(prev => ({ ...prev, [ratingData.recipe_id]: avgRating }));
-        }
-      } catch (error) {
-        console.error('Failed to reload ratings after rating:', error);
-      }
-    }
-  };
-
-  // Optimized rating loading function
-  const loadRecipeRating = useCallback(async (recipeId: string) => {
-    // Skip if already loaded or currently loading
-    if (ratingsLoadedRef.current.has(recipeId) || loadingRatings.has(recipeId)) {
-      return;
-    }
-
-    // Mark as loading
-    setLoadingRatings(prev => new Set(prev).add(recipeId));
-    
-    try {
-      const recipeRatings = await getRecipeRatings(recipeId);
-      if (recipeRatings.length > 0) {
-        const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
-        setRatings(prev => ({ ...prev, [recipeId]: avgRating }));
-      }
-      // Mark as loaded
-      ratingsLoadedRef.current.add(recipeId);
-    } catch (error) {
-      console.error(`Failed to load ratings for recipe ${recipeId}:`, error);
-      // Don't show error to user for ratings, just log it
-    } finally {
-      // Remove from loading set
-      setLoadingRatings(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(recipeId);
-        return newSet;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getRecipeRatings]); // loadingRatings excluded to prevent infinite re-creation
+  // Rating functionality temporarily removed (no ratings in RecipeV2)
 
   const handleSearch = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
@@ -162,20 +98,6 @@ const SavedRecipes: React.FC = () => {
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Load ratings for visible recipes with proper dependency management
-  React.useEffect(() => {
-    if (filteredRecipes.length > 0) {
-      // Only load ratings for first 12 recipes to avoid overwhelming the API
-      const recipesToLoad = filteredRecipes.slice(0, 12);
-      
-      // Load ratings for each recipe (function handles deduplication)
-      recipesToLoad.forEach(recipe => {
-        loadRecipeRating(recipe.id);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredRecipes.length, loadRecipeRating]); // filteredRecipes excluded to prevent infinite loop
 
   if (loading && savedRecipes.length === 0) {
     return (
@@ -262,13 +184,8 @@ const SavedRecipes: React.FC = () => {
       ) : (
         <Grid container spacing={3}>
           {filteredRecipes.map((recipe) => (
-            <Grid key={recipe.id} size={{ xs: 12, sm: 6, lg: 4 }}>
-              <Card sx={{ 
-                height: '100%', 
-                display: 'flex', 
-                flexDirection: 'column',
-                minHeight: '400px' // Ensure consistent card height
-              }}>
+            <Grid key={recipe.id} size={{ xs: 12, md: 6, lg: 4 }}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                     <Typography variant="h6" component="h3" sx={{ flexGrow: 1 }}>
@@ -282,19 +199,7 @@ const SavedRecipes: React.FC = () => {
                     </IconButton>
                   </Box>
 
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ 
-                      mb: 2,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      minHeight: '60px' // Ensure consistent height
-                    }}
-                  >
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {recipe.description}
                   </Typography>
 
@@ -318,39 +223,17 @@ const SavedRecipes: React.FC = () => {
                   </Box>
 
                   {recipe.tags && recipe.tags.length > 0 && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2, minHeight: '32px' }}>
-                      {recipe.tags.slice(0, 2).map((tag, index) => (
-                        <Chip 
-                          key={index} 
-                          label={tag} 
-                          size="small" 
-                          variant="outlined"
-                          sx={{ 
-                            maxWidth: '100px', 
-                            '& .MuiChip-label': { 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis' 
-                            } 
-                          }}
-                        />
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                      {recipe.tags.slice(0, 3).map((tag, index) => (
+                        <Chip key={index} label={tag} size="small" variant="outlined" />
                       ))}
-                      {recipe.tags.length > 2 && (
-                        <Chip label={`+${recipe.tags.length - 2} more`} size="small" variant="outlined" />
+                      {recipe.tags.length > 3 && (
+                        <Chip label={`+${recipe.tags.length - 3} more`} size="small" variant="outlined" />
                       )}
                     </Box>
                   )}
 
-                  {/* Recipe Rating Display */}
-                  {ratings[recipe.id] && ratings[recipe.id] > 0 && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      <StarRating
-                        rating={ratings[recipe.id]}
-                        readOnly
-                        size="small"
-                        showValue
-                      />
-                    </Box>
-                  )}
+                  {/* Cooking statistics removed (not available in RecipeV2) */}
 
                   <Button
                     variant="contained"
@@ -376,16 +259,6 @@ const SavedRecipes: React.FC = () => {
         <MenuItem onClick={() => {/* TODO: Add to meal plan */}}>
           <CalendarToday sx={{ mr: 1 }} />
           Add to Meal Plan
-        </MenuItem>
-        <MenuItem onClick={() => {
-          const recipe = savedRecipes.find(r => r.id === menuRecipeId);
-          if (recipe) {
-            handleRateRecipe(recipe);
-            handleMenuClose();
-          }
-        }}>
-          <Star sx={{ mr: 1 }} />
-          Rate Recipe
         </MenuItem>
         <MenuItem onClick={handleDeleteRecipe} sx={{ color: 'error.main' }}>
           <Delete sx={{ mr: 1 }} />
@@ -444,21 +317,7 @@ const SavedRecipes: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Rate Recipe Dialog */}
-      {recipeToRate && (
-        <RateRecipeDialog
-          open={rateRecipeDialogOpen}
-          onClose={() => {
-            setRateRecipeDialogOpen(false);
-            setRecipeToRate(null);
-          }}
-          onSubmit={handleSubmitRating}
-          recipeId={recipeToRate.id}
-          recipeName={recipeToRate.name}
-          loading={loading}
-          error={error}
-        />
-      )}
+      {/* Rating functionality temporarily removed */}
 
       {/* Create Recipe Dialog */}
       <CreateRecipeForm

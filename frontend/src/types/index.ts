@@ -227,32 +227,8 @@ export interface RecipeCreate {
   source?: string;
 }
 
-export interface RecipeRating {
-  id: string;
-  recipe_id: string;
-  user_id: string;
-  rating: number;
-  review_text?: string;
-  would_make_again: boolean;
-  cooking_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RecipeRatingCreate {
-  recipe_id: string;
-  rating: number;
-  review_text?: string;
-  would_make_again?: boolean;
-  cooking_notes?: string;
-}
-
-export interface RecipeRatingUpdate {
-  rating?: number;
-  review_text?: string;
-  would_make_again?: boolean;
-  cooking_notes?: string;
-}
+// Recipe rating interfaces temporarily removed
+// Will be re-added when rating system is properly implemented for RecipeV2
 
 export interface ShoppingListItem {
   ingredient: Ingredient;
