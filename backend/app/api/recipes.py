@@ -236,7 +236,7 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
                 )
                 
                 session.add(new_recipe)
-                session.flush()  # Get the ID
+                session.flush()  # Get the ID assigned
                 
                 logger.info(f"✅ Recipe saved successfully: {new_recipe.id}")
                 
