@@ -20,7 +20,11 @@ class Settings:
     def __init__(self):
         """Initialize and validate settings"""
         # Database - Environment-specific database paths
-        self.ENVIRONMENT: str = os.getenv("RAILWAY_ENVIRONMENT_NAME", os.getenv("ENVIRONMENT", "development"))
+        # Override environment for testing
+        if os.getenv("TESTING") == "true":
+            self.ENVIRONMENT: str = "test"
+        else:
+            self.ENVIRONMENT: str = os.getenv("RAILWAY_ENVIRONMENT_NAME", os.getenv("ENVIRONMENT", "development"))
         
         # Security
         self.JWT_SECRET: str = os.getenv("JWT_SECRET")
@@ -103,19 +107,24 @@ class Settings:
     @property
     def DATABASE_URL(self) -> str:
         """Get PostgreSQL database URL"""
-        # Check if DATABASE_URL is explicitly set (Railway, Docker, etc.)
-        if os.getenv("DATABASE_URL"):
-            return os.getenv("DATABASE_URL")
-        
         # Environment-based database selection
         env_lower = self.ENVIRONMENT.lower()
         is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
         is_testing = os.getenv("TESTING") == "true"
         is_ci = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
         
-        # Test environments use in-memory SQLite for speed
+        # Test environments use PostgreSQL for compatibility with models (highest priority)
         if is_testing or is_ci:
-            return "sqlite:///:memory:"
+            # Use test-specific PostgreSQL database
+            if is_ci:
+                return "postgresql://test:test@localhost:5432/food_planning_test"
+            else:
+                # Local testing environment
+                return "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
+        
+        # Check if DATABASE_URL is explicitly set (Railway, Docker, etc.) - but not for testing
+        if os.getenv("DATABASE_URL"):
+            return os.getenv("DATABASE_URL")
         
         # Railway deployment uses PostgreSQL
         if is_railway:
@@ -132,8 +141,8 @@ class Settings:
                 # Default PostgreSQL for other Railway deployments
                 return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning")
         
-        # Local development uses SQLite for simplicity
-        return f"sqlite:///{self.DB_PATH}"
+        # Local development uses PostgreSQL for consistency with production
+        return f"postgresql://postgres:whbutb2012@localhost:5432/food_planning_dev"
     
     @property
     def deployment_info(self) -> dict:

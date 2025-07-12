@@ -15,7 +15,7 @@ Copy‑paste the whole file – all other endpoints are untouched.
 import logging
 import json
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Header, Query
 from sqlalchemy import select, func, desc, or_
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Helper
 # ---------------------------------------------------------------------------
 
-def get_current_user(authorization: str | None = None):
+def get_current_user(authorization: Union[str, None] = None):
     """Return minimal user dict or None."""
     if not authorization or not authorization.startswith("Bearer "):
         return None
@@ -82,10 +82,13 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    user_id = current_user["sub"]  # Already a string, no UUID conversion needed
+    try:
+        user_uuid = uuid.UUID(current_user["sub"])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
 
     # ---- blocking DB work wrapped in thread‑pool ---------------------------
-    def _query() -> list[SavedRecipeResponse]:
+    def _query() -> List[SavedRecipeResponse]:
         from ..models.recipe import SavedRecipe, RecipeRating  # local import avoids cycles
         with get_db_session() as session:
             # rating aggregate sub‑query
@@ -101,7 +104,7 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
             stmt = (
                 select(SavedRecipe, rating_sq.c.avg_rating)
                 .outerjoin(rating_sq, SavedRecipe.id == rating_sq.c.recipe_id)
-                .where(SavedRecipe.user_id == user_id)
+                .where(SavedRecipe.user_id == user_uuid)
                 .order_by(desc(SavedRecipe.updated_at))
                 .limit(limit)
                 .offset(offset)
@@ -148,7 +151,7 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
             rows = session.execute(stmt).all()
 
         # row → pydantic ------------------------------------------------------
-        def _loads(text_: str | None):
+        def _loads(text_: Union[str, None]):
             if not text_:
                 return []
             try:
@@ -156,7 +159,7 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
             except Exception:  # noqa: BLE001
                 return []
 
-        responses: list[SavedRecipeResponse] = []
+        responses: List[SavedRecipeResponse] = []
         for saved_rec, avg_rating in rows:
             responses.append(
                 SavedRecipeResponse(
@@ -202,7 +205,7 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        user_id = current_user['sub']  # This is already a string
+        user_uuid = uuid.UUID(current_user['sub'])
         
         def _save_recipe():
             from ..models.recipe import SavedRecipe
@@ -216,7 +219,7 @@ async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Heade
                 
                 # Create new saved recipe
                 new_recipe = SavedRecipe(
-                    user_id=user_id,
+                    user_id=user_uuid,
                     name=recipe_data.name,
                     description=recipe_data.description,
                     prep_time=recipe_data.prep_time,
@@ -279,14 +282,15 @@ async def get_recipe(recipe_id: str, authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        user_id = current_user['sub']
+        user_uuid = uuid.UUID(current_user['sub'])
+        recipe_uuid = uuid.UUID(recipe_id)
         
         def _get_recipe():
             from ..models.recipe import SavedRecipe, RecipeRating
             with get_db_session() as session:
                 recipe = session.query(SavedRecipe).filter(
-                    SavedRecipe.id == recipe_id,
-                    SavedRecipe.user_id == user_id
+                    SavedRecipe.id == recipe_uuid,
+                    SavedRecipe.user_id == user_uuid
                 ).first()
                 
                 if not recipe:
@@ -294,7 +298,7 @@ async def get_recipe(recipe_id: str, authorization: str = Header(None)):
                 
                 # Get average rating
                 avg_rating = session.query(func.avg(RecipeRating.rating)).filter(
-                    RecipeRating.recipe_id == recipe_id
+                    RecipeRating.recipe_id == recipe_uuid
                 ).scalar()
                 
                 return SavedRecipeResponse(
@@ -341,21 +345,22 @@ async def delete_recipe(recipe_id: str, authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        user_id = current_user['sub']
+        user_uuid = uuid.UUID(current_user['sub'])
+        recipe_uuid = uuid.UUID(recipe_id)
         
         def _delete_recipe():
             from ..models.recipe import SavedRecipe
             with get_db_session() as session:
                 recipe = session.query(SavedRecipe).filter(
-                    SavedRecipe.id == recipe_id,
-                    SavedRecipe.user_id == user_id
+                    SavedRecipe.id == recipe_uuid,
+                    SavedRecipe.user_id == user_uuid
                 ).first()
                 
                 if not recipe:
                     raise HTTPException(status_code=404, detail="Recipe not found")
                 
                 session.delete(recipe)
-                logger.info(f"✅ Recipe deleted: {recipe_id}")
+                logger.info(f"✅ Recipe deleted: {recipe_uuid}")
                 return {"message": "Recipe deleted successfully"}
         
         return await run_in_threadpool(_delete_recipe)
