@@ -222,7 +222,7 @@ class TestFamilyMemberManagement:
         token = register_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        fake_id = "fake-member-id-123"
+        fake_id = str(uuid.uuid4())  # Generate a valid UUID that doesn't exist
         response = client.put(f"/api/v1/family/members/{fake_id}", 
                             json={"name": "Updated Name"}, headers=headers)
         
@@ -307,7 +307,7 @@ class TestFamilyMemberManagement:
         token = register_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        fake_id = "fake-member-id-456"
+        fake_id = str(uuid.uuid4())  # Generate a valid UUID that doesn't exist
         response = client.delete(f"/api/v1/family/members/{fake_id}", headers=headers)
         
         assert response.status_code == 404

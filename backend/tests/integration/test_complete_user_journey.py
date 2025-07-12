@@ -338,7 +338,8 @@ class TestCompleteUserJourney:
         # Test family member error scenarios
         
         # 1. Try to update non-existent family member
-        fake_id = "fake-member-id-123"
+        import uuid
+        fake_id = str(uuid.uuid4())  # Generate a valid UUID that doesn't exist
         update_response = client.put(f"/api/v1/family/members/{fake_id}", 
                                    json={"name": "Updated"}, headers=headers)
         assert update_response.status_code == 404

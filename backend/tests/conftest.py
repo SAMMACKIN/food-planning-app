@@ -21,7 +21,7 @@ if not os.environ.get("DATABASE_URL"):
             os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@postgres:5432/railway"
     elif os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
         # CI environment - PostgreSQL service provided by GitHub Actions
-        os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/food_planning_test"
+        os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/test"
     else:
         # Local development testing - use local PostgreSQL
         os.environ["DATABASE_URL"] = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"

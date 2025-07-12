@@ -239,7 +239,7 @@ class TestPantryManagement:
         token = register_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        fake_ingredient_id = "fake-ingredient-id"
+        fake_ingredient_id = str(uuid.uuid4())  # Generate a valid UUID that doesn't exist
         response = client.put(f"/api/v1/pantry/{fake_ingredient_id}", 
                             json={"quantity": 1.0}, headers=headers)
         
@@ -291,7 +291,7 @@ class TestPantryManagement:
         token = register_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        fake_ingredient_id = "fake-ingredient-id"
+        fake_ingredient_id = str(uuid.uuid4())  # Generate a valid UUID that doesn't exist
         response = client.delete(f"/api/v1/pantry/{fake_ingredient_id}", headers=headers)
         
         assert response.status_code == 404
