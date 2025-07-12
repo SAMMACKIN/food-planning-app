@@ -59,27 +59,63 @@ except ImportError as e:
     # Fallback - create a mock service for development
     class MockAIService:
         def is_provider_available(self, provider: str) -> bool:
-            return False
+            return provider == "mock"
         
         def get_available_providers(self) -> dict:
-            return {"claude": False, "groq": False, "perplexity": False}
+            return {"claude": False, "groq": False, "perplexity": False, "mock": True}
         
         async def get_meal_recommendations(self, **kwargs) -> List[dict]:
-            # Return mock recommendation for development
-            return [{
-                "name": "Simple Pasta",
-                "description": "A quick and easy pasta dish",
-                "prep_time": 20,
-                "difficulty": "Easy",
-                "servings": 2,
-                "ingredients_needed": ["pasta", "olive oil", "garlic"],
-                "instructions": ["Boil pasta", "Heat oil", "Mix together"],
-                "tags": ["quick", "vegetarian"],
-                "nutrition_notes": "Good source of carbohydrates",
-                "pantry_usage_score": 85,
-                "ai_generated": False,
-                "ai_provider": None
-            }]
+            # Return varied mock recommendations for development
+            num_recommendations = kwargs.get('num_recommendations', 3)
+            preferences = kwargs.get('preferences', {})
+            
+            mock_recipes = [
+                {
+                    "name": "Simple Pasta with Garlic",
+                    "description": "A quick and easy pasta dish with aromatic garlic and olive oil",
+                    "prep_time": 20,
+                    "difficulty": "Easy",
+                    "servings": 2,
+                    "ingredients_needed": ["pasta", "olive oil", "garlic", "parmesan cheese"],
+                    "instructions": ["Boil pasta according to package instructions", "Heat olive oil in a pan", "Add minced garlic and cook until fragrant", "Toss cooked pasta with garlic oil", "Serve with parmesan cheese"],
+                    "tags": ["quick", "vegetarian", "italian"],
+                    "nutrition_notes": "Good source of carbohydrates and healthy fats",
+                    "pantry_usage_score": 85,
+                    "ai_generated": False,
+                    "ai_provider": "mock"
+                },
+                {
+                    "name": "Chicken Stir Fry",
+                    "description": "Healthy chicken and vegetable stir fry with Asian flavors",
+                    "prep_time": 25,
+                    "difficulty": "Medium",
+                    "servings": 4,
+                    "ingredients_needed": ["chicken breast", "mixed vegetables", "soy sauce", "ginger", "garlic"],
+                    "instructions": ["Cut chicken into strips", "Heat oil in wok or large pan", "Cook chicken until done", "Add vegetables and stir fry", "Season with soy sauce, ginger, and garlic"],
+                    "tags": ["healthy", "protein", "asian", "vegetables"],
+                    "nutrition_notes": "High protein, lots of vegetables, balanced nutrition",
+                    "pantry_usage_score": 75,
+                    "ai_generated": False,
+                    "ai_provider": "mock"
+                },
+                {
+                    "name": "Vegetarian Rice Bowl",
+                    "description": "Nutritious rice bowl with vegetables and beans",
+                    "prep_time": 30,
+                    "difficulty": "Easy",
+                    "servings": 3,
+                    "ingredients_needed": ["rice", "black beans", "corn", "bell peppers", "onion"],
+                    "instructions": ["Cook rice according to package instructions", "Sauté onions and peppers", "Add corn and beans to warm through", "Serve vegetables over rice", "Season to taste"],
+                    "tags": ["vegetarian", "healthy", "filling", "mexican-inspired"],
+                    "nutrition_notes": "Complete protein from rice and beans, high fiber",
+                    "pantry_usage_score": 90,
+                    "ai_generated": False,
+                    "ai_provider": "mock"
+                }
+            ]
+            
+            # Return requested number of recipes
+            return mock_recipes[:min(num_recommendations, len(mock_recipes))]
     
     ai_service = MockAIService()
 
@@ -210,12 +246,21 @@ async def get_meal_recommendations(
         if provider != "groq":
             providers_to_try.append("groq")
         
+        # Always add mock as final fallback
+        providers_to_try.append("mock")
+        
         recommendations = None
         last_error = None
         
         for try_provider in providers_to_try:
             try:
                 logger.info(f"DEBUG: Trying provider: {try_provider}")
+                
+                # Check if provider is available before trying
+                if not ai_service.is_provider_available(try_provider):
+                    logger.warning(f"DEBUG: Provider {try_provider} not available, skipping")
+                    continue
+                
                 recommendations = await ai_service.get_meal_recommendations(
                     family_members=family_members,
                     pantry_items=pantry_items,
@@ -231,8 +276,23 @@ async def get_meal_recommendations(
                 continue
         
         if not recommendations:
-            logger.error(f"DEBUG: All providers failed. Last error: {last_error}")
-            raise Exception(f"All AI providers failed. Last error: {str(last_error)}")
+            # If we get here, even mock failed (which shouldn't happen)
+            logger.error(f"DEBUG: All providers including mock failed. Last error: {last_error}")
+            # Return basic fallback recommendations
+            recommendations = [{
+                "name": "Basic Meal",
+                "description": "A simple meal when AI services are unavailable",
+                "prep_time": 15,
+                "difficulty": "Easy",
+                "servings": 2,
+                "ingredients_needed": ["basic ingredients"],
+                "instructions": ["Follow simple cooking steps"],
+                "tags": ["fallback"],
+                "nutrition_notes": "Basic nutrition",
+                "pantry_usage_score": 50,
+                "ai_generated": False,
+                "ai_provider": "fallback"
+            }]
         
         logger.info(f"DEBUG: Got {len(recommendations)} recommendations")
         if recommendations:

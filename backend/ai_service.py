@@ -70,7 +70,6 @@ class AIService:
             return self.perplexity_key is not None
         return False
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def get_meal_recommendations(
         self,
         family_members: List[Dict[str, Any]],
@@ -88,21 +87,25 @@ class AIService:
         logger.info(f"🤖 AI SERVICE CALLED - Provider: {provider}")
         logger.info(f"🔄 Requesting {num_recommendations} recommendations")
         
-        if provider == "groq" and self.groq_client:
-            return await self._get_groq_recommendations(
-                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-            )
-        elif provider == "claude" and self.claude_client:
-            return await self._get_claude_recommendations(
-                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-            )
-        elif provider == "perplexity" and self.perplexity_key:
-            return await self._get_perplexity_recommendations(
-                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-            )
-        else:
-            logger.error(f"Provider {provider} not available or not configured")
-            raise Exception(f"AI provider '{provider}' is not available")
+        try:
+            if provider == "groq" and self.groq_client:
+                return await self._get_groq_recommendations(
+                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                )
+            elif provider == "claude" and self.claude_client:
+                return await self._get_claude_recommendations(
+                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                )
+            elif provider == "perplexity" and self.perplexity_key:
+                return await self._get_perplexity_recommendations(
+                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                )
+            else:
+                logger.error(f"Provider {provider} not available or not configured")
+                raise Exception(f"AI provider '{provider}' is not available")
+        except Exception as e:
+            logger.error(f"Failed to get recommendations from {provider}: {str(e)}")
+            raise  # Re-raise to allow fallback logic in recommendations.py
 
     async def _get_claude_recommendations(
         self,
@@ -178,56 +181,76 @@ class AIService:
         disliked_recipes: Optional[List[Dict[str, Any]]] = None,
         recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
-        """Get recommendations from Perplexity"""
-        try:
-            prompt = self._build_recommendation_prompt(
-                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-            )
-            
-            logger.info("Calling Perplexity API for meal recommendations...")
-            logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
-            logger.info(f"Prompt length: {len(prompt)} characters")
-            
-            request_data = {
-                "model": "llama-3.1-sonar-small-128k-online",
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 4096,
-                "temperature": 0.7
-            }
-            logger.info(f"Request data: {json.dumps({k: v if k != 'messages' else f'[{len(v)} messages]' for k, v in request_data.items()})}")
-            
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.perplexity.ai/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.perplexity_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=request_data,
-                    timeout=60.0
+        """Get recommendations from Perplexity with retry logic"""
+        max_attempts = 2  # Reduced from 3 to avoid long delays
+        
+        for attempt in range(max_attempts):
+            try:
+                prompt = self._build_recommendation_prompt(
+                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
                 )
-                logger.info(f"Perplexity API response status: {response.status_code}")
-                response.raise_for_status()
-                data = response.json()
-                logger.info(f"Perplexity API response received: {len(str(data))} characters")
-            
-            recommendations = self._parse_ai_response(data["choices"][0]["message"]["content"], "perplexity")
-            logger.info(f"Perplexity generated {len(recommendations)} recommendations")
-            return recommendations
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Perplexity API HTTP error: {e.response.status_code}")
-            logger.error(f"Perplexity API response body: {e.response.text}")
-            raise Exception(f"Perplexity API error {e.response.status_code}: {e.response.text}")
-        except httpx.TimeoutException as e:
-            logger.error(f"Perplexity API timeout: {e}")
-            raise Exception("Perplexity API request timed out")
-        except Exception as e:
-            logger.error(f"Perplexity API error: {e}")
-            logger.error(f"Error type: {type(e).__name__}")
-            raise
+                
+                logger.info(f"Calling Perplexity API for meal recommendations (attempt {attempt + 1}/{max_attempts})...")
+                logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
+                logger.info(f"Prompt length: {len(prompt)} characters")
+                
+                request_data = {
+                    "model": "llama-3.1-sonar-small-128k-online",
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ],
+                    "max_tokens": 4096,
+                    "temperature": 0.7
+                }
+                logger.info(f"Request data: {json.dumps({k: v if k != 'messages' else f'[{len(v)} messages]' for k, v in request_data.items()})}")
+                
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.perplexity.ai/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.perplexity_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json=request_data,
+                        timeout=30.0  # Reduced timeout
+                    )
+                    logger.info(f"Perplexity API response status: {response.status_code}")
+                    response.raise_for_status()
+                    data = response.json()
+                    logger.info(f"Perplexity API response received: {len(str(data))} characters")
+                
+                recommendations = self._parse_ai_response(data["choices"][0]["message"]["content"], "perplexity")
+                logger.info(f"Perplexity generated {len(recommendations)} recommendations")
+                return recommendations
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Perplexity API HTTP error (attempt {attempt + 1}): {e.response.status_code}")
+                logger.error(f"Perplexity API response body: {e.response.text}")
+                
+                if attempt == max_attempts - 1:  # Last attempt
+                    raise Exception(f"Perplexity API failed after {max_attempts} attempts. Last error: {e.response.status_code} - {e.response.text}")
+                else:
+                    logger.warning(f"Retrying Perplexity API call...")
+                    
+            except httpx.TimeoutException as e:
+                logger.error(f"Perplexity API timeout (attempt {attempt + 1}): {e}")
+                
+                if attempt == max_attempts - 1:  # Last attempt
+                    raise Exception(f"Perplexity API timeout after {max_attempts} attempts")
+                else:
+                    logger.warning(f"Retrying Perplexity API call due to timeout...")
+                    
+            except Exception as e:
+                logger.error(f"Perplexity API error (attempt {attempt + 1}): {e}")
+                logger.error(f"Error type: {type(e).__name__}")
+                
+                if attempt == max_attempts - 1:  # Last attempt
+                    raise
+                else:
+                    logger.warning(f"Retrying Perplexity API call due to error...")
+        
+        # Should never reach here, but just in case
+        raise Exception("Unexpected error in Perplexity API retry logic")
 
     def _build_recommendation_prompt(
         self,
