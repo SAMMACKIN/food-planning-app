@@ -12,11 +12,18 @@
   ],
   "routes": [
     {
+      "src": "/manifest.json",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    {
       "src": "/static/(.*)",
       "dest": "/static/$1"
     },
     {
-      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
+      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json))",
       "dest": "/$1"
     },
     {
