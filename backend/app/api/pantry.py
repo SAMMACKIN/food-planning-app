@@ -6,6 +6,8 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Depends, Query
 
+from ..utils.validation import validate_uuid_or_raise, is_valid_uuid
+
 from ..core.database_service import get_db_session, db_service
 from ..core.auth_service import AuthService
 from ..models.ingredient import Ingredient, PantryItem
@@ -107,6 +109,9 @@ async def add_pantry_item(
     current_user: dict = Depends(get_current_user_dependency)
 ):
     """Add a new pantry item"""
+    # Validate ingredient_id is a proper UUID
+    validate_uuid_or_raise(pantry_data.ingredient_id, "ingredient_id")
+    
     with get_db_session() as session:
         # Check if ingredient exists
         ingredient = session.query(Ingredient).filter(

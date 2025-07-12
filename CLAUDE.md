@@ -15,8 +15,10 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - **Test**: `cd backend && python -m pytest`
 
 ### Database
-- **Location**: `backend/development_food_app.db` (SQLite)
-- **Reset**: Delete the .db file and restart backend
+- **Type**: PostgreSQL (production/preview) / SQLite (local development only)
+- **Production**: Railway PostgreSQL service
+- **Preview**: Railway PostgreSQL service  
+- **Local**: Can use SQLite for quick development: `backend/development_food_app.db`
 
 ## Current Status
 - ✅ Frontend running on http://localhost:3000
@@ -31,12 +33,12 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 
 ## Architecture
 - **Frontend**: React 18 + TypeScript + Material-UI + Zustand
-- **Backend**: FastAPI + SQLite + JWT authentication
+- **Backend**: FastAPI + PostgreSQL + JWT authentication
 - **API**: RESTful endpoints with CORS enabled
 
 ## Environment Variables
 - Frontend: REACT_APP_API_URL=http://localhost:8001
-- Backend: Uses SQLite (no external dependencies needed)
+- Backend: Uses PostgreSQL in production/preview, SQLite for local dev
 
 ## AI Provider API Keys
 The app supports multiple AI providers for meal recommendations. Add at least one API key to the backend/.env file:
@@ -160,4 +162,5 @@ Always regenerate or update tests when code is changed. Do not write or return n
 - Hot reload enabled for both frontend and backend
 - Debug logging added to API calls
 - CORS configured for localhost development
-- SQLite database auto-creates on first run
+- PostgreSQL database handled by Railway in production
+- SQLite database auto-creates for local development only

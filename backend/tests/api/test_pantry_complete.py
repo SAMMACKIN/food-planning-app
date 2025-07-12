@@ -70,7 +70,8 @@ class TestPantryManagement:
         pantry_item = response.json()
         assert pantry_item["ingredient_id"] == test_ingredient_id
         assert pantry_item["quantity"] == 2.5
-        assert pantry_item["expiration_date"] == "2024-12-31"
+        # Handle both date formats: "2024-12-31" or "2024-12-31T00:00:00+00:00"
+        assert pantry_item["expiration_date"].startswith("2024-12-31")
         assert "ingredient" in pantry_item
         assert "user_id" in pantry_item
         assert "updated_at" in pantry_item
@@ -193,7 +194,8 @@ class TestPantryManagement:
         assert response.status_code == 200
         updated_item = response.json()
         assert updated_item["quantity"] == 3.0
-        assert updated_item["expiration_date"] == "2024-06-01"
+        # Handle both date formats: "2024-06-01" or "2024-06-01T00:00:00+00:00"
+        assert updated_item["expiration_date"].startswith("2024-06-01")
         assert updated_item["ingredient_id"] == test_ingredient_id
         
     def test_update_pantry_item_partial(self, client):
@@ -334,7 +336,8 @@ class TestPantryManagement:
         matching_items = [item for item in pantry_items if item["ingredient_id"] == test_ingredient_id]
         assert len(matching_items) == 1
         assert matching_items[0]["quantity"] == 5.0
-        assert matching_items[0]["expiration_date"] == "2024-12-31"
+        # Handle both date formats: "2024-12-31" or "2024-12-31T00:00:00+00:00"
+        assert matching_items[0]["expiration_date"].startswith("2024-12-31")
 
 
 @pytest.mark.api

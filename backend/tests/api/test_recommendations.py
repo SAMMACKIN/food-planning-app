@@ -1,5 +1,20 @@
 import pytest
+import uuid
 from unittest.mock import patch
+
+
+@pytest.fixture
+def auth_user(client):
+    """Create a test user and return auth headers"""
+    user_data = {
+        "email": f"test-{uuid.uuid4()}@example.com",
+        "password": "testpass123",
+        "name": "Test User"
+    }
+    register_response = client.post("/api/v1/auth/register", json=user_data)
+    assert register_response.status_code == 200
+    token = register_response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.mark.api
@@ -25,13 +40,13 @@ class TestRecommendationsAPI:
         assert "status" in data
         assert data["status"] in ["AI_WORKING", "FALLBACK_USED", "ERROR"]
     
-    def test_get_recommendations_default(self, client, mock_claude_api):
+    def test_get_recommendations_default(self, client, auth_user, mock_claude_api):
         """Test getting meal recommendations with default parameters"""
         request_data = {
             "num_recommendations": 3
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
@@ -47,63 +62,63 @@ class TestRecommendationsAPI:
             # Check if AI generated flag exists
             assert 'ai_generated' in rec
     
-    def test_get_recommendations_with_meal_type(self, client, mock_claude_api):
+    def test_get_recommendations_with_meal_type(self, client, auth_user, mock_claude_api):
         """Test recommendations with meal type filter"""
         request_data = {
             "num_recommendations": 2,
             "meal_type": "breakfast"
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
         assert isinstance(data, list)
         assert len(data) <= 2
     
-    def test_get_recommendations_with_dietary_restrictions(self, client, mock_claude_api):
+    def test_get_recommendations_with_dietary_restrictions(self, client, auth_user, mock_claude_api):
         """Test recommendations with dietary restrictions"""
         request_data = {
             "num_recommendations": 2,
             "dietary_restrictions": ["vegetarian", "gluten-free"]
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
         assert isinstance(data, list)
     
-    def test_get_recommendations_with_pantry_ingredients(self, client, mock_claude_api):
+    def test_get_recommendations_with_pantry_ingredients(self, client, auth_user, mock_claude_api):
         """Test recommendations using pantry ingredients"""
         request_data = {
             "num_recommendations": 2,
             "pantry_ingredients": ["chicken", "rice", "tomatoes"]
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
         assert isinstance(data, list)
     
-    def test_get_recommendations_invalid_num(self, client):
+    def test_get_recommendations_invalid_num(self, client, auth_user):
         """Test recommendations with invalid number"""
         request_data = {
             "num_recommendations": -1
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         # Should handle gracefully or return validation error
         assert response.status_code in [200, 400, 422]
     
-    def test_get_recommendations_too_many(self, client):
+    def test_get_recommendations_too_many(self, client, auth_user):
         """Test recommendations with too many requested"""
         request_data = {
             "num_recommendations": 100
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
@@ -111,13 +126,13 @@ class TestRecommendationsAPI:
         assert len(data) <= 10
     
     @patch('app.services.ai_service.is_ai_available', return_value=False)
-    def test_get_recommendations_claude_unavailable(self, client):
+    def test_get_recommendations_claude_unavailable(self, client, auth_user):
         """Test recommendations when Claude API is unavailable"""
         request_data = {
             "num_recommendations": 3
         }
         
-        response = client.post("/api/v1/recommendations", json=request_data)
+        response = client.post("/api/v1/recommendations", json=request_data, headers=auth_user)
         assert response.status_code == 200
         
         data = response.json()
@@ -129,7 +144,7 @@ class TestRecommendationsAPI:
             assert 'name' in rec
             assert 'description' in rec
     
-    def test_get_recommendations_empty_request(self, client):
+    def test_get_recommendations_empty_request(self, client, auth_user):
         """Test recommendations with empty request body"""
         response = client.post("/api/v1/recommendations", json={})
         assert response.status_code == 200

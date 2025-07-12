@@ -307,11 +307,18 @@ async def get_meal_reviews(meal_plan_id: str):
     cursor = conn.cursor()
     
     try:
-        # Check if meal_reviews table exists
-        cursor.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='meal_reviews'
-        """)
+        # Check if meal_reviews table exists (PostgreSQL compatible)
+        try:
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_name='meal_reviews' AND table_schema='public'
+            """)
+        except Exception:
+            # Fallback for SQLite
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='meal_reviews'
+            """)
         if not cursor.fetchone():
             # Table doesn't exist, return empty list
             return []
@@ -362,11 +369,18 @@ async def create_meal_review(
     try:
         user_id = current_user['sub']
         
-        # Check if meal_reviews table exists
-        cursor.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='meal_reviews'
-        """)
+        # Check if meal_reviews table exists (PostgreSQL compatible)
+        try:
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_name='meal_reviews' AND table_schema='public'
+            """)
+        except Exception:
+            # Fallback for SQLite
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='meal_reviews'
+            """)
         if not cursor.fetchone():
             raise HTTPException(status_code=501, detail="Meal reviews feature not implemented yet")
         
