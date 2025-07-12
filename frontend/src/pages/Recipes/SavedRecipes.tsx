@@ -36,7 +36,7 @@ import {
   MenuBook,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
-import { SavedRecipe } from '../../types';
+import { Recipe } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 
@@ -52,19 +52,19 @@ const SavedRecipes: React.FC = () => {
     clearError
   } = useRecipes();
 
-  const [selectedRecipe, setSelectedRecipe] = useState<SavedRecipe | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [menuRecipeId, setMenuRecipeId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
-  const [ratingRecipe, setRatingRecipe] = useState<SavedRecipe | null>(null);
+  const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null);
   const [rating, setRating] = useState<number>(5);
   const [reviewText, setReviewText] = useState('');
   const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
 
-  const handleViewRecipe = (recipe: SavedRecipe) => {
+  const handleViewRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
     setDialogOpen(true);
   };
@@ -86,7 +86,7 @@ const SavedRecipes: React.FC = () => {
     }
   };
 
-  const handleRateRecipe = (recipe: SavedRecipe) => {
+  const handleRateRecipe = (recipe: Recipe) => {
     setRatingRecipe(recipe);
     setRatingDialogOpen(true);
     handleMenuClose();

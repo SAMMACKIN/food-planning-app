@@ -22,12 +22,12 @@ import {
   Alert,
 } from '@mui/material';
 import { Add, Delete, Restaurant, Timer, People } from '@mui/icons-material';
-import { SavedRecipeCreate, IngredientNeeded } from '../../types';
+import { RecipeCreate, IngredientNeeded } from '../../types';
 
 interface CreateRecipeFormProps {
   open: boolean;
   onClose: () => void;
-  onSave: (recipe: SavedRecipeCreate) => Promise<boolean>;
+  onSave: (recipe: RecipeCreate) => Promise<boolean>;
 }
 
 const DIFFICULTY_OPTIONS = ['Easy', 'Medium', 'Hard'];
@@ -121,7 +121,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
 
     setLoading(true);
     
-    const recipeData: SavedRecipeCreate = {
+    const recipeData: RecipeCreate = {
       ...formData,
       ingredients_needed: ingredients,
       instructions: instructions.filter(i => i.trim()), // Remove empty instructions
