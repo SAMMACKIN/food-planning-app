@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -64,6 +64,8 @@ const SavedRecipes: React.FC = () => {
   const [rateRecipeDialogOpen, setRateRecipeDialogOpen] = useState(false);
   const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
   const [ratings, setRatings] = useState<{[recipeId: string]: number}>({});
+  const [loadingRatings, setLoadingRatings] = useState<Set<string>>(new Set());
+  const ratingsLoadedRef = useRef<Set<string>>(new Set());
 
   const handleViewRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -99,11 +101,49 @@ const SavedRecipes: React.FC = () => {
       setRateRecipeDialogOpen(false);
       setRecipeToRate(null);
       // Update local ratings cache
-      const recipeRatings = await getRecipeRatings(ratingData.recipe_id);
-      const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
-      setRatings(prev => ({ ...prev, [ratingData.recipe_id]: avgRating }));
+      try {
+        const recipeRatings = await getRecipeRatings(ratingData.recipe_id);
+        if (recipeRatings.length > 0) {
+          const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
+          setRatings(prev => ({ ...prev, [ratingData.recipe_id]: avgRating }));
+        }
+      } catch (error) {
+        console.error('Failed to reload ratings after rating:', error);
+      }
     }
   };
+
+  // Optimized rating loading function
+  const loadRecipeRating = useCallback(async (recipeId: string) => {
+    // Skip if already loaded or currently loading
+    if (ratingsLoadedRef.current.has(recipeId) || loadingRatings.has(recipeId)) {
+      return;
+    }
+
+    // Mark as loading
+    setLoadingRatings(prev => new Set(prev).add(recipeId));
+    
+    try {
+      const recipeRatings = await getRecipeRatings(recipeId);
+      if (recipeRatings.length > 0) {
+        const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
+        setRatings(prev => ({ ...prev, [recipeId]: avgRating }));
+      }
+      // Mark as loaded
+      ratingsLoadedRef.current.add(recipeId);
+    } catch (error) {
+      console.error(`Failed to load ratings for recipe ${recipeId}:`, error);
+      // Don't show error to user for ratings, just log it
+    } finally {
+      // Remove from loading set
+      setLoadingRatings(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(recipeId);
+        return newSet;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getRecipeRatings]); // loadingRatings excluded to prevent infinite re-creation
 
   const handleSearch = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
@@ -123,24 +163,19 @@ const SavedRecipes: React.FC = () => {
     recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Load ratings for visible recipes
+  // Load ratings for visible recipes with proper dependency management
   React.useEffect(() => {
-    const loadRatings = async () => {
-      for (const recipe of filteredRecipes.slice(0, 12)) { // Only load ratings for first 12 recipes
-        if (!ratings[recipe.id]) {
-          const recipeRatings = await getRecipeRatings(recipe.id);
-          if (recipeRatings.length > 0) {
-            const avgRating = recipeRatings.reduce((sum, r) => sum + r.rating, 0) / recipeRatings.length;
-            setRatings(prev => ({ ...prev, [recipe.id]: avgRating }));
-          }
-        }
-      }
-    };
-    
     if (filteredRecipes.length > 0) {
-      loadRatings();
+      // Only load ratings for first 12 recipes to avoid overwhelming the API
+      const recipesToLoad = filteredRecipes.slice(0, 12);
+      
+      // Load ratings for each recipe (function handles deduplication)
+      recipesToLoad.forEach(recipe => {
+        loadRecipeRating(recipe.id);
+      });
     }
-  }, [filteredRecipes, getRecipeRatings, ratings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRecipes.length, loadRecipeRating]); // filteredRecipes excluded to prevent infinite loop
 
   if (loading && savedRecipes.length === 0) {
     return (
@@ -306,7 +341,7 @@ const SavedRecipes: React.FC = () => {
                   )}
 
                   {/* Recipe Rating Display */}
-                  {ratings[recipe.id] && (
+                  {ratings[recipe.id] && ratings[recipe.id] > 0 && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                       <StarRating
                         rating={ratings[recipe.id]}
