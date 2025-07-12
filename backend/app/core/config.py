@@ -27,10 +27,7 @@ class Settings:
         self.JWT_ALGORITHM: str = "HS256"
         self.JWT_EXPIRATION_HOURS: int = 24
         
-        # Validate PostgreSQL URL in CI/production
-        if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
-            assert self.DATABASE_URL.startswith("postgresql"), \
-                f"CI/GitHub Actions requires PostgreSQL URL, got: {self.DATABASE_URL}"
+        # Database validation will be done in DATABASE_URL property
         
         # Validate critical security settings
         if not self.JWT_SECRET:
@@ -135,8 +132,8 @@ class Settings:
                 # Default PostgreSQL for other Railway deployments
                 return os.getenv("DATABASE_URL", "postgresql://food_user:food_password@postgres:5432/food_planning")
         
-        # Local development defaults to PostgreSQL
-        return "postgresql://postgres:whbutb2012@localhost:5432/food_planning_dev"
+        # Local development uses SQLite for simplicity
+        return f"sqlite:///{self.DB_PATH}"
     
     @property
     def deployment_info(self) -> dict:

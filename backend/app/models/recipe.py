@@ -2,7 +2,6 @@
 Recipe-related SQLAlchemy models
 """
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -14,8 +13,8 @@ class SavedRecipe(Base):
     __tablename__ = "saved_recipes"
     __table_args__ = {'extend_existing': True}
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text)
     prep_time = Column(Integer, nullable=False)
@@ -43,9 +42,9 @@ class RecipeRating(Base):
     __tablename__ = "recipe_ratings"
     __table_args__ = {'extend_existing': True}
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    recipe_id = Column(UUID(as_uuid=True), ForeignKey("saved_recipes.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recipe_id = Column(String, ForeignKey("saved_recipes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     rating = Column(Integer, nullable=False)  # 1-5 rating
     review_text = Column(Text)
     would_make_again = Column(Boolean, default=True)

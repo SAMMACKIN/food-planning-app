@@ -63,7 +63,7 @@ class AuthService:
             # Create new user
             import uuid
             new_user = User(
-                id=uuid.uuid4(),
+                id=str(uuid.uuid4()),
                 email=email,
                 name=name,
                 hashed_password=hash_password(password),

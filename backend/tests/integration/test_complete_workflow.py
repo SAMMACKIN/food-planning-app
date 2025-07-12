@@ -7,7 +7,7 @@ import json
 import sqlite3
 from fastapi.testclient import TestClient
 from app.main import app
-from app.core.database import get_db_path, init_database
+from app.core.database_service import init_db
 
 client = TestClient(app)
 

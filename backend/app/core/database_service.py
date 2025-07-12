@@ -10,7 +10,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from .config import get_settings
-# Removed SQLite imports - now PostgreSQL only
 from ..db.database import Base, get_db  # SQLAlchemy setup
 from .. import models  # Import all models so Base.metadata knows about them
 
@@ -18,24 +17,36 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    """PostgreSQL database service using SQLAlchemy"""
+    """Database service using SQLAlchemy (supports SQLite and PostgreSQL)"""
     
     def __init__(self):
         self.settings = get_settings()
         
-        # Initialize SQLAlchemy engine for PostgreSQL
+        # Initialize SQLAlchemy engine
+        connect_args = {}
+        engine_kwargs = {
+            "echo": False  # Set to True for SQL logging
+        }
+        
+        if self.settings.DATABASE_URL.startswith("sqlite"):
+            connect_args = {"check_same_thread": False}
+        else:
+            engine_kwargs.update({
+                "pool_pre_ping": True,
+                "pool_recycle": 300
+            })
+        
         self.engine = create_engine(
             self.settings.DATABASE_URL,
-            pool_pre_ping=True,
-            pool_recycle=300,
-            echo=False  # Set to True for SQL logging
+            connect_args=connect_args,
+            **engine_kwargs
         )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        logger.info(f"🐘 Database service initialized with PostgreSQL: {self.settings.DATABASE_URL}")
+        logger.info(f"📊 Database service initialized: {self.settings.DATABASE_URL}")
     
     @contextmanager
     def get_session(self):
-        """Get PostgreSQL database session"""
+        """Get database session"""
         session = self.SessionLocal()
         try:
             yield session
@@ -48,12 +59,12 @@ class DatabaseService:
             session.close()
     
     def create_tables(self):
-        """Create PostgreSQL database tables"""
+        """Create database tables"""
         Base.metadata.create_all(bind=self.engine)
-        logger.info("✅ PostgreSQL tables created")
+        logger.info("✅ Database tables created")
     
     def test_connection(self) -> bool:
-        """Test PostgreSQL database connection"""
+        """Test database connection"""
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
