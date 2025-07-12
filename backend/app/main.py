@@ -126,6 +126,15 @@ def create_app() -> FastAPI:
             router_status["admin"] = f"❌ Failed: {e}"
             logger.error(f"❌ Admin router error: {e}")
         
+        # Migration endpoints for database schema updates
+        try:
+            from .api import migrate
+            app.include_router(migrate.router, prefix="/api/v1/migrate", tags=["migration"])
+            router_status["migrate"] = "✅ Success"
+        except Exception as e:
+            router_status["migrate"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Migration router error: {e}")
+        
         logger.info(f"🔧 Router registration status: {router_status}")
         
     except Exception as e:
