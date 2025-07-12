@@ -38,7 +38,7 @@ def auth_headers(test_user_token):
 class TestCompleteUserWorkflow:
     """Test the complete user workflow that breaks in preview"""
     
-    def test_complete_workflow_family_to_recommendations(self, auth_headers):
+    def test_complete_workflow_family_to_recommendations(self, auth_headers, test_ingredient_ids):
         """Test: Register → Add Family → Add Pantry → Get Recommendations"""
         
         print("\n🧪 TESTING COMPLETE WORKFLOW")
@@ -64,9 +64,9 @@ class TestCompleteUserWorkflow:
         # Step 2: Add pantry items
         print("🥫 Step 2: Adding pantry items...")
         pantry_items = [
-            {"ingredient_id": "chicken-breast", "quantity": 2.0, "expiration_date": "2024-12-31"},
-            {"ingredient_id": "pasta", "quantity": 1.0, "expiration_date": "2025-01-15"},
-            {"ingredient_id": "olive-oil", "quantity": 0.5, "expiration_date": "2025-03-01"}
+            {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-31"},
+            {"ingredient_id": test_ingredient_ids['rice'], "quantity": 1.0, "expiration_date": "2025-01-15"},
+            {"ingredient_id": test_ingredient_ids['broccoli'], "quantity": 0.5, "expiration_date": "2025-03-01"}
         ]
         
         for item in pantry_items:
@@ -244,7 +244,7 @@ class TestCompleteUserWorkflow:
         print("🗄️ Database schema validation passed")
 
 
-    def test_data_consistency_after_operations(self, auth_headers):
+    def test_data_consistency_after_operations(self, auth_headers, test_ingredient_ids):
         """Test that data remains consistent after family→pantry→recommendations workflow"""
         
         print("\n🔍 TESTING DATA CONSISTENCY")
@@ -279,8 +279,9 @@ class TestCompleteUserWorkflow:
         assert stored_family["preferences"] == family_data["preferences"]
         
         # Test pantry data consistency
+        chicken_id = test_ingredient_ids['chicken_breast']
         pantry_item = {
-            "ingredient_id": "chicken-breast",
+            "ingredient_id": chicken_id,
             "quantity": 2.5,
             "expiration_date": "2024-12-31"
         }
@@ -295,7 +296,7 @@ class TestCompleteUserWorkflow:
         
         found_item = None
         for item in pantry_items:
-            if item["ingredient"]["id"] == "chicken-breast":
+            if item["ingredient"]["id"] == chicken_id:
                 found_item = item
                 break
         

@@ -143,16 +143,12 @@ class TestFamilyManagement:
 class TestPantryManagement:
     """Test pantry item operations that happen before recommendations"""
     
-    def test_add_pantry_items_batch(self, auth_headers):
+    def test_add_pantry_items_batch(self, auth_headers, test_ingredient_ids):
         """Test adding multiple pantry items like a real user would"""
         pantry_items = [
-            {"ingredient_id": "chicken-breast", "quantity": 2.0, "expiration_date": "2024-12-31"},
-            {"ingredient_id": "ground-beef", "quantity": 1.5, "expiration_date": "2024-12-28"},
-            {"ingredient_id": "pasta", "quantity": 3.0, "expiration_date": "2025-06-01"},
-            {"ingredient_id": "white-rice", "quantity": 5.0, "expiration_date": "2025-12-31"},
-            {"ingredient_id": "broccoli", "quantity": 2.0, "expiration_date": "2024-12-25"},
-            {"ingredient_id": "olive-oil", "quantity": 1.0, "expiration_date": "2025-03-01"},
-            {"ingredient_id": "garlic", "quantity": 10.0, "expiration_date": "2025-01-15"}
+            {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-31"},
+            {"ingredient_id": test_ingredient_ids['rice'], "quantity": 5.0, "expiration_date": "2025-12-31"},
+            {"ingredient_id": test_ingredient_ids['broccoli'], "quantity": 2.0, "expiration_date": "2024-12-25"}
         ]
         
         print(f"\n🥫 Adding {len(pantry_items)} pantry items...")
@@ -188,16 +184,17 @@ class TestPantryManagement:
         print(f"✅ All pantry items verified successfully")
     
     
-    def test_pantry_item_updates(self, auth_headers):
+    def test_pantry_item_updates(self, auth_headers, test_ingredient_ids):
         """Test updating pantry item quantities"""
         # Add initial item
-        item = {"ingredient_id": "milk", "quantity": 1.0, "expiration_date": "2024-12-30"}
+        chicken_id = test_ingredient_ids['chicken_breast']
+        item = {"ingredient_id": chicken_id, "quantity": 1.0, "expiration_date": "2024-12-30"}
         response = client.post("/api/v1/pantry", json=item, headers=auth_headers)
         assert response.status_code == 200
         
         # Update quantity
-        update_data = {"ingredient_id": "milk", "quantity": 2.5, "expiration_date": "2024-12-30"}
-        response = client.put("/api/v1/pantry/milk", json=update_data, headers=auth_headers)
+        update_data = {"ingredient_id": chicken_id, "quantity": 2.5, "expiration_date": "2024-12-30"}
+        response = client.put(f"/api/v1/pantry/{chicken_id}", json=update_data, headers=auth_headers)
         print(f"🥫 Update response: {response.status_code} - {response.text}")
         assert response.status_code == 200
         
