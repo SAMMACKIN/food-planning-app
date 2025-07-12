@@ -4,13 +4,15 @@ os.environ["TESTING"] = "true"
 if not os.environ.get("JWT_SECRET"):
     os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-not-production"
 
-# Use PostgreSQL for tests to match production environment
-if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
-    if not os.environ.get("DATABASE_URL"):
+# Use PostgreSQL for tests to match production environment  
+# This ensures consistency between local tests, CI, and production
+if not os.environ.get("DATABASE_URL"):
+    if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+        # CI environment - PostgreSQL service provided by GitHub Actions
         os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/food_planning_test"
-else:
-    # Local testing - use in-memory PostgreSQL-compatible database
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+    else:
+        # Local development testing - use local PostgreSQL
+        os.environ["DATABASE_URL"] = "postgresql://postgres:whbutb2012@localhost:5432/food_planning_test"
 
 os.environ["ENVIRONMENT"] = "test"
 
@@ -26,11 +28,11 @@ from app.db.database import Base
 from app.core.auth_service import AuthService
 from app.models import *  # Import all models to register them
 
-# Test ingredient IDs for consistent testing (using UUID objects for PostgreSQL)
+# Test ingredient IDs for consistent testing (using UUID strings for SQL compatibility)
 TEST_INGREDIENT_IDS = {
-    'chicken_breast': uuid.UUID('df914ffc-6377-405e-a397-d5a0171c3e40'),
-    'rice': uuid.UUID('a420e989-5c87-42fb-85eb-2117f548845b'), 
-    'broccoli': uuid.UUID('be300a0f-642d-4578-96e5-62d5afcb0f64')
+    'chicken_breast': 'df914ffc-6377-405e-a397-d5a0171c3e40',
+    'rice': 'a420e989-5c87-42fb-85eb-2117f548845b', 
+    'broccoli': 'be300a0f-642d-4578-96e5-62d5afcb0f64'
 }
 
 
@@ -43,10 +45,10 @@ def setup_test_environment():
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create and setup SQLite test database"""
+    """Create and setup PostgreSQL test database"""
     # Use the same DATABASE_URL that was set earlier
     test_db_url = os.environ.get("DATABASE_URL")
-    engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    engine = create_engine(test_db_url)
     
     try:
         # Drop all tables if they exist and recreate them
@@ -123,41 +125,9 @@ def test_ingredient_ids():
 @pytest.fixture
 def client(test_db):
     """Create a test client with test database"""
-    # Override the database service to use test database
-    from app.core.database_service import db_service
-    from app.db.database import get_db
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    
-    # Create test engine and session
-    test_engine = create_engine(test_db, connect_args={"check_same_thread": False})
-    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    
-    # Override the database service
-    original_engine = db_service.engine
-    original_session = db_service.SessionLocal
-    
-    db_service.engine = test_engine
-    db_service.SessionLocal = TestSession
-    
-    # Override get_db dependency
-    def override_get_db():
-        session = TestSession()
-        try:
-            yield session
-        finally:
-            session.close()
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    try:
-        yield TestClient(app)
-    finally:
-        # Restore original database service
-        db_service.engine = original_engine
-        db_service.SessionLocal = original_session
-        # Clear dependency overrides
-        app.dependency_overrides.clear()
+    # Since we're using the same PostgreSQL setup as configured in DATABASE_URL,
+    # the application will automatically use the test database
+    yield TestClient(app)
 
 
 @pytest.fixture

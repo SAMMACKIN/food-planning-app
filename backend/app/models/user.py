@@ -29,3 +29,4 @@ class User(Base):
     recommendation_history = relationship("RecommendationHistory", back_populates="user", cascade="all, delete-orphan")
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
     recipe_ratings = relationship("RecipeRating", back_populates="user", cascade="all, delete-orphan")
+    recipes_v2 = relationship("RecipeV2", back_populates="user", cascade="all, delete-orphan")
