@@ -96,6 +96,9 @@ class TestRecommendationsEndpoints:
         assert "provider" in data
         assert data["provider"] == "groq"
         
+        # Should either work, be unavailable, have no results, or error with test keys
+        assert data["status"] in ["AI_WORKING", "PROVIDER_UNAVAILABLE", "NO_RESULTS", "ERROR"]
+        
     def test_recommendations_test_endpoint_perplexity(self, client):
         """Test the /recommendations/test endpoint with Perplexity"""
         response = client.get("/api/v1/recommendations/test?provider=perplexity")
@@ -105,6 +108,9 @@ class TestRecommendationsEndpoints:
         assert "status" in data
         assert "provider" in data
         assert data["provider"] == "perplexity"
+        
+        # Should either work, be unavailable, have no results, or error with test keys
+        assert data["status"] in ["AI_WORKING", "PROVIDER_UNAVAILABLE", "NO_RESULTS", "ERROR"]
         
     def test_recommendations_test_endpoint_invalid_provider(self, client):
         """Test the /recommendations/test endpoint with invalid provider"""

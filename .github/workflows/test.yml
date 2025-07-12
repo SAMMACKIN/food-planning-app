@@ -69,6 +69,11 @@ jobs:
         python -m pytest tests/ -v --cov=app --cov-report=xml
       env:
         DATABASE_URL: postgresql://test:test@localhost:5432/food_planning_test
+        ANTHROPIC_API_KEY: test-claude-api-key-for-testing
+        PERPLEXITY_API_KEY: test-perplexity-api-key-for-testing
+        GROQ_API_KEY: test-groq-api-key-for-testing
+        JWT_SECRET: test-jwt-secret-for-github-actions
+        TESTING: "true"
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -167,6 +172,11 @@ jobs:
       env:
         DATABASE_URL: postgresql://test:test@localhost:5432/food_planning_e2e
         PORT: 8000
+        ANTHROPIC_API_KEY: test-claude-api-key-for-testing
+        PERPLEXITY_API_KEY: test-perplexity-api-key-for-testing
+        GROQ_API_KEY: test-groq-api-key-for-testing
+        JWT_SECRET: test-jwt-secret-for-github-actions
+        TESTING: "true"
     
     - name: Wait for backend to be ready
       run: |
