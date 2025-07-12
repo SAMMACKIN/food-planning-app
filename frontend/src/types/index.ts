@@ -227,6 +227,33 @@ export interface RecipeCreate {
   source?: string;
 }
 
+export interface RecipeRating {
+  id: string;
+  recipe_id: string;
+  user_id: string;
+  rating: number;
+  review_text?: string;
+  would_make_again: boolean;
+  cooking_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeRatingCreate {
+  recipe_id: string;
+  rating: number;
+  review_text?: string;
+  would_make_again?: boolean;
+  cooking_notes?: string;
+}
+
+export interface RecipeRatingUpdate {
+  rating?: number;
+  review_text?: string;
+  would_make_again?: boolean;
+  cooking_notes?: string;
+}
+
 export interface ShoppingListItem {
   ingredient: Ingredient;
   quantity: number;
