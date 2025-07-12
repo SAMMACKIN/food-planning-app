@@ -28,6 +28,14 @@ if not os.environ.get("DATABASE_URL"):
 
 os.environ["ENVIRONMENT"] = "test"
 
+# Set up AI provider keys for testing
+if not os.environ.get("ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = "test-claude-api-key-for-testing"
+if not os.environ.get("PERPLEXITY_API_KEY"):
+    os.environ["PERPLEXITY_API_KEY"] = "test-perplexity-api-key-for-testing"
+if not os.environ.get("GROQ_API_KEY"):
+    os.environ["GROQ_API_KEY"] = "test-groq-api-key-for-testing"
+
 import pytest
 import uuid
 from fastapi.testclient import TestClient
