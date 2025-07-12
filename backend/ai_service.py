@@ -300,7 +300,7 @@ class AIService:
                 logger.info(f"Prompt length: {len(prompt)} characters")
                 
                 request_data = {
-                    "model": "llama-3.1-sonar-small-128k-online",
+                    "model": "llama-3.1-sonar-small-128k-chat",
                     "messages": [
                         {"role": "user", "content": prompt}
                     ],
