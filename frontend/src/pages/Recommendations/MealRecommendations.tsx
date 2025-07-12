@@ -24,9 +24,6 @@ import {
   Select,
   MenuItem,
   TextField,
-  Rating,
-  Checkbox,
-  FormControlLabel,
   Snackbar,
 } from '@mui/material';
 import {
@@ -40,7 +37,6 @@ import {
   AutoAwesome,
   Settings,
   Save,
-  Star,
   CalendarToday,
 } from '@mui/icons-material';
 import { MealRecommendation } from '../../types';
@@ -65,18 +61,12 @@ const MealRecommendations: React.FC = () => {
   const {
     saveRecommendationAsRecipe,
     addRecommendationToMealPlan,
-    rateRecipe,
     error: recipeError,
     clearError: clearRecipeError
   } = useRecipes();
 
   const [selectedMeal, setSelectedMeal] = useState<MealRecommendation | null>(null);
-  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [mealPlanDialogOpen, setMealPlanDialogOpen] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [reviewText, setReviewText] = useState('');
-  const [wouldMakeAgain, setWouldMakeAgain] = useState(true);
-  const [cookingNotes, setCookingNotes] = useState('');
   const [mealDate, setMealDate] = useState('');
   const [mealType, setMealType] = useState('dinner');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -119,37 +109,9 @@ const MealRecommendations: React.FC = () => {
     }
   };
 
-  const handleOpenRatingDialog = (meal: MealRecommendation) => {
-    setSelectedMeal(meal);
-    // Reset form
-    setRating(5);
-    setReviewText('');
-    setWouldMakeAgain(true);
-    setCookingNotes('');
-    setRatingDialogOpen(true);
-  };
+  // Rating dialog functionality removed
 
-  const handleRateRecipe = async () => {
-    if (!selectedMeal) return;
-
-    // First save the recipe if not already saved
-    const savedRecipe = await saveRecommendationAsRecipe(selectedMeal);
-    if (!savedRecipe) return;
-
-    const result = await rateRecipe({
-      recipe_id: savedRecipe.id,
-      rating,
-      review_text: reviewText || undefined,
-      would_make_again: wouldMakeAgain,
-      cooking_notes: cookingNotes || undefined
-    });
-
-    if (result) {
-      setSnackbarMessage(`Rating submitted for "${selectedMeal.name}"!`);
-      setSnackbarOpen(true);
-      setRatingDialogOpen(false);
-    }
-  };
+  // Rating functionality temporarily removed (RecipeV2 doesn't support ratings yet)
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
@@ -498,15 +460,7 @@ const MealRecommendations: React.FC = () => {
                     >
                       Save
                     </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Star />}
-                      onClick={() => handleOpenRatingDialog(meal)}
-                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
-                    >
-                      Rate
-                    </Button>
+                    {/* Rate button removed (RecipeV2 doesn't support ratings yet) */}
                   </Box>
                   <Box display="flex" gap={0.5}>
                     <Button
@@ -661,12 +615,7 @@ const MealRecommendations: React.FC = () => {
               >
                 Save Recipe
               </Button>
-              <Button 
-                startIcon={<Star />}
-                onClick={() => selectedMeal && handleOpenRatingDialog(selectedMeal)}
-              >
-                Rate Recipe
-              </Button>
+              {/* Rating button removed (RecipeV2 doesn't support ratings yet) */}
               <Button 
                 variant="contained" 
                 startIcon={<CalendarToday />}
@@ -679,65 +628,7 @@ const MealRecommendations: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Rating Dialog */}
-      <Dialog open={ratingDialogOpen} onClose={() => setRatingDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Rate Recipe: {selectedMeal?.name}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography component="legend">Overall Rating</Typography>
-            <Rating
-              name="recipe-rating"
-              value={rating}
-              onChange={(_, newValue) => setRating(newValue || 5)}
-              size="large"
-            />
-          </Box>
-          
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Review (optional)"
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            value={reviewText}
-            onChange={(e) => setReviewText(e.target.value)}
-            placeholder="How was this recipe? Any tips or modifications?"
-            sx={{ mt: 2 }}
-          />
-          
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={wouldMakeAgain}
-                onChange={(e) => setWouldMakeAgain(e.target.checked)}
-              />
-            }
-            label="Would make this recipe again"
-            sx={{ mt: 2 }}
-          />
-          
-          <TextField
-            margin="dense"
-            label="Cooking Notes (optional)"
-            fullWidth
-            multiline
-            rows={2}
-            variant="outlined"
-            value={cookingNotes}
-            onChange={(e) => setCookingNotes(e.target.value)}
-            placeholder="Any notes about preparation, substitutions, etc."
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRatingDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleRateRecipe} variant="contained">
-            Submit Rating
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Rating dialog removed (RecipeV2 doesn't support ratings yet) */}
 
       {/* Meal Plan Dialog */}
       <Dialog open={mealPlanDialogOpen} onClose={() => setMealPlanDialogOpen(false)} maxWidth="sm" fullWidth>

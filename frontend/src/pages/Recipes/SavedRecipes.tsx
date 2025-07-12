@@ -25,7 +25,6 @@ import {
   Timer,
   People,
   Delete,
-  Star,
   MoreVert,
   CalendarToday,
   Refresh,
@@ -234,11 +233,7 @@ const SavedRecipes: React.FC = () => {
                     </Box>
                   )}
 
-                  {recipe.times_cooked > 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Cooked {recipe.times_cooked} time{recipe.times_cooked !== 1 ? 's' : ''}
-                    </Typography>
-                  )}
+                  {/* Cooking statistics removed (not available in RecipeV2) */}
 
                   <Button
                     variant="contained"
