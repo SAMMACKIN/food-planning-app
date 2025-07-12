@@ -45,7 +45,14 @@ def save_recipe(
         user_uuid = uuid.UUID(current_user["id"])
         
         # Convert ingredients_needed to JSON-serializable format
-        ingredients_data = [ingredient.dict() for ingredient in recipe_data.ingredients_needed]
+        ingredients_data = []
+        for ingredient in recipe_data.ingredients_needed:
+            if hasattr(ingredient, 'dict'):
+                # It's a Pydantic model
+                ingredients_data.append(ingredient.dict())
+            else:
+                # It's already a dict (from our validator)
+                ingredients_data.append(ingredient)
         
         # Create recipe
         recipe = RecipeV2(
@@ -258,7 +265,15 @@ def update_recipe(
         for field, value in update_data.items():
             if field == "ingredients_needed" and value is not None:
                 # Convert IngredientNeeded objects to dict format
-                value = [ingredient.dict() for ingredient in value]
+                converted_value = []
+                for ingredient in value:
+                    if hasattr(ingredient, 'dict'):
+                        # It's a Pydantic model
+                        converted_value.append(ingredient.dict())
+                    else:
+                        # It's already a dict (from our validator)
+                        converted_value.append(ingredient)
+                value = converted_value
             setattr(recipe, field, value)
         
         db.commit()
@@ -294,3 +309,35 @@ def update_recipe(
         db.rollback()
         logger.error(f"❌ Update recipe error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update recipe: {str(e)}")
+
+
+@router.get("/debug/health")
+def recipes_health_check(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Health check endpoint for recipes system"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        
+        # Check database connection and table
+        recipe_count = db.query(RecipeV2).filter(RecipeV2.user_id == user_uuid).count()
+        
+        return {
+            "status": "healthy",
+            "service": "recipes_v2",
+            "user_id": str(user_uuid),
+            "user_recipe_count": recipe_count,
+            "database_connected": True,
+            "table_accessible": True
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Recipes health check error: {e}")
+        return {
+            "status": "unhealthy",
+            "service": "recipes_v2", 
+            "error": str(e),
+            "database_connected": False,
+            "table_accessible": False
+        }

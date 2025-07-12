@@ -1,8 +1,8 @@
 """
-RecipeV2 Pydantic schemas - compatible with frontend
+RecipeV2 Pydantic schemas - compatible with frontend and tests
 """
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List, Optional, Union
+from pydantic import BaseModel, field_validator
 
 
 class IngredientNeeded(BaseModel):
@@ -20,7 +20,7 @@ class RecipeV2Create(BaseModel):
     prep_time: int  # minutes
     difficulty: str  # Easy, Medium, Hard
     servings: int
-    ingredients_needed: List[IngredientNeeded]  # Match frontend field name
+    ingredients_needed: Union[List[IngredientNeeded], List[str]]  # Support both formats
     instructions: List[str]
     tags: List[str] = []
     nutrition_notes: str
@@ -28,6 +28,31 @@ class RecipeV2Create(BaseModel):
     ai_generated: Optional[bool] = False
     ai_provider: Optional[str] = None
     source: Optional[str] = "user_created"
+    
+    @field_validator('ingredients_needed')
+    @classmethod
+    def convert_ingredients(cls, v):
+        """Convert string ingredients to IngredientNeeded objects if needed"""
+        if not v:
+            return []
+        
+        # If it's already a list of IngredientNeeded objects, return as is
+        if all(isinstance(item, dict) and 'name' in item for item in v):
+            return v
+        
+        # If it's a list of strings, convert to IngredientNeeded format
+        if all(isinstance(item, str) for item in v):
+            return [
+                {
+                    "name": ingredient,
+                    "quantity": "1",
+                    "unit": "unit",
+                    "have_in_pantry": False
+                }
+                for ingredient in v
+            ]
+        
+        return v
 
 
 class RecipeV2Update(BaseModel):
@@ -37,11 +62,36 @@ class RecipeV2Update(BaseModel):
     prep_time: Optional[int] = None
     difficulty: Optional[str] = None
     servings: Optional[int] = None
-    ingredients_needed: Optional[List[IngredientNeeded]] = None
+    ingredients_needed: Optional[Union[List[IngredientNeeded], List[str]]] = None
     instructions: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     nutrition_notes: Optional[str] = None
     pantry_usage_score: Optional[int] = None
+    
+    @field_validator('ingredients_needed')
+    @classmethod
+    def convert_ingredients(cls, v):
+        """Convert string ingredients to IngredientNeeded objects if needed"""
+        if not v:
+            return []
+        
+        # If it's already a list of IngredientNeeded objects, return as is
+        if all(isinstance(item, dict) and 'name' in item for item in v):
+            return v
+        
+        # If it's a list of strings, convert to IngredientNeeded format
+        if all(isinstance(item, str) for item in v):
+            return [
+                {
+                    "name": ingredient,
+                    "quantity": "1",
+                    "unit": "unit",
+                    "have_in_pantry": False
+                }
+                for ingredient in v
+            ]
+        
+        return v
 
 
 class RecipeV2Response(BaseModel):
