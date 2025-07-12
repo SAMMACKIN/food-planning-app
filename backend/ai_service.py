@@ -15,7 +15,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-AIProvider = Literal["claude", "groq", "perplexity"]
+AIProvider = Literal["claude", "groq", "perplexity", "all"]
 
 class AIService:
     def __init__(self):
@@ -76,36 +76,141 @@ class AIService:
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]] = None,
         num_recommendations: int = 5,
-        provider: AIProvider = "perplexity",
+        provider: AIProvider = "all",  # Changed default to "all"
         liked_recipes: Optional[List[Dict[str, Any]]] = None,
         disliked_recipes: Optional[List[Dict[str, Any]]] = None,
         recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Get AI-powered meal recommendations from specified provider
+        Get AI-powered meal recommendations from specified provider or all providers in parallel
         """
         logger.info(f"🤖 AI SERVICE CALLED - Provider: {provider}")
         logger.info(f"🔄 Requesting {num_recommendations} recommendations")
         
+        if provider == "all":
+            return await self._get_recommendations_from_all_providers(
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+            )
+        else:
+            # Single provider mode (legacy)
+            try:
+                if provider == "groq" and self.groq_client:
+                    return await self._get_groq_recommendations(
+                        family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                    )
+                elif provider == "claude" and self.claude_client:
+                    return await self._get_claude_recommendations(
+                        family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                    )
+                elif provider == "perplexity" and self.perplexity_key:
+                    return await self._get_perplexity_recommendations(
+                        family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+                    )
+                else:
+                    logger.error(f"Provider {provider} not available or not configured")
+                    raise Exception(f"AI provider '{provider}' is not available")
+            except Exception as e:
+                logger.error(f"Failed to get recommendations from {provider}: {str(e)}")
+                raise
+    
+    async def _get_recommendations_from_all_providers(
+        self,
+        family_members: List[Dict[str, Any]],
+        pantry_items: List[Dict[str, Any]],
+        preferences: Optional[Dict[str, Any]],
+        num_recommendations: int,
+        liked_recipes: Optional[List[Dict[str, Any]]] = None,
+        disliked_recipes: Optional[List[Dict[str, Any]]] = None,
+        recent_recipes: Optional[List[Dict[str, Any]]] = None
+    ) -> List[Dict[str, Any]]:
+        """Get recommendations from all available providers in parallel"""
+        import asyncio
+        
+        logger.info("🚀 Getting recommendations from ALL providers in parallel")
+        
+        # Prepare tasks for all available providers
+        tasks = []
+        providers = []
+        
+        if self.perplexity_key:
+            tasks.append(self._get_perplexity_recommendations(
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+            ))
+            providers.append("perplexity")
+            
+        if self.claude_client:
+            tasks.append(self._get_claude_recommendations(
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+            ))
+            providers.append("claude")
+            
+        if self.groq_client:
+            tasks.append(self._get_groq_recommendations(
+                family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
+            ))
+            providers.append("groq")
+        
+        if not tasks:
+            raise Exception("No AI providers are available")
+        
+        logger.info(f"🔄 Starting parallel requests to {len(tasks)} providers: {providers}")
+        
+        # Run all requests in parallel with timeout
         try:
-            if provider == "groq" and self.groq_client:
-                return await self._get_groq_recommendations(
-                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-                )
-            elif provider == "claude" and self.claude_client:
-                return await self._get_claude_recommendations(
-                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-                )
-            elif provider == "perplexity" and self.perplexity_key:
-                return await self._get_perplexity_recommendations(
-                    family_members, pantry_items, preferences, num_recommendations, liked_recipes, disliked_recipes, recent_recipes
-                )
-            else:
-                logger.error(f"Provider {provider} not available or not configured")
-                raise Exception(f"AI provider '{provider}' is not available")
+            results = await asyncio.gather(*tasks, return_exceptions=True)
         except Exception as e:
-            logger.error(f"Failed to get recommendations from {provider}: {str(e)}")
-            raise  # Re-raise to allow fallback logic in recommendations.py
+            logger.error(f"Error in parallel provider requests: {e}")
+            results = [e] * len(tasks)
+        
+        # Collect successful results
+        all_recommendations = []
+        successful_providers = []
+        
+        for i, result in enumerate(results):
+            provider_name = providers[i]
+            if isinstance(result, Exception):
+                logger.warning(f"Provider {provider_name} failed: {str(result)}")
+            else:
+                logger.info(f"✅ Provider {provider_name} returned {len(result)} recommendations")
+                all_recommendations.extend(result)
+                successful_providers.append(provider_name)
+        
+        if not all_recommendations:
+            raise Exception(f"All providers failed. Attempted: {providers}")
+        
+        logger.info(f"🎉 Combined results: {len(all_recommendations)} recommendations from {successful_providers}")
+        
+        # Return up to the requested number, ensuring variety from different providers
+        return self._balance_recommendations_by_provider(all_recommendations, num_recommendations)
+
+    def _balance_recommendations_by_provider(self, recommendations: List[Dict[str, Any]], target_count: int) -> List[Dict[str, Any]]:
+        """Balance recommendations to get variety from different providers"""
+        if len(recommendations) <= target_count:
+            return recommendations
+        
+        # Group by provider
+        by_provider = {}
+        for rec in recommendations:
+            provider = rec.get('ai_provider', 'unknown')
+            if provider not in by_provider:
+                by_provider[provider] = []
+            by_provider[provider].append(rec)
+        
+        # Round-robin selection to ensure variety
+        balanced = []
+        provider_list = list(by_provider.keys())
+        indices = {provider: 0 for provider in provider_list}
+        
+        while len(balanced) < target_count and any(indices[p] < len(by_provider[p]) for p in provider_list):
+            for provider in provider_list:
+                if len(balanced) >= target_count:
+                    break
+                if indices[provider] < len(by_provider[provider]):
+                    balanced.append(by_provider[provider][indices[provider]])
+                    indices[provider] += 1
+        
+        logger.info(f"🎯 Balanced selection: {len(balanced)} recipes from {len(by_provider)} providers")
+        return balanced
 
     async def _get_claude_recommendations(
         self,
