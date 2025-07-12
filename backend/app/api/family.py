@@ -78,7 +78,7 @@ async def get_family_members(current_user: dict = Depends(get_current_user_depen
                 user_id=str(member.user_id),
                 name=member.name,
                 age=member.age,
-                dietary_restrictions=getattr(member, 'dietary_restrictions', []) or [],
+                dietary_restrictions=[],  # Empty for now, will add later with migration
                 preferences=member.preferences or {},
                 created_at=member.created_at.isoformat()
             )
@@ -94,23 +94,14 @@ async def create_family_member(
     """Create a new family member"""
     with get_db_session() as session:
         # Create new family member using SQLAlchemy model
-        # Handle dietary_restrictions field gracefully for backward compatibility
-        member_kwargs = {
-            'id': uuid.uuid4(),
-            'user_id': current_user["id"],  # Use 'id' instead of 'sub'
-            'name': member_data.name,
-            'age': member_data.age,
-            'preferences': member_data.preferences or {}
-        }
-        
-        # Only set dietary_restrictions if the column exists in the database
-        try:
-            if hasattr(member_data, 'dietary_restrictions') and member_data.dietary_restrictions is not None:
-                member_kwargs['dietary_restrictions'] = member_data.dietary_restrictions
-        except Exception:
-            pass  # Column doesn't exist yet, skip it
-            
-        new_member = FamilyMember(**member_kwargs)
+        new_member = FamilyMember(
+            id=uuid.uuid4(),
+            user_id=current_user["id"],  # Use 'id' instead of 'sub'
+            name=member_data.name,
+            age=member_data.age,
+            preferences=member_data.preferences or {}
+            # dietary_restrictions will be added later with proper migration
+        )
         
         session.add(new_member)
         session.commit()
@@ -121,7 +112,7 @@ async def create_family_member(
             user_id=str(new_member.user_id),
             name=new_member.name,
             age=new_member.age,
-            dietary_restrictions=getattr(new_member, 'dietary_restrictions', []) or [],
+            dietary_restrictions=[],  # Empty for now, will add later with migration
             preferences=new_member.preferences or {},
             created_at=new_member.created_at.isoformat()
         )
@@ -156,13 +147,7 @@ async def update_family_member(
         if member_data.age is not None:
             existing_member.age = member_data.age
             
-        # Only update dietary_restrictions if the column exists
-        if member_data.dietary_restrictions is not None:
-            try:
-                if hasattr(existing_member, 'dietary_restrictions'):
-                    existing_member.dietary_restrictions = member_data.dietary_restrictions
-            except Exception:
-                pass  # Column doesn't exist yet, skip it
+        # dietary_restrictions will be handled later with proper migration
         
         if member_data.preferences is not None:
             existing_member.preferences = member_data.preferences
@@ -175,7 +160,7 @@ async def update_family_member(
             user_id=str(existing_member.user_id),
             name=existing_member.name,
             age=existing_member.age,
-            dietary_restrictions=getattr(existing_member, 'dietary_restrictions', []) or [],
+            dietary_restrictions=[],  # Empty for now, will add later with migration
             preferences=existing_member.preferences or {},
             created_at=existing_member.created_at.isoformat()
         )
