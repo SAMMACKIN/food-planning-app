@@ -132,7 +132,9 @@ async def update_family_member(
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and existing_member.user_id != current_user["id"]:
+        # Convert current_user["id"] to UUID for comparison
+        current_user_uuid = uuid.UUID(current_user["id"])
+        if not current_user.get("is_admin", False) and existing_member.user_id != current_user_uuid:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Update fields that were provided
@@ -174,7 +176,9 @@ async def delete_family_member(
             raise HTTPException(status_code=404, detail="Family member not found")
         
         # Check ownership (unless admin)
-        if not current_user.get("is_admin", False) and family_member.user_id != current_user["id"]:
+        # Convert current_user["id"] to UUID for comparison
+        current_user_uuid = uuid.UUID(current_user["id"])
+        if not current_user.get("is_admin", False) and family_member.user_id != current_user_uuid:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Delete the family member

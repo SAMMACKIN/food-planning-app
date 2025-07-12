@@ -2,6 +2,7 @@
 Pantry and ingredient management API endpoints
 """
 import json
+import uuid
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Depends, Query
 
@@ -69,8 +70,10 @@ def get_current_user(authorization: str = None):
 async def get_pantry_items(current_user: dict = Depends(get_current_user_dependency)):
     """Get all pantry items for the authenticated user"""
     with get_db_session() as session:
+        # Convert user_id to UUID for comparison
+        user_uuid = uuid.UUID(current_user["id"])
         pantry_items = session.query(PantryItem).join(Ingredient).filter(
-            PantryItem.user_id == current_user["id"]
+            PantryItem.user_id == user_uuid
         ).all()
         
         result = []
@@ -113,9 +116,10 @@ async def add_pantry_item(
         if not ingredient:
             raise HTTPException(status_code=404, detail="Ingredient not found")
         
-        # Check if pantry item already exists
+        # Check if pantry item already exists - convert user_id to UUID for comparison
+        user_uuid = uuid.UUID(current_user["id"])
         existing_item = session.query(PantryItem).filter(
-            PantryItem.user_id == current_user["id"],
+            PantryItem.user_id == user_uuid,
             PantryItem.ingredient_id == pantry_data.ingredient_id
         ).first()
         
@@ -127,9 +131,9 @@ async def add_pantry_item(
             session.refresh(existing_item)
             pantry_item = existing_item
         else:
-            # Create new pantry item
+            # Create new pantry item - use UUID for user_id
             pantry_item = PantryItem(
-                user_id=current_user["id"],
+                user_id=user_uuid,
                 ingredient_id=pantry_data.ingredient_id,
                 quantity=pantry_data.quantity,
                 expiration_date=pantry_data.expiration_date
@@ -167,9 +171,10 @@ async def update_pantry_item(
 ):
     """Update an existing pantry item"""
     with get_db_session() as session:
-        # Find the pantry item
+        # Find the pantry item - convert user_id to UUID for comparison
+        user_uuid = uuid.UUID(current_user["id"])
         pantry_item = session.query(PantryItem).filter(
-            PantryItem.user_id == current_user["id"],
+            PantryItem.user_id == user_uuid,
             PantryItem.ingredient_id == ingredient_id
         ).first()
         
@@ -218,9 +223,10 @@ async def remove_pantry_item(
 ):
     """Remove a pantry item"""
     with get_db_session() as session:
-        # Find the pantry item
+        # Find the pantry item - convert user_id to UUID for comparison
+        user_uuid = uuid.UUID(current_user["id"])
         pantry_item = session.query(PantryItem).filter(
-            PantryItem.user_id == current_user["id"],
+            PantryItem.user_id == user_uuid,
             PantryItem.ingredient_id == ingredient_id
         ).first()
         
