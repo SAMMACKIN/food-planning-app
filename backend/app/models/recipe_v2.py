@@ -28,9 +28,9 @@ class RecipeV2(Base):
     servings = Column(Integer, nullable=False)
     
     # JSON fields - match frontend structure
-    ingredients_needed = Column(JSON, nullable=False, default=list)  # Array of {name, quantity, unit, have_in_pantry}
-    instructions = Column(JSON, nullable=False, default=list)
-    tags = Column(JSON, nullable=False, default=list)
+    ingredients_needed = Column(JSON, nullable=True, default=list)  # Array of {name, quantity, unit, have_in_pantry}
+    instructions = Column(JSON, nullable=True, default=list)
+    tags = Column(JSON, nullable=True, default=list)
     
     # Optional metadata
     nutrition_notes = Column(Text, default="")

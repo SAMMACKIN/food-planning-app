@@ -27,6 +27,16 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("✅ Database initialization complete")
     
+    # Ensure RecipeV2 table exists with correct schema
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__ + "/../")))
+        from ensure_recipes_v2 import ensure_recipes_v2_table
+        ensure_recipes_v2_table()
+    except Exception as e:
+        logger.warning(f"⚠️ RecipeV2 table check failed: {e}")
+    
     logger.info("✅ Application startup complete")
     
     yield
