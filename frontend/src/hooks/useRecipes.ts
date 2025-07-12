@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
-import { SavedRecipe, SavedRecipeCreate, RecipeRating, RecipeRatingCreate, MealRecommendation } from '../types';
+import { Recipe, RecipeCreate, MealRecommendation } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 export const useRecipes = () => {
   const { isAuthenticated } = useAuthStore();
-  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+  const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +20,7 @@ export const useRecipes = () => {
       if (tags) params.append('tags', tags);
       
       const endpoint = `/recipes${params.toString() ? `?${params.toString()}` : ''}`;
-      const recipes = await apiRequest<SavedRecipe[]>('GET', endpoint);
+      const recipes = await apiRequest<Recipe[]>('GET', endpoint);
       setSavedRecipes(recipes);
     } catch (error: any) {
       console.error('Error fetching saved recipes:', error);
@@ -30,7 +30,7 @@ export const useRecipes = () => {
     }
   }, []);
 
-  const saveRecipe = useCallback(async (recipeData: SavedRecipeCreate): Promise<SavedRecipe | null> => {
+  const saveRecipe = useCallback(async (recipeData: RecipeCreate): Promise<Recipe | null> => {
     try {
       setError(null);
       console.log('🍽️ Saving recipe:', recipeData.name);
@@ -47,7 +47,7 @@ export const useRecipes = () => {
       
       console.log('🔑 Token exists, length:', token.length);
       
-      const savedRecipe = await apiRequest<SavedRecipe>('POST', '/recipes', recipeData);
+      const savedRecipe = await apiRequest<Recipe>('POST', '/recipes', recipeData);
       console.log('✅ Recipe saved successfully:', savedRecipe);
       
       // Add to local state
@@ -86,7 +86,7 @@ export const useRecipes = () => {
     }
   }, []);
 
-  const saveRecommendationAsRecipe = useCallback(async (recommendation: MealRecommendation): Promise<SavedRecipe | null> => {
+  const saveRecommendationAsRecipe = useCallback(async (recommendation: MealRecommendation): Promise<Recipe | null> => {
     // Check if we already have this recipe saved to avoid duplicates
     const existingRecipe = savedRecipes.find(recipe => 
       recipe.name === recommendation.name && 
@@ -99,7 +99,7 @@ export const useRecipes = () => {
       return existingRecipe;
     }
 
-    const recipeData: SavedRecipeCreate = {
+    const recipeData: RecipeCreate = {
       name: recommendation.name,
       description: recommendation.description,
       prep_time: recommendation.prep_time,
@@ -134,66 +134,8 @@ export const useRecipes = () => {
     }
   }, []);
 
-  const rateRecipe = useCallback(async (ratingData: RecipeRatingCreate): Promise<RecipeRating | null> => {
-    try {
-      setError(null);
-      console.log('⭐ Rating recipe:', ratingData.recipe_id, 'with', ratingData.rating, 'stars');
-      console.log('📋 Rating data:', ratingData);
-      
-      // Check authentication before attempting rating
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        const errorMsg = 'No authentication token found. Please log in again.';
-        console.error('❌', errorMsg);
-        setError(errorMsg);
-        return null;
-      }
-      
-      const rating = await apiRequest<RecipeRating>('POST', `/recipes/${ratingData.recipe_id}/ratings`, ratingData);
-      console.log('✅ Recipe rated successfully:', rating);
-      
-      // Update local recipe state with new average rating (approximation)
-      setSavedRecipes(prev => prev.map(recipe => {
-        if (recipe.id === ratingData.recipe_id) {
-          return {
-            ...recipe,
-            times_cooked: recipe.times_cooked + 1,
-            last_cooked: new Date().toISOString()
-          };
-        }
-        return recipe;
-      }));
-      
-      return rating;
-    } catch (error: any) {
-      console.error('❌ Error rating recipe:', error);
-      console.error('❌ Rating error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        recipeId: ratingData.recipe_id
-      });
-      
-      let errorMessage = 'Failed to rate recipe';
-      if (error.response?.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Recipe not found. It may have been deleted.';
-      } else if (error.response?.status === 422) {
-        errorMessage = 'Invalid rating data. Please check your rating.';
-      } else if (error.response?.status === 500) {
-        errorMessage = 'Server error. Please try again later.';
-      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
-        errorMessage = 'Cannot connect to server. Please check if the backend is running.';
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      }
-      
-      setError(errorMessage);
-      return null;
-    }
-  }, []);
+  // Recipe rating functionality temporarily removed (no ratings in RecipeV2)
+  // Can be re-added when rating system is implemented for RecipeV2
 
   const addRecipeToMealPlan = useCallback(async (
     recipeId: string, 
@@ -277,7 +219,6 @@ export const useRecipes = () => {
     saveRecipe,
     saveRecommendationAsRecipe,
     deleteRecipe,
-    rateRecipe,
     addRecipeToMealPlan,
     addRecommendationToMealPlan,
     clearError: () => setError(null)

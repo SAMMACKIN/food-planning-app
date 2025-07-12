@@ -17,39 +17,29 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 def create_performance_indexes():
-    """Create performance indexes for recipes table"""
+    """Create performance indexes for RecipeV2 table"""
     
     indexes = [
-        # Critical performance indexes
+        # Critical performance indexes for RecipeV2
         {
-            'name': 'idx_saved_recipes_user_id',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_saved_recipes_user_id ON saved_recipes(user_id);',
+            'name': 'idx_recipes_v2_user_id',
+            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipes_v2_user_id ON recipes_v2(user_id);',
             'description': 'Primary user_id index for fast recipe lookups'
         },
         {
-            'name': 'idx_saved_recipes_user_updated',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_saved_recipes_user_updated ON saved_recipes(user_id, updated_at DESC);',
+            'name': 'idx_recipes_v2_user_updated',
+            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipes_v2_user_updated ON recipes_v2(user_id, updated_at DESC);',
             'description': 'Compound index for user_id + ordering'
-        },
-        {
-            'name': 'idx_recipe_ratings_recipe_id',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipe_ratings_recipe_id ON recipe_ratings(recipe_id);',
-            'description': 'Recipe ratings foreign key index'
-        },
-        {
-            'name': 'idx_recipe_ratings_user_id',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipe_ratings_user_id ON recipe_ratings(user_id);',
-            'description': 'Recipe ratings user foreign key index'
         },
         # Search performance indexes
         {
-            'name': 'idx_saved_recipes_name',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_saved_recipes_name ON saved_recipes(name);',
+            'name': 'idx_recipes_v2_name',
+            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipes_v2_name ON recipes_v2(name);',
             'description': 'Recipe name search index'
         },
         {
-            'name': 'idx_saved_recipes_difficulty',
-            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_saved_recipes_difficulty ON saved_recipes(difficulty);',
+            'name': 'idx_recipes_v2_difficulty',
+            'query': 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recipes_v2_difficulty ON recipes_v2(difficulty);',
             'description': 'Recipe difficulty filter index'
         }
     ]
