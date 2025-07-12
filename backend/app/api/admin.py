@@ -193,7 +193,7 @@ async def get_admin_stats(authorization: str = Header(None)):
             try:
                 result = session.execute(text("""
                     SELECT COUNT(*) FROM users 
-                    WHERE is_admin = false AND created_at >= datetime('now', '-30 days')
+                    WHERE is_admin = false AND created_at >= NOW() - INTERVAL '30 days'
                 """))
                 stats['recent_registrations'] = result.fetchone()[0]
             except Exception as e:
@@ -316,12 +316,15 @@ async def get_all_pantry_items(authorization: str = Header(None)):
         with get_db_session() as session:
             result = session.execute(text('''
                 SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                       i.name as ingredient_name, i.category as ingredient_category, i.unit,
+                       i.name as ingredient_name, 
+                       CASE WHEN ic.name IS NOT NULL THEN ic.name ELSE 'Other' END as ingredient_category, 
+                       i.unit,
                        u.email as user_email, u.name as user_name
                 FROM pantry_items p
                 JOIN ingredients i ON p.ingredient_id = i.id
+                LEFT JOIN ingredient_categories ic ON i.category_id = ic.id
                 JOIN users u ON p.user_id = u.id
-                ORDER BY u.email, i.category, i.name
+                ORDER BY u.email, ic.name, i.name
             '''))
             pantry_items = result.fetchall()
             

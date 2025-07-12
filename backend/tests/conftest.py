@@ -7,7 +7,19 @@ if not os.environ.get("JWT_SECRET"):
 # Use PostgreSQL for tests to match production environment  
 # This ensures consistency between local tests, CI, and production
 if not os.environ.get("DATABASE_URL"):
-    if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
+    # Check if we're in Railway environment
+    is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
+    
+    if is_railway:
+        # Railway environment - use Railway PostgreSQL service
+        # Railway automatically provides DATABASE_URL, but if not available, use default
+        railway_db_url = os.getenv('DATABASE_URL')
+        if railway_db_url:
+            os.environ["DATABASE_URL"] = railway_db_url
+        else:
+            # Fallback for Railway if DATABASE_URL not set
+            os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@postgres:5432/railway"
+    elif os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true":
         # CI environment - PostgreSQL service provided by GitHub Actions
         os.environ["DATABASE_URL"] = "postgresql://test:test@localhost:5432/food_planning_test"
     else:
@@ -48,12 +60,31 @@ def test_db():
     """Create and setup PostgreSQL test database"""
     # Use the same DATABASE_URL that was set earlier
     test_db_url = os.environ.get("DATABASE_URL")
-    engine = create_engine(test_db_url)
+    
+    # Add connection args for Railway environment
+    is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
+    connect_args = {}
+    engine_kwargs = {}
+    
+    if is_railway:
+        # Railway PostgreSQL connection settings
+        engine_kwargs = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300
+        }
+    
+    engine = create_engine(test_db_url, connect_args=connect_args, **engine_kwargs)
     
     try:
+        # Test database connection first
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print(f"✅ Test database connection successful: {test_db_url}")
+        
         # Drop all tables if they exist and recreate them
         Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
+        print(f"✅ Test database tables created successfully")
         
         # Create session for initial data setup
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
