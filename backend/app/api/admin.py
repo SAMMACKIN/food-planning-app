@@ -2,6 +2,7 @@
 Admin-only API endpoints for user management and platform statistics
 """
 import json
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from ..core.auth_service import AuthService
 from ..core.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
 
 
 class PasswordResetRequest(BaseModel):
@@ -88,54 +90,70 @@ async def get_all_family_members(authorization: str = Header(None)):
     """Admin endpoint to view all family members across all users"""
     require_admin(authorization)
     
-    with get_db_session() as session:
-        result = session.execute(text('''
-            SELECT fm.id, fm.user_id, fm.name, fm.age, fm.dietary_restrictions, fm.preferences, fm.created_at,
-                   u.email as user_email, u.name as user_name
-            FROM family_members fm
-            JOIN users u ON fm.user_id = u.id
-            ORDER BY u.email, fm.name
-        '''))
-        family_members = result.fetchall()
-        
-        result = []
-        for member in family_members:
-            # Parse dietary_restrictions and preferences from JSON/eval
-            try:
-                dietary_restrictions = json.loads(member[4]) if member[4] else []
-            except (json.JSONDecodeError, TypeError):
+    try:
+        with get_db_session() as session:
+            result = session.execute(text('''
+                SELECT fm.id, fm.user_id, fm.name, fm.age, fm.dietary_restrictions, fm.preferences, fm.created_at,
+                       u.email as user_email, u.name as user_name
+                FROM family_members fm
+                JOIN users u ON fm.user_id = u.id
+                ORDER BY u.email, fm.name
+            '''))
+            family_members = result.fetchall()
+            
+            response_data = []
+            for member in family_members:
                 try:
-                    try:
-                        dietary_restrictions = json.loads(member[4]) if member[4] else []
-                    except (json.JSONDecodeError, TypeError):
-                        dietary_restrictions = []
-                except:
+                    # Parse dietary_restrictions with better error handling
                     dietary_restrictions = []
-            
-            try:
-                preferences = json.loads(member[5]) if member[5] else {}
-            except (json.JSONDecodeError, TypeError):
-                try:
-                    try:
-                        preferences = json.loads(member[5]) if member[5] else {}
-                    except (json.JSONDecodeError, TypeError):
-                        preferences = {}
-                except:
+                    if member[4]:  # dietary_restrictions field
+                        try:
+                            if isinstance(member[4], str):
+                                dietary_restrictions = json.loads(member[4])
+                            elif isinstance(member[4], list):
+                                dietary_restrictions = member[4]
+                            else:
+                                dietary_restrictions = []
+                        except (json.JSONDecodeError, TypeError) as e:
+                            logger.warning(f"Failed to parse dietary_restrictions for family member {member[0]}: {e}")
+                            dietary_restrictions = []
+                    
+                    # Parse preferences with better error handling
                     preferences = {}
+                    if member[5]:  # preferences field
+                        try:
+                            if isinstance(member[5], str):
+                                preferences = json.loads(member[5])
+                            elif isinstance(member[5], dict):
+                                preferences = member[5]
+                            else:
+                                preferences = {}
+                        except (json.JSONDecodeError, TypeError) as e:
+                            logger.warning(f"Failed to parse preferences for family member {member[0]}: {e}")
+                            preferences = {}
+                    
+                    response_data.append({
+                        'id': str(member[0]),
+                        'user_id': str(member[1]),
+                        'name': member[2],
+                        'age': member[3],
+                        'dietary_restrictions': dietary_restrictions,
+                        'preferences': preferences,
+                        'created_at': member[6].isoformat() if member[6] else None,
+                        'user_email': member[7],
+                        'user_name': member[8]
+                    })
+                    
+                except Exception as e:
+                    logger.error(f"Error processing family member {member[0] if len(member) > 0 else 'unknown'}: {e}")
+                    # Continue processing other members
+                    continue
             
-            result.append({
-                'id': member[0],
-                'user_id': member[1],
-                'name': member[2],
-                'age': member[3],
-                'dietary_restrictions': dietary_restrictions,
-                'preferences': preferences,
-                'created_at': member[6],
-                'user_email': member[7],
-                'user_name': member[8]
-            })
-        
-        return result
+            return response_data
+            
+    except Exception as e:
+        logger.error(f"Critical error in admin family endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving family members: {str(e)}")
 
 
 @router.get("/stats")
@@ -143,40 +161,66 @@ async def get_admin_stats(authorization: str = Header(None)):
     """Admin endpoint to get platform statistics"""
     require_admin(authorization)
     
-    with get_db_session() as session:
-        # Get total users (excluding admins)
-        result = session.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = false"))
-        total_users = result.fetchone()[0]
-        
-        # Get total family members
-        result = session.execute(text("SELECT COUNT(*) FROM family_members"))
-        total_family_members = result.fetchone()[0]
-        
-        # Get total pantry items
-        result = session.execute(text("SELECT COUNT(*) FROM pantry_items"))
-        total_pantry_items = result.fetchone()[0]
-        
-        # Get recent registrations (last 30 days)
-        result = session.execute(text("""
-            SELECT COUNT(*) FROM users 
-            WHERE is_admin = false AND created_at >= NOW() - INTERVAL '30 days'
-        """))
-        recent_registrations = result.fetchone()[0]
-        
-        # Get total meal plans
-        try:
-            result = session.execute(text("SELECT COUNT(*) FROM meal_plans"))
-            total_meal_plans = result.fetchone()[0]
-        except Exception:
-            total_meal_plans = 0
-        
-        return {
-            'total_users': total_users,
-            'total_family_members': total_family_members,
-            'total_pantry_items': total_pantry_items,
-            'total_meal_plans': total_meal_plans,
-            'recent_registrations': recent_registrations
-        }
+    try:
+        with get_db_session() as session:
+            stats = {}
+            
+            # Get total users (excluding admins)
+            try:
+                result = session.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = false"))
+                stats['total_users'] = result.fetchone()[0]
+            except Exception as e:
+                logger.error(f"Error getting total users: {e}")
+                stats['total_users'] = 0
+            
+            # Get total family members
+            try:
+                result = session.execute(text("SELECT COUNT(*) FROM family_members"))
+                stats['total_family_members'] = result.fetchone()[0]
+            except Exception as e:
+                logger.error(f"Error getting family members count: {e}")
+                stats['total_family_members'] = 0
+            
+            # Get total pantry items
+            try:
+                result = session.execute(text("SELECT COUNT(*) FROM pantry_items"))
+                stats['total_pantry_items'] = result.fetchone()[0]
+            except Exception as e:
+                logger.error(f"Error getting pantry items count: {e}")
+                stats['total_pantry_items'] = 0
+            
+            # Get recent registrations (last 30 days)
+            try:
+                result = session.execute(text("""
+                    SELECT COUNT(*) FROM users 
+                    WHERE is_admin = false AND created_at >= datetime('now', '-30 days')
+                """))
+                stats['recent_registrations'] = result.fetchone()[0]
+            except Exception as e:
+                logger.error(f"Error getting recent registrations: {e}")
+                stats['recent_registrations'] = 0
+            
+            # Get total meal plans (table might not exist)
+            try:
+                result = session.execute(text("SELECT COUNT(*) FROM meal_plans"))
+                stats['total_meal_plans'] = result.fetchone()[0]
+            except Exception as e:
+                logger.warning(f"meal_plans table not accessible: {e}")
+                stats['total_meal_plans'] = 0
+            
+            # Get total recipes
+            try:
+                result = session.execute(text("SELECT COUNT(*) FROM recipes_v2"))
+                stats['total_recipes'] = result.fetchone()[0]
+            except Exception as e:
+                logger.warning(f"recipes_v2 table not accessible: {e}")
+                stats['total_recipes'] = 0
+            
+            return stats
+            
+    except Exception as e:
+        logger.error(f"Critical error in admin stats endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving admin statistics: {str(e)}")
 
 
 @router.delete("/users/{user_id}")
@@ -268,30 +312,35 @@ async def get_all_pantry_items(authorization: str = Header(None)):
     """Admin endpoint to view all pantry items across all users"""
     require_admin(authorization)
     
-    with get_db_session() as session:
-        result = session.execute(text('''
-            SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
-                   i.name as ingredient_name, i.category_id, i.unit,
-                   u.email as user_email, u.name as user_name
-            FROM pantry_items p
-            JOIN ingredients i ON p.ingredient_id = i.id
-            JOIN users u ON p.user_id = u.id
-            ORDER BY u.email, i.category_id, i.name
-        '''))
-        pantry_items = result.fetchall()
-        
-        return [
-            {
-                'user_id': str(item[0]),
-                'ingredient_id': str(item[1]),
-                'quantity': item[2],
-                'expiration_date': item[3].isoformat() if item[3] else None,
-                'updated_at': item[4].isoformat() if item[4] else None,
-                'ingredient_name': item[5],
-                'ingredient_category': item[6],
-                'ingredient_unit': item[7],
-                'user_email': item[8],
-                'user_name': item[9]
-            }
-            for item in pantry_items
-        ]
+    try:
+        with get_db_session() as session:
+            result = session.execute(text('''
+                SELECT p.user_id, p.ingredient_id, p.quantity, p.expiration_date, p.updated_at,
+                       i.name as ingredient_name, i.category as ingredient_category, i.unit,
+                       u.email as user_email, u.name as user_name
+                FROM pantry_items p
+                JOIN ingredients i ON p.ingredient_id = i.id
+                JOIN users u ON p.user_id = u.id
+                ORDER BY u.email, i.category, i.name
+            '''))
+            pantry_items = result.fetchall()
+            
+            return [
+                {
+                    'user_id': str(item[0]),
+                    'ingredient_id': str(item[1]),
+                    'quantity': item[2],
+                    'expiration_date': item[3].isoformat() if item[3] else None,
+                    'updated_at': item[4].isoformat() if item[4] else None,
+                    'ingredient_name': item[5],
+                    'ingredient_category': item[6],
+                    'ingredient_unit': item[7],
+                    'user_email': item[8],
+                    'user_name': item[9]
+                }
+                for item in pantry_items
+            ]
+            
+    except Exception as e:
+        logger.error(f"Critical error in admin pantry endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving pantry items: {str(e)}")
