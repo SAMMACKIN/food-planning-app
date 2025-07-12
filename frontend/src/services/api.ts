@@ -49,9 +49,10 @@ export const apiRequest = async <T>(
   data?: any
 ): Promise<T> => {
   try {
+    const token = localStorage.getItem('access_token');
     console.log(`🚀 Making ${method} request to ${api.defaults.baseURL}${url}`, data);
     console.log('🔗 Full URL:', `${api.defaults.baseURL}${url}`);
-    console.log('🔑 Authorization header:', api.defaults.headers?.Authorization || 'Not set');
+    console.log('🔑 Authorization token available:', token ? 'Yes' : 'No');
     
     const response: AxiosResponse<T> = await api.request({
       method,
