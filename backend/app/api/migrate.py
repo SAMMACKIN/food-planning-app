@@ -154,7 +154,15 @@ async def check_recipes_v2_schema():
                 WHERE table_name = 'recipes_v2'
                 ORDER BY ordinal_position;
             """))
-            columns = [dict(row) for row in result]
+            columns = [
+                {
+                    "column_name": row[0],
+                    "data_type": row[1], 
+                    "is_nullable": row[2],
+                    "column_default": row[3]
+                }
+                for row in result
+            ]
             
             # Check specific columns we need
             column_names = [col['column_name'] for col in columns]
