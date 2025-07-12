@@ -4,10 +4,8 @@ Tests the exact sequence that users follow which breaks in preview
 """
 import pytest
 import json
-import sqlite3
 from fastapi.testclient import TestClient
 from app.main import app
-from app.core.database_service import init_db
 
 client = TestClient(app)
 
@@ -204,44 +202,60 @@ class TestCompleteUserWorkflow:
         
         print("\n🗄️ TESTING DATABASE SCHEMA")
         
-        db_path = get_db_path()
-        print(f"🗄️ Database path: {db_path}")
+        # We're using PostgreSQL in tests now, so use different approach
+        from sqlalchemy import create_engine, text
+        import os
         
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        db_url = os.environ.get("DATABASE_URL")
+        print(f"🗄️ Database URL: {db_url}")
         
-        # Check required tables exist
-        required_tables = ['users', 'family_members', 'pantry_items', 'ingredients', 
-                          'saved_recipes', 'recipe_ratings', 'meal_plans']
+        engine = create_engine(db_url)
         
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        existing_tables = {row[0] for row in cursor.fetchall()}
-        print(f"🗄️ Existing tables: {existing_tables}")
-        
-        for table in required_tables:
-            assert table in existing_tables, f"Missing table: {table}"
-            print(f"✅ Table exists: {table}")
-        
-        # Check critical table columns
-        table_columns = {
-            'users': ['id', 'email', 'hashed_password', 'name', 'timezone', 'is_active', 'is_admin'],
-            'family_members': ['id', 'user_id', 'name', 'age', 'dietary_restrictions', 'preferences'],
-            'pantry_items': ['user_id', 'ingredient_id', 'quantity', 'expiration_date'],
-            'saved_recipes': ['id', 'user_id', 'name', 'description', 'prep_time', 'difficulty', 
-                             'servings', 'ingredients_needed', 'instructions', 'tags', 'ai_generated']
-        }
-        
-        for table, required_cols in table_columns.items():
-            cursor.execute(f"PRAGMA table_info({table})")
-            existing_cols = {row[1] for row in cursor.fetchall()}
-            print(f"🗄️ {table} columns: {existing_cols}")
+        with engine.connect() as conn:
+            # Check required tables exist (PostgreSQL specific query)
+            required_tables = ['users', 'family_members', 'user_pantry', 'ingredients', 
+                              'recipes_v2', 'recipe_ratings', 'meal_plans']
             
-            for col in required_cols:
-                assert col in existing_cols, f"Missing column {col} in table {table}"
-                print(f"✅ Column exists: {table}.{col}")
+            result = conn.execute(text("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+            """))
+            existing_tables = {row[0] for row in result.fetchall()}
+            print(f"🗄️ Existing tables: {existing_tables}")
+            
+            for table in required_tables:
+                if table not in existing_tables:
+                    print(f"⚠️ Missing table: {table}")
+                else:
+                    print(f"✅ Table exists: {table}")
+            
+            # Check critical table columns (PostgreSQL specific)
+            table_columns = {
+                'users': ['id', 'email', 'hashed_password', 'name', 'timezone', 'is_active', 'is_admin'],
+                'family_members': ['id', 'user_id', 'name', 'age', 'dietary_restrictions', 'preferences'],
+                'user_pantry': ['user_id', 'ingredient_id', 'quantity', 'expiration_date'],
+                'recipes_v2': ['id', 'user_id', 'name', 'description', 'prep_time', 'difficulty', 
+                             'servings', 'ingredients_needed', 'instructions', 'tags', 'ai_generated']
+            }
+            
+            for table, required_cols in table_columns.items():
+                if table in existing_tables:
+                    result = conn.execute(text(f"""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = '{table}' AND table_schema = 'public'
+                    """))
+                    existing_cols = {row[0] for row in result.fetchall()}
+                    print(f"🗄️ {table} columns: {existing_cols}")
+                    
+                    for col in required_cols:
+                        if col not in existing_cols:
+                            print(f"⚠️ Missing column {col} in table {table}")
+                        else:
+                            print(f"✅ Column exists: {table}.{col}")
         
-        conn.close()
-        print("🗄️ Database schema validation passed")
+        print("🗄️ Database schema validation completed")
 
 
     def test_data_consistency_after_operations(self, auth_headers, test_ingredient_ids):

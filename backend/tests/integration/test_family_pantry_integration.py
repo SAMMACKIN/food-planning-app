@@ -203,22 +203,22 @@ class TestPantryManagement:
         assert response.status_code == 200
         pantry_list = response.json()
         
-        milk_item = None
+        chicken_item = None
         for item in pantry_list:
-            if item["ingredient"]["id"] == "milk":
-                milk_item = item
+            if item["ingredient"]["id"] == chicken_id:
+                chicken_item = item
                 break
         
-        assert milk_item is not None
-        assert milk_item["quantity"] == 2.5
+        assert chicken_item is not None
+        assert chicken_item["quantity"] == 2.5
     
     
-    def test_pantry_expiration_dates(self, auth_headers):
+    def test_pantry_expiration_dates(self, auth_headers, test_ingredient_ids):
         """Test pantry items with various expiration date formats"""
         items_with_dates = [
-            {"ingredient_id": "eggs", "quantity": 12.0, "expiration_date": "2024-12-25"},
-            {"ingredient_id": "bread", "quantity": 1.0, "expiration_date": "2024-12-24"},
-            {"ingredient_id": "cheese", "quantity": 0.5, "expiration_date": "2025-01-05"}
+            {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-25"},
+            {"ingredient_id": test_ingredient_ids['rice'], "quantity": 1.0, "expiration_date": "2024-12-24"},
+            {"ingredient_id": test_ingredient_ids['broccoli'], "quantity": 0.5, "expiration_date": "2025-01-05"}
         ]
         
         for item in items_with_dates:
@@ -247,7 +247,7 @@ class TestPantryManagement:
 class TestFamilyPantryIntegration:
     """Test interactions between family and pantry data"""
     
-    def test_workflow_family_then_pantry(self, auth_headers):
+    def test_workflow_family_then_pantry(self, auth_headers, test_ingredient_ids):
         """Test the exact workflow: add family member, then add pantry items"""
         
         # Step 1: Add family member with dietary restrictions
@@ -270,9 +270,9 @@ class TestFamilyPantryIntegration:
         
         # Step 2: Add pantry items that match dietary restrictions
         gluten_free_items = [
-            {"ingredient_id": "chicken-breast", "quantity": 2.0, "expiration_date": "2024-12-31"},
-            {"ingredient_id": "white-rice", "quantity": 3.0, "expiration_date": "2025-06-01"},
-            {"ingredient_id": "broccoli", "quantity": 1.5, "expiration_date": "2024-12-26"}
+            {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-31"},
+            {"ingredient_id": test_ingredient_ids['rice'], "quantity": 3.0, "expiration_date": "2025-06-01"},
+            {"ingredient_id": test_ingredient_ids['broccoli'], "quantity": 1.5, "expiration_date": "2024-12-26"}
         ]
         
         print(f"🔄 Step 2: Adding gluten-free pantry items...")
@@ -301,11 +301,11 @@ class TestFamilyPantryIntegration:
         return family_id, [item["ingredient_id"] for item in gluten_free_items]
     
     
-    def test_data_ready_for_recommendations(self, auth_headers):
+    def test_data_ready_for_recommendations(self, auth_headers, test_ingredient_ids):
         """Test that data is in the correct format for recommendations endpoint"""
         
         # Add family and pantry data
-        family_id, ingredient_ids = self.test_workflow_family_then_pantry(auth_headers)
+        family_id, ingredient_ids = self.test_workflow_family_then_pantry(auth_headers, test_ingredient_ids)
         
         # Test recommendations status (should work)
         print(f"\n🤖 Testing recommendations readiness...")
