@@ -82,10 +82,7 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    try:
-        user_uuid = uuid.UUID(current_user["sub"])
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    user_id = current_user["sub"]  # Already a string, no UUID conversion needed
 
     # ---- blocking DB work wrapped in thread‑pool ---------------------------
     def _query() -> list[SavedRecipeResponse]:
@@ -104,7 +101,7 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
             stmt = (
                 select(SavedRecipe, rating_sq.c.avg_rating)
                 .outerjoin(rating_sq, SavedRecipe.id == rating_sq.c.recipe_id)
-                .where(SavedRecipe.user_id == user_uuid)
+                .where(SavedRecipe.user_id == user_id)
                 .order_by(desc(SavedRecipe.updated_at))
                 .limit(limit)
                 .offset(offset)
@@ -190,7 +187,181 @@ async def get_saved_recipes(  # noqa: D401,E501 – long signature
     return await run_in_threadpool(_query)
 
 
+
 # ---------------------------------------------------------------------------
-# The rest of the original routes (save, read‑one, rate, delete) stay exactly
-# as they were; remove for brevity – copy unchanged from your previous file.
+# CREATE -- save new recipe
 # ---------------------------------------------------------------------------
+
+@router.post("", response_model=SavedRecipeResponse)
+async def save_recipe(recipe_data: SavedRecipeCreate, authorization: str = Header(None)):
+    """Save a new recipe"""
+    logger.info(f"🍽️ Recipe save request: {recipe_data.name}")
+    
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        user_id = current_user['sub']  # This is already a string
+        
+        def _save_recipe():
+            from ..models.recipe import SavedRecipe
+            with get_db_session() as session:
+                # Validate required fields
+                if not recipe_data.name or not recipe_data.description:
+                    raise HTTPException(status_code=400, detail="Recipe name and description are required")
+                
+                if recipe_data.prep_time <= 0 or recipe_data.servings <= 0:
+                    raise HTTPException(status_code=400, detail="Prep time and servings must be positive numbers")
+                
+                # Create new saved recipe
+                new_recipe = SavedRecipe(
+                    user_id=user_id,
+                    name=recipe_data.name,
+                    description=recipe_data.description,
+                    prep_time=recipe_data.prep_time,
+                    difficulty=recipe_data.difficulty,
+                    servings=recipe_data.servings,
+                    ingredients_needed=json.dumps(recipe_data.ingredients_needed),
+                    instructions=json.dumps(recipe_data.instructions),
+                    tags=json.dumps(recipe_data.tags),
+                    nutrition_notes=recipe_data.nutrition_notes,
+                    pantry_usage_score=recipe_data.pantry_usage_score,
+                    ai_generated=recipe_data.ai_generated,
+                    ai_provider=recipe_data.ai_provider,
+                    source=recipe_data.source
+                )
+                
+                session.add(new_recipe)
+                session.flush()  # Get the ID
+                
+                logger.info(f"✅ Recipe saved successfully: {new_recipe.id}")
+                
+                return SavedRecipeResponse(
+                    id=str(new_recipe.id),
+                    user_id=str(new_recipe.user_id),
+                    name=new_recipe.name,
+                    description=new_recipe.description or "",
+                    prep_time=new_recipe.prep_time,
+                    difficulty=new_recipe.difficulty,
+                    servings=new_recipe.servings,
+                    ingredients_needed=json.loads(new_recipe.ingredients_needed) if new_recipe.ingredients_needed else [],
+                    instructions=json.loads(new_recipe.instructions) if new_recipe.instructions else [],
+                    tags=json.loads(new_recipe.tags) if new_recipe.tags else [],
+                    nutrition_notes=new_recipe.nutrition_notes or "",
+                    pantry_usage_score=new_recipe.pantry_usage_score or 0,
+                    ai_generated=bool(new_recipe.ai_generated),
+                    ai_provider=new_recipe.ai_provider,
+                    source=new_recipe.source or "manual",
+                    times_cooked=new_recipe.times_cooked or 0,
+                    last_cooked=new_recipe.last_cooked.isoformat() if new_recipe.last_cooked else None,
+                    rating=None,
+                    created_at=new_recipe.created_at.isoformat() if new_recipe.created_at else None,
+                    updated_at=new_recipe.updated_at.isoformat() if new_recipe.updated_at else None
+                )
+        
+        return await run_in_threadpool(_save_recipe)
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving recipe: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving recipe: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# READ -- get single recipe by ID
+# ---------------------------------------------------------------------------
+
+@router.get("/{recipe_id}", response_model=SavedRecipeResponse)
+async def get_recipe(recipe_id: str, authorization: str = Header(None)):
+    """Get a single recipe by ID"""
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        user_id = current_user['sub']
+        
+        def _get_recipe():
+            from ..models.recipe import SavedRecipe, RecipeRating
+            with get_db_session() as session:
+                recipe = session.query(SavedRecipe).filter(
+                    SavedRecipe.id == recipe_id,
+                    SavedRecipe.user_id == user_id
+                ).first()
+                
+                if not recipe:
+                    raise HTTPException(status_code=404, detail="Recipe not found")
+                
+                # Get average rating
+                avg_rating = session.query(func.avg(RecipeRating.rating)).filter(
+                    RecipeRating.recipe_id == recipe_id
+                ).scalar()
+                
+                return SavedRecipeResponse(
+                    id=str(recipe.id),
+                    user_id=str(recipe.user_id),
+                    name=recipe.name,
+                    description=recipe.description or "",
+                    prep_time=recipe.prep_time,
+                    difficulty=recipe.difficulty,
+                    servings=recipe.servings,
+                    ingredients_needed=json.loads(recipe.ingredients_needed) if recipe.ingredients_needed else [],
+                    instructions=json.loads(recipe.instructions) if recipe.instructions else [],
+                    tags=json.loads(recipe.tags) if recipe.tags else [],
+                    nutrition_notes=recipe.nutrition_notes or "",
+                    pantry_usage_score=recipe.pantry_usage_score or 0,
+                    ai_generated=bool(recipe.ai_generated),
+                    ai_provider=recipe.ai_provider,
+                    source=recipe.source or "manual",
+                    times_cooked=recipe.times_cooked or 0,
+                    last_cooked=recipe.last_cooked.isoformat() if recipe.last_cooked else None,
+                    rating=round(avg_rating, 1) if avg_rating else None,
+                    created_at=recipe.created_at.isoformat() if recipe.created_at else None,
+                    updated_at=recipe.updated_at.isoformat() if recipe.updated_at else None
+                )
+        
+        return await run_in_threadpool(_get_recipe)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error getting recipe: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting recipe: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# DELETE -- delete recipe
+# ---------------------------------------------------------------------------
+
+@router.delete("/{recipe_id}")
+async def delete_recipe(recipe_id: str, authorization: str = Header(None)):
+    """Delete a recipe"""
+    current_user = get_current_user(authorization)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        user_id = current_user['sub']
+        
+        def _delete_recipe():
+            from ..models.recipe import SavedRecipe
+            with get_db_session() as session:
+                recipe = session.query(SavedRecipe).filter(
+                    SavedRecipe.id == recipe_id,
+                    SavedRecipe.user_id == user_id
+                ).first()
+                
+                if not recipe:
+                    raise HTTPException(status_code=404, detail="Recipe not found")
+                
+                session.delete(recipe)
+                logger.info(f"✅ Recipe deleted: {recipe_id}")
+                return {"message": "Recipe deleted successfully"}
+        
+        return await run_in_threadpool(_delete_recipe)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error deleting recipe: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting recipe: {str(e)}")
