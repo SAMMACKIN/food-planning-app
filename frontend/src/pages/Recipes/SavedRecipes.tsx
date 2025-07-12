@@ -20,7 +20,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Rating,
 } from '@mui/material';
 import {
   Timer,
@@ -47,7 +46,6 @@ const SavedRecipes: React.FC = () => {
     error,
     fetchSavedRecipes,
     deleteRecipe,
-    rateRecipe,
     saveRecipe,
     clearError
   } = useRecipes();
@@ -58,10 +56,6 @@ const SavedRecipes: React.FC = () => {
   const [menuRecipeId, setMenuRecipeId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
-  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
-  const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null);
-  const [rating, setRating] = useState<number>(5);
-  const [reviewText, setReviewText] = useState('');
   const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
 
   const handleViewRecipe = (recipe: Recipe) => {
@@ -86,27 +80,7 @@ const SavedRecipes: React.FC = () => {
     }
   };
 
-  const handleRateRecipe = (recipe: Recipe) => {
-    setRatingRecipe(recipe);
-    setRatingDialogOpen(true);
-    handleMenuClose();
-  };
-
-  const handleSubmitRating = async () => {
-    if (ratingRecipe) {
-      await rateRecipe({
-        recipe_id: ratingRecipe.id,
-        rating,
-        review_text: reviewText,
-        would_make_again: rating >= 4,
-        cooking_notes: ''
-      });
-      setRatingDialogOpen(false);
-      setRatingRecipe(null);
-      setRating(5);
-      setReviewText('');
-    }
-  };
+  // Rating functionality temporarily removed (no ratings in RecipeV2)
 
   const handleSearch = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
@@ -287,10 +261,6 @@ const SavedRecipes: React.FC = () => {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={() => handleRateRecipe(savedRecipes.find(r => r.id === menuRecipeId)!)}>
-          <Star sx={{ mr: 1 }} />
-          Rate Recipe
-        </MenuItem>
         <MenuItem onClick={() => {/* TODO: Add to meal plan */}}>
           <CalendarToday sx={{ mr: 1 }} />
           Add to Meal Plan
@@ -352,47 +322,7 @@ const SavedRecipes: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Rating Dialog */}
-      <Dialog
-        open={ratingDialogOpen}
-        onClose={() => setRatingDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Rate Recipe</DialogTitle>
-        <DialogContent>
-          {ratingRecipe && (
-            <Box sx={{ pt: 1 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                {ratingRecipe.name}
-              </Typography>
-              <Box sx={{ mb: 3 }}>
-                <Typography component="legend">Your Rating</Typography>
-                <Rating
-                  value={rating}
-                  onChange={(_, newValue) => setRating(newValue || 1)}
-                  size="large"
-                />
-              </Box>
-              <TextField
-                label="Review (optional)"
-                multiline
-                rows={3}
-                fullWidth
-                value={reviewText}
-                onChange={(e) => setReviewText(e.target.value)}
-                placeholder="How was this recipe? Any cooking tips?"
-              />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRatingDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmitRating}>
-            Submit Rating
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Rating functionality temporarily removed */}
 
       {/* Create Recipe Dialog */}
       <CreateRecipeForm
