@@ -46,6 +46,8 @@ class AIService:
         self.perplexity_key = self.perplexity_key if self.perplexity_key and self.perplexity_key.strip() else None
         logger.info(f"Perplexity API key present: {'Yes' if self.perplexity_key else 'No'}")
         if self.perplexity_key:
+            logger.info(f"Perplexity API key length: {len(self.perplexity_key)}")
+            logger.info(f"Perplexity API key starts with: {self.perplexity_key[:10]}...")
             logger.info("Perplexity client initialized successfully")
         else:
             logger.warning("PERPLEXITY_API_KEY not found or empty. Perplexity will be disabled.")
@@ -183,6 +185,18 @@ class AIService:
             )
             
             logger.info("Calling Perplexity API for meal recommendations...")
+            logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
+            logger.info(f"Prompt length: {len(prompt)} characters")
+            
+            request_data = {
+                "model": "llama-3.1-sonar-small-128k-online",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 4096,
+                "temperature": 0.7
+            }
+            logger.info(f"Request data: {json.dumps({k: v if k != 'messages' else f'[{len(v)} messages]' for k, v in request_data.items()})}")
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -191,25 +205,28 @@ class AIService:
                         "Authorization": f"Bearer {self.perplexity_key}",
                         "Content-Type": "application/json"
                     },
-                    json={
-                        "model": "llama-3.1-sonar-small-128k-online",
-                        "messages": [
-                            {"role": "user", "content": prompt}
-                        ],
-                        "max_tokens": 4096,
-                        "temperature": 0.7
-                    },
+                    json=request_data,
                     timeout=60.0
                 )
+                logger.info(f"Perplexity API response status: {response.status_code}")
                 response.raise_for_status()
                 data = response.json()
+                logger.info(f"Perplexity API response received: {len(str(data))} characters")
             
             recommendations = self._parse_ai_response(data["choices"][0]["message"]["content"], "perplexity")
             logger.info(f"Perplexity generated {len(recommendations)} recommendations")
             return recommendations
             
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Perplexity API HTTP error: {e.response.status_code}")
+            logger.error(f"Perplexity API response body: {e.response.text}")
+            raise Exception(f"Perplexity API error {e.response.status_code}: {e.response.text}")
+        except httpx.TimeoutException as e:
+            logger.error(f"Perplexity API timeout: {e}")
+            raise Exception("Perplexity API request timed out")
         except Exception as e:
             logger.error(f"Perplexity API error: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
             raise
 
     def _build_recommendation_prompt(
