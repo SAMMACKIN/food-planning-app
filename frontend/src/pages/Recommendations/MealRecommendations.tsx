@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -55,7 +55,8 @@ const MealRecommendations: React.FC = () => {
     setSelectedProvider,
     refreshRecommendations,
     handleMealTypeFilter,
-    clearError
+    clearError,
+    resetState
   } = useRecommendationsCache();
 
   const {
@@ -135,6 +136,13 @@ const MealRecommendations: React.FC = () => {
   const handleTimeFilter = (prepTime: string) => {
     setActiveFilters(prev => ({ ...prev, prepTime }));
   };
+
+  // Cleanup: reset loading state when component unmounts to prevent navigation blocking
+  useEffect(() => {
+    return () => {
+      resetState();
+    };
+  }, [resetState]);
 
   // Apply filters whenever recommendations or filters change
   React.useEffect(() => {

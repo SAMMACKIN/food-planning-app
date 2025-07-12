@@ -20,6 +20,7 @@ export const useRecommendationsCache = () => {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('perplexity');
   const lastRequestRef = useRef<string>('');
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load cache from localStorage
   const loadFromCache = useCallback((requestKey: string): MealRecommendation[] | null => {
@@ -98,6 +99,14 @@ export const useRecommendationsCache = () => {
     }
 
     try {
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
+      
       setLoading(true);
       setError(null);
       
@@ -109,16 +118,31 @@ export const useRecommendationsCache = () => {
       
       console.log(`🤖 Fetching fresh AI recommendations from ${selectedProvider}...`);
       const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
+      
+      // Check if request was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log('🛑 Request was aborted');
+        return;
+      }
+      
       console.log('✅ Received recommendations:', recs.map(r => ({ name: r.name, ai_generated: r.ai_generated, ai_provider: r.ai_provider })));
       
       setRecommendations(recs);
       saveToCache(recs, requestKey);
       lastRequestRef.current = requestKey;
     } catch (error: any) {
+      // Don't set error if request was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log('🛑 Request aborted, ignoring error');
+        return;
+      }
       setError(`Failed to get meal recommendations from ${selectedProvider}`);
       console.error('Error fetching recommendations:', error);
     } finally {
-      setLoading(false);
+      // Only set loading to false if request wasn't aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [selectedProvider, generateRequestKey, loadFromCache, saveToCache, recommendations.length]);
 
@@ -134,6 +158,17 @@ export const useRecommendationsCache = () => {
     } catch (error) {
       console.warn('Failed to clear cache:', error);
     }
+  }, []);
+
+  const resetState = useCallback(() => {
+    // Abort any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    // Reset all states
+    setLoading(false);
+    setError(null);
+    console.log('🔄 Recommendations state reset');
   }, []);
 
   const handleMealTypeFilter = useCallback((mealType: string) => {
@@ -152,6 +187,17 @@ export const useRecommendationsCache = () => {
     }
   }, [isAuthenticated, selectedProvider, availableProviders]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cleanup: abort any ongoing requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        console.log('🧹 Cleaning up: aborting ongoing recommendations request');
+        abortControllerRef.current.abort();
+        setLoading(false);
+      }
+    };
+  }, []);
+
   return {
     recommendations,
     loading,
@@ -163,6 +209,7 @@ export const useRecommendationsCache = () => {
     refreshRecommendations,
     handleMealTypeFilter,
     clearCache,
+    resetState,
     clearError: () => setError(null)
   };
 };
