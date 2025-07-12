@@ -37,6 +37,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ RecipeV2 table check failed: {e}")
     
+    # Run database migrations
+    try:
+        from .migrations.add_dietary_restrictions import add_dietary_restrictions_column
+        add_dietary_restrictions_column()
+    except Exception as e:
+        logger.warning(f"⚠️ Database migration failed: {e}")
+    
     logger.info("✅ Application startup complete")
     
     yield
