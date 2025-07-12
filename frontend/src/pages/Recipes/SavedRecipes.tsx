@@ -105,6 +105,24 @@ const SavedRecipes: React.FC = () => {
     }
   };
 
+  const handleSearch = () => {
+    fetchSavedRecipes(searchTerm, difficultyFilter);
+  };
+
+  const handleCreateCustomRecipe = async (recipeData: any): Promise<boolean> => {
+    const result = await saveRecipe(recipeData);
+    if (result) {
+      setCreateRecipeDialogOpen(false);
+      return true;
+    }
+    return false;
+  };
+
+  const filteredRecipes = savedRecipes.filter(recipe =>
+    recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // Load ratings for visible recipes
   React.useEffect(() => {
     const loadRatings = async () => {
@@ -123,24 +141,6 @@ const SavedRecipes: React.FC = () => {
       loadRatings();
     }
   }, [filteredRecipes, getRecipeRatings, ratings]);
-
-  const handleSearch = () => {
-    fetchSavedRecipes(searchTerm, difficultyFilter);
-  };
-
-  const handleCreateCustomRecipe = async (recipeData: any): Promise<boolean> => {
-    const result = await saveRecipe(recipeData);
-    if (result) {
-      setCreateRecipeDialogOpen(false);
-      return true;
-    }
-    return false;
-  };
-
-  const filteredRecipes = savedRecipes.filter(recipe =>
-    recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading && savedRecipes.length === 0) {
     return (
