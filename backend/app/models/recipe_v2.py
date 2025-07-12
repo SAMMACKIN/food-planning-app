@@ -43,5 +43,6 @@ class RecipeV2(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Simple relationship
+    # Relationships
     user = relationship("User", back_populates="recipes_v2")
+    ratings = relationship("RecipeRating", back_populates="recipe", cascade="all, delete-orphan")

@@ -11,7 +11,9 @@ from sqlalchemy import desc
 from ..db.database import get_db
 from ..core.auth_service import AuthService
 from ..models.recipe_v2 import RecipeV2
+from ..models.recipe_rating import RecipeRating
 from ..schemas.recipe_v2 import RecipeV2Create, RecipeV2Update, RecipeV2Response, IngredientNeeded
+from ..schemas.recipe_rating import RecipeRatingCreate, RecipeRatingUpdate, RecipeRatingResponse
 
 router = APIRouter(tags=["recipes"])
 logger = logging.getLogger(__name__)
@@ -341,3 +343,200 @@ def recipes_health_check(
             "database_connected": False,
             "table_accessible": False
         }
+
+
+# Recipe Rating endpoints
+@router.post("/{recipe_id}/ratings", response_model=RecipeRatingResponse)
+def rate_recipe(
+    recipe_id: str,
+    rating_data: RecipeRatingCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Rate a recipe"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        recipe_uuid = uuid.UUID(recipe_id)
+        
+        # Verify recipe exists and belongs to user or is accessible
+        recipe = db.query(RecipeV2).filter(RecipeV2.id == recipe_uuid).first()
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        
+        # Check if user already rated this recipe
+        existing_rating = db.query(RecipeRating).filter(
+            RecipeRating.recipe_id == recipe_uuid,
+            RecipeRating.user_id == user_uuid
+        ).first()
+        
+        if existing_rating:
+            raise HTTPException(status_code=400, detail="You have already rated this recipe")
+        
+        # Create new rating
+        new_rating = RecipeRating(
+            recipe_id=recipe_uuid,
+            user_id=user_uuid,
+            rating=rating_data.rating,
+            review_text=rating_data.review_text,
+            would_make_again=rating_data.would_make_again,
+            cooking_notes=rating_data.cooking_notes
+        )
+        
+        db.add(new_rating)
+        db.commit()
+        db.refresh(new_rating)
+        
+        logger.info(f"⭐ Recipe rated: {recipe_uuid} by user {user_uuid} - {rating_data.rating}/5")
+        
+        return RecipeRatingResponse(
+            id=str(new_rating.id),
+            recipe_id=str(new_rating.recipe_id),
+            user_id=str(new_rating.user_id),
+            rating=new_rating.rating,
+            review_text=new_rating.review_text,
+            would_make_again=new_rating.would_make_again,
+            cooking_notes=new_rating.cooking_notes,
+            created_at=new_rating.created_at.isoformat(),
+            updated_at=new_rating.updated_at.isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Rate recipe error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to rate recipe: {str(e)}")
+
+
+@router.get("/{recipe_id}/ratings", response_model=List[RecipeRatingResponse])
+def get_recipe_ratings(
+    recipe_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Get all ratings for a recipe"""
+    try:
+        recipe_uuid = uuid.UUID(recipe_id)
+        
+        # Verify recipe exists
+        recipe = db.query(RecipeV2).filter(RecipeV2.id == recipe_uuid).first()
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        
+        # Get ratings for this recipe
+        ratings = db.query(RecipeRating).filter(
+            RecipeRating.recipe_id == recipe_uuid
+        ).order_by(desc(RecipeRating.created_at)).all()
+        
+        return [
+            RecipeRatingResponse(
+                id=str(rating.id),
+                recipe_id=str(rating.recipe_id),
+                user_id=str(rating.user_id),
+                rating=rating.rating,
+                review_text=rating.review_text,
+                would_make_again=rating.would_make_again,
+                cooking_notes=rating.cooking_notes,
+                created_at=rating.created_at.isoformat(),
+                updated_at=rating.updated_at.isoformat()
+            )
+            for rating in ratings
+        ]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Get recipe ratings error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recipe ratings: {str(e)}")
+
+
+@router.put("/{recipe_id}/ratings/{rating_id}", response_model=RecipeRatingResponse)
+def update_recipe_rating(
+    recipe_id: str,
+    rating_id: str,
+    rating_data: RecipeRatingUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Update a recipe rating"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        recipe_uuid = uuid.UUID(recipe_id)
+        rating_uuid = uuid.UUID(rating_id)
+        
+        # Get rating
+        rating = db.query(RecipeRating).filter(
+            RecipeRating.id == rating_uuid,
+            RecipeRating.recipe_id == recipe_uuid,
+            RecipeRating.user_id == user_uuid
+        ).first()
+        
+        if not rating:
+            raise HTTPException(status_code=404, detail="Rating not found or access denied")
+        
+        # Update fields
+        update_data = rating_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(rating, field, value)
+        
+        db.commit()
+        db.refresh(rating)
+        
+        logger.info(f"✏️ Recipe rating updated: {rating_uuid} by user {user_uuid}")
+        
+        return RecipeRatingResponse(
+            id=str(rating.id),
+            recipe_id=str(rating.recipe_id),
+            user_id=str(rating.user_id),
+            rating=rating.rating,
+            review_text=rating.review_text,
+            would_make_again=rating.would_make_again,
+            cooking_notes=rating.cooking_notes,
+            created_at=rating.created_at.isoformat(),
+            updated_at=rating.updated_at.isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Update recipe rating error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update recipe rating: {str(e)}")
+
+
+@router.delete("/{recipe_id}/ratings/{rating_id}")
+def delete_recipe_rating(
+    recipe_id: str,
+    rating_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Delete a recipe rating"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        recipe_uuid = uuid.UUID(recipe_id)
+        rating_uuid = uuid.UUID(rating_id)
+        
+        # Get rating
+        rating = db.query(RecipeRating).filter(
+            RecipeRating.id == rating_uuid,
+            RecipeRating.recipe_id == recipe_uuid,
+            RecipeRating.user_id == user_uuid
+        ).first()
+        
+        if not rating:
+            raise HTTPException(status_code=404, detail="Rating not found or access denied")
+        
+        # Delete rating
+        db.delete(rating)
+        db.commit()
+        
+        logger.info(f"🗑️ Recipe rating deleted: {rating_uuid} by user {user_uuid}")
+        return {"message": "Rating deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Delete recipe rating error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete recipe rating: {str(e)}")
