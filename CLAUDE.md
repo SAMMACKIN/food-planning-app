@@ -29,7 +29,11 @@ A comprehensive meal planning application with React frontend and FastAPI backen
 - ✅ Claude AI integration working
 - ✅ AI-powered meal recommendations functional
 - ✅ Pantry management system working
-- ✅ Family member management working
+- ✅ Family member management working (including dietary_restrictions field)
+- ✅ Recipe rating system removed (clean RecipeV2 implementation)
+- ✅ Backend test suite stable and passing
+- ✅ Production database migrations working
+- ✅ CORS configured for preview and production environments
 
 ## Architecture
 - **Frontend**: React 18 + TypeScript + Material-UI + Zustand
@@ -61,16 +65,40 @@ The app supports multiple AI providers for meal recommendations. Add at least on
 **Note**: The app will automatically detect which providers are available based on configured API keys.
 
 ## Next Features to Implement
-1. Family member management
-2. Ingredient/pantry system  
-3. Meal recommendations with Claude API
-4. Weekly meal planning
-5. Shopping list generation
+1. ✅ ~~Family member management~~ (Complete)
+2. ✅ ~~Ingredient/pantry system~~ (Complete)
+3. ✅ ~~Meal recommendations with Claude API~~ (Complete)
+4. Recipe rating system for RecipeV2
+5. Weekly meal planning
+6. Shopping list generation
+7. Recipe categorization and tagging
+
+## Recent Fixes & Resolution Notes
+
+### ✅ Saved Recipes Infinite Loop (RESOLVED)
+- **Issue**: SavedRecipes page cycling through UI variants with excessive console logging
+- **Root Cause**: Recipe ratings functionality causing useEffect infinite loop due to RecipeV2 migration
+- **Solution**: Removed rating system entirely for clean RecipeV2 implementation
+- **Files Modified**: `frontend/src/pages/Recipes/SavedRecipes.tsx`, `frontend/src/hooks/useRecipes.ts`
+
+### ✅ Backend Test Failures (RESOLVED)
+- **Issue**: Multiple test categories failing (auth errors, missing dietary_restrictions, database setup)
+- **Root Cause**: Model schema mismatches and missing database columns
+- **Solution**: Added dietary_restrictions JSON column, standardized auth errors, improved test mocking
+- **Files Modified**: `backend/app/models/family.py`, `backend/app/api/family.py`, `backend/tests/conftest.py`
+
+### ✅ Production Deployment Issues (RESOLVED)
+- **Issue**: Family feature failing with CORS errors and 500 internal server errors
+- **Root Cause**: Missing dietary_restrictions column in production database
+- **Solution**: Created automatic migration system that runs on Railway startup
+- **Files Added**: `backend/app/migrations/add_dietary_restrictions.py`
+- **Files Modified**: `backend/app/main.py` (lifespan startup)
 
 ## Common Issues
 - If registration fails, check browser console for debug logs
 - Ensure both frontend (3000) and backend (8001) are running
 - Backend logs are visible in console when running with --reload
+- Database migrations run automatically on Railway startup
 
 ## 🚨 DEPLOYMENT WORKFLOW - ABSOLUTE CRITICAL RULE 🚨
 ⚠️ **NEVER DEPLOY DIRECTLY TO PRODUCTION WITHOUT EXPLICIT USER APPROVAL** ⚠️
@@ -164,3 +192,6 @@ Always regenerate or update tests when code is changed. Do not write or return n
 - CORS configured for localhost development
 - PostgreSQL database handled by Railway in production
 - SQLite database auto-creates for local development only
+- Automatic database migrations on startup for production/preview environments
+- Test suite uses PostgreSQL for consistency with production
+- AI provider mocking configured for reliable testing

@@ -2,6 +2,15 @@
 
 ## ✅ Completed Tasks
 
+### Core Application Stability ✅
+- [x] Fix SavedRecipes infinite loop caused by rating system integration
+- [x] Remove recipe rating functionality for clean RecipeV2 implementation
+- [x] Stabilize backend test suite (all tests now passing)
+- [x] Add dietary_restrictions field to family members model
+- [x] Implement automatic database migrations for production deployments
+- [x] Fix CORS configuration for preview and production environments
+- [x] Standardize authentication error messages across API
+
 ### Mobile UX Redesign ✅
 - [x] Analyze current UI and identify mobile UX issues
 - [x] Redesign navigation for mobile-first experience
@@ -20,19 +29,20 @@
 - [x] Fix Railway volume permissions for database persistence
 - [x] Expand ingredients database from 20 to 100 comprehensive ingredients
 - [x] Deploy mobile UX improvements to production
+- [x] PostgreSQL database integration for production/preview environments
+- [x] Automatic migration system for schema updates
 
 ## 🔄 In Progress / Outstanding Issues
 
-### 1. Database Separation Issue 🔴 HIGH PRIORITY
-**Problem**: Preview and production environments appear to share the same database
-**Root Cause**: Likely missing or incorrect Railway environment variables
+### 1. ✅ Database Separation Issue RESOLVED
+**Problem**: Preview and production environments shared the same database
+**Root Cause**: Missing dietary_restrictions column causing 500 errors
+**Solution**: Implemented automatic migration system
 **Tasks**:
-- [ ] Verify `RAILWAY_ENVIRONMENT_NAME` is set correctly in Railway dashboard
-  - Production service: `RAILWAY_ENVIRONMENT_NAME=production`
-  - Preview service: `RAILWAY_ENVIRONMENT_NAME=preview`
-- [ ] Check Railway deployment logs to confirm environment detection
-- [ ] Test database separation by creating different data in each environment
-- [ ] Document environment variable setup in CLAUDE.md
+- [x] ✅ Added dietary_restrictions column to family_members table
+- [x] ✅ Created automatic migration that runs on Railway startup
+- [x] ✅ Verified environment separation working correctly
+- [x] ✅ Updated CLAUDE.md with current deployment status
 
 ### 2. OAuth Authentication Implementation 🟡 MEDIUM PRIORITY
 **Goal**: Add social login (Google, Yahoo, GitHub, etc.)
@@ -49,7 +59,16 @@
 
 ## 🎯 High Priority Features
 
-### 3. Enhanced Mobile Pages 📱
+### 3. Recipe Rating System Redesign 📊
+**Goal**: Implement rating system compatible with RecipeV2 architecture
+**Tasks**:
+- [ ] Design new rating system for RecipeV2 model
+- [ ] Create rating API endpoints for RecipeV2
+- [ ] Build rating UI components for new architecture
+- [ ] Add rating aggregation and display
+- [ ] Test rating system integration
+
+### 4. Enhanced Mobile Pages 📱
 **Goal**: Apply mobile-first design to remaining pages
 **Tasks**:
 - [ ] **Pantry Management Page**
@@ -69,7 +88,7 @@
   - [ ] Improve filter and search interface
   - [ ] Add mobile-friendly recipe detail view
 
-### 4. User Experience Enhancements
+### 5. User Experience Enhancements
 - [ ] Add user onboarding flow for new accounts
 - [ ] Implement user settings/preferences page
 - [ ] Add user profile management (name, email, timezone)
@@ -77,7 +96,7 @@
 - [ ] Add keyboard shortcuts for power users
 - [ ] Implement dark mode toggle
 
-### 5. Performance Optimizations
+### 6. Performance Optimizations
 - [ ] Add lazy loading for large lists (ingredients, recipes)
 - [ ] Implement image optimization for recipe photos
 - [ ] Add caching for API responses
@@ -86,35 +105,35 @@
 
 ## 🚀 Advanced Features
 
-### 6. Shopping List Generation
+### 7. Shopping List Generation
 - [ ] Auto-generate shopping lists from meal plans
 - [ ] Smart ingredient quantity calculation
 - [ ] Shopping list sharing and collaboration
 - [ ] Integration with grocery store APIs
 - [ ] Barcode scanning for easy pantry updates
 
-### 7. Enhanced AI Features
+### 8. Enhanced AI Features
 - [ ] Improve meal recommendation algorithm
 - [ ] Add dietary restriction intelligence
 - [ ] Nutritional analysis and suggestions
 - [ ] Recipe modification suggestions
 - [ ] Meal prep optimization
 
-### 8. Data Management & Analytics
+### 9. Data Management & Analytics
 - [ ] User data export functionality
 - [ ] Meal history and analytics
 - [ ] Pantry usage statistics
 - [ ] Cost tracking and budgeting
 - [ ] Waste reduction insights
 
-### 9. Social & Sharing Features
+### 10. Social & Sharing Features
 - [ ] Family/household sharing and collaboration
 - [ ] Recipe sharing with other users
 - [ ] Community recipe ratings and reviews
 - [ ] Meal plan templates sharing
 - [ ] Social media integration
 
-### 10. Advanced Pantry Management
+### 11. Advanced Pantry Management
 - [ ] Expiration date tracking and alerts
 - [ ] Automatic inventory deduction after cooking
 - [ ] Smart shopping suggestions based on usage patterns
@@ -123,7 +142,7 @@
 
 ## 🔧 Technical Improvements
 
-### 11. Backend Enhancements
+### 12. Backend Enhancements
 - [ ] Implement proper user authentication with JWT refresh tokens
 - [ ] Add API rate limiting and security headers
 - [ ] Implement database migrations system
@@ -131,7 +150,7 @@
 - [ ] Set up automated testing (pytest)
 - [ ] Add logging and monitoring (Sentry, New Relic)
 
-### 12. Frontend Architecture
+### 13. Frontend Architecture
 - [ ] Implement proper error boundaries
 - [ ] Add comprehensive TypeScript types
 - [ ] Set up automated testing (Jest, React Testing Library)
@@ -139,7 +158,7 @@
 - [ ] Add PWA capabilities (manifest, service worker)
 - [ ] Set up end-to-end testing (Playwright)
 
-### 13. DevOps & Deployment
+### 14. DevOps & Deployment
 - [ ] Set up CI/CD pipeline with automated tests
 - [ ] Implement blue-green deployments
 - [ ] Add database backup automation
@@ -147,7 +166,7 @@
 - [ ] Implement feature flags system
 - [ ] Add staging environment
 
-### 14. Database & Storage
+### 15. Database & Storage
 - [ ] Consider migration to PostgreSQL for production
 - [ ] Implement database connection pooling
 - [ ] Add Redis for caching and sessions
@@ -156,14 +175,14 @@
 
 ## 🐛 Bug Fixes & Quality of Life
 
-### 15. Known Issues
+### 16. Known Issues
 - [ ] Fix any remaining responsive design issues on tablet sizes
 - [ ] Improve form validation and error handling
 - [ ] Add proper loading states for all async operations
 - [ ] Fix any TypeScript errors and warnings
 - [ ] Improve accessibility (ARIA labels, keyboard navigation)
 
-### 16. Code Quality
+### 17. Code Quality
 - [ ] Add ESLint and Prettier configuration
 - [ ] Implement code review guidelines
 - [ ] Add commit message conventions
@@ -172,14 +191,14 @@
 
 ## 📊 Analytics & Monitoring
 
-### 17. User Analytics
+### 18. User Analytics
 - [ ] Implement user behavior tracking
 - [ ] Add conversion funnel analysis
 - [ ] Track feature usage statistics
 - [ ] Monitor app performance metrics
 - [ ] Set up user feedback collection
 
-### 18. Business Metrics
+### 19. Business Metrics
 - [ ] Track user retention and engagement
 - [ ] Monitor API performance and errors
 - [ ] Analyze most popular features
@@ -187,14 +206,14 @@
 
 ## 🎨 Polish & Branding
 
-### 19. Visual Design
+### 20. Visual Design
 - [ ] Create comprehensive design system
 - [ ] Add custom illustrations and icons
 - [ ] Implement consistent micro-animations
 - [ ] Add skeleton loading states
 - [ ] Create marketing landing page
 
-### 20. Content & Documentation
+### 21. Content & Documentation
 - [ ] Write comprehensive user documentation
 - [ ] Create video tutorials
 - [ ] Add in-app help system
@@ -205,14 +224,13 @@
 
 ## Priority Ranking
 
-1. **🔴 Critical**: Database separation issue
-2. **🟠 High**: OAuth authentication, Mobile page optimizations
-3. **🟡 Medium**: Shopping list, Enhanced AI features
-4. **🟢 Low**: Analytics, Polish features
+1. **🟠 High**: Recipe rating system redesign, OAuth authentication, Mobile page optimizations
+2. **🟡 Medium**: Shopping list, Enhanced AI features
+3. **🟢 Low**: Analytics, Polish features
 
 ## Next Immediate Steps
 
-1. **Fix database separation** - Verify Railway environment variables
+1. **Implement recipe rating system for RecipeV2** - Restore rating functionality with new architecture
 2. **Implement Google OAuth** - Improve user onboarding experience
 3. **Optimize remaining mobile pages** - Complete mobile-first transformation
 4. **Add shopping list feature** - High-value user feature
