@@ -11,7 +11,7 @@ from sqlalchemy import desc
 from ..db.database import get_db
 from ..core.auth_service import AuthService
 from ..models.recipe_v2 import RecipeV2
-from ..schemas.recipe_v2 import RecipeV2Create, RecipeV2Update, RecipeV2Response
+from ..schemas.recipe_v2 import RecipeV2Create, RecipeV2Update, RecipeV2Response, IngredientNeeded
 
 router = APIRouter(tags=["recipes"])
 logger = logging.getLogger(__name__)
@@ -44,20 +44,25 @@ def save_recipe(
         # Convert user ID to UUID
         user_uuid = uuid.UUID(current_user["id"])
         
+        # Convert ingredients_needed to JSON-serializable format
+        ingredients_data = [ingredient.dict() for ingredient in recipe_data.ingredients_needed]
+        
         # Create recipe
         recipe = RecipeV2(
             user_id=user_uuid,
             name=recipe_data.name,
-            description=recipe_data.description or "",
+            description=recipe_data.description,
             prep_time=recipe_data.prep_time,
             difficulty=recipe_data.difficulty,
             servings=recipe_data.servings,
-            ingredients=recipe_data.ingredients,
+            ingredients_needed=ingredients_data,
             instructions=recipe_data.instructions,
             tags=recipe_data.tags,
-            nutrition_notes=recipe_data.nutrition_notes or "",
+            nutrition_notes=recipe_data.nutrition_notes,
+            pantry_usage_score=recipe_data.pantry_usage_score,
             source=recipe_data.source,
-            ai_generated=recipe_data.ai_generated
+            ai_generated=recipe_data.ai_generated,
+            ai_provider=recipe_data.ai_provider
         )
         
         # Save to database
@@ -66,6 +71,9 @@ def save_recipe(
         db.refresh(recipe)
         
         logger.info(f"✅ Recipe saved: {recipe.id} by user {user_uuid}")
+        
+        # Convert ingredients back to IngredientNeeded objects
+        ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
         
         # Return response
         return RecipeV2Response(
@@ -76,12 +84,14 @@ def save_recipe(
             prep_time=recipe.prep_time,
             difficulty=recipe.difficulty,
             servings=recipe.servings,
-            ingredients=recipe.ingredients,
+            ingredients_needed=ingredients_needed,
             instructions=recipe.instructions,
             tags=recipe.tags,
             nutrition_notes=recipe.nutrition_notes,
+            pantry_usage_score=recipe.pantry_usage_score,
             source=recipe.source,
             ai_generated=recipe.ai_generated,
+            ai_provider=recipe.ai_provider,
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
@@ -109,6 +119,7 @@ def list_recipes(
         # Convert to response format
         response_recipes = []
         for recipe in recipes:
+            ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
             response_recipes.append(RecipeV2Response(
                 id=str(recipe.id),
                 user_id=str(recipe.user_id),
@@ -117,12 +128,14 @@ def list_recipes(
                 prep_time=recipe.prep_time,
                 difficulty=recipe.difficulty,
                 servings=recipe.servings,
-                ingredients=recipe.ingredients,
+                ingredients_needed=ingredients_needed,
                 instructions=recipe.instructions,
                 tags=recipe.tags,
                 nutrition_notes=recipe.nutrition_notes,
+                pantry_usage_score=recipe.pantry_usage_score,
                 source=recipe.source,
                 ai_generated=recipe.ai_generated,
+                ai_provider=recipe.ai_provider,
                 created_at=recipe.created_at.isoformat(),
                 updated_at=recipe.updated_at.isoformat()
             ))
@@ -155,6 +168,8 @@ def get_recipe(
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found")
         
+        ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
+        
         return RecipeV2Response(
             id=str(recipe.id),
             user_id=str(recipe.user_id),
@@ -163,12 +178,14 @@ def get_recipe(
             prep_time=recipe.prep_time,
             difficulty=recipe.difficulty,
             servings=recipe.servings,
-            ingredients=recipe.ingredients,
+            ingredients_needed=ingredients_needed,
             instructions=recipe.instructions,
             tags=recipe.tags,
             nutrition_notes=recipe.nutrition_notes,
+            pantry_usage_score=recipe.pantry_usage_score,
             source=recipe.source,
             ai_generated=recipe.ai_generated,
+            ai_provider=recipe.ai_provider,
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
@@ -236,15 +253,20 @@ def update_recipe(
         if not recipe:
             raise HTTPException(status_code=404, detail="Recipe not found")
         
-        # Update fields
+        # Update fields with special handling for ingredients_needed
         update_data = recipe_data.dict(exclude_unset=True)
         for field, value in update_data.items():
+            if field == "ingredients_needed" and value is not None:
+                # Convert IngredientNeeded objects to dict format
+                value = [ingredient.dict() for ingredient in value]
             setattr(recipe, field, value)
         
         db.commit()
         db.refresh(recipe)
         
         logger.info(f"✏️ Recipe updated: {recipe_uuid} by user {user_uuid}")
+        
+        ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
         
         return RecipeV2Response(
             id=str(recipe.id),
@@ -254,12 +276,14 @@ def update_recipe(
             prep_time=recipe.prep_time,
             difficulty=recipe.difficulty,
             servings=recipe.servings,
-            ingredients=recipe.ingredients,
+            ingredients_needed=ingredients_needed,
             instructions=recipe.instructions,
             tags=recipe.tags,
             nutrition_notes=recipe.nutrition_notes,
+            pantry_usage_score=recipe.pantry_usage_score,
             source=recipe.source,
             ai_generated=recipe.ai_generated,
+            ai_provider=recipe.ai_provider,
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )

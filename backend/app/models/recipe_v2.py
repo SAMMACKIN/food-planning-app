@@ -1,7 +1,7 @@
 """
 RecipeV2 - Clean, simple recipe model
 """
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, JSON, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -27,15 +27,17 @@ class RecipeV2(Base):
     difficulty = Column(String(50), nullable=False)  # Easy, Medium, Hard
     servings = Column(Integer, nullable=False)
     
-    # JSON fields - simple and direct
-    ingredients = Column(JSON, nullable=False, default=list)
+    # JSON fields - match frontend structure
+    ingredients_needed = Column(JSON, nullable=False, default=list)  # Array of {name, quantity, unit, have_in_pantry}
     instructions = Column(JSON, nullable=False, default=list)
     tags = Column(JSON, nullable=False, default=list)
     
     # Optional metadata
-    nutrition_notes = Column(Text)
-    source = Column(String(100), default="manual")  # manual, ai, imported
-    ai_generated = Column(String(10), default="false")  # Store as string to avoid bool issues
+    nutrition_notes = Column(Text, default="")
+    pantry_usage_score = Column(Integer, default=0)
+    source = Column(String(100), default="user_created")  # user_created, ai, imported
+    ai_generated = Column(Boolean, default=False)  # Use proper boolean
+    ai_provider = Column(String(50), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
