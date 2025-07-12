@@ -197,19 +197,42 @@ async def get_meal_recommendations(
                     }
                 })
         
-        # Get recommendations from selected AI provider
+        # Get recommendations from selected AI provider with fallback
         provider = request.ai_provider or "perplexity"
         logger.info(f"DEBUG: Getting {request.num_recommendations} recommendations from {provider}")
         logger.info(f"DEBUG: Family members: {len(family_members)}")
         logger.info(f"DEBUG: Pantry items: {len(pantry_items)}")
         
-        recommendations = await ai_service.get_meal_recommendations(
-            family_members=family_members,
-            pantry_items=pantry_items,
-            preferences=request.preferences,
-            num_recommendations=request.num_recommendations,
-            provider=provider
-        )
+        # Try providers in order with fallback
+        providers_to_try = [provider]
+        if provider != "claude":
+            providers_to_try.append("claude")
+        if provider != "groq":
+            providers_to_try.append("groq")
+        
+        recommendations = None
+        last_error = None
+        
+        for try_provider in providers_to_try:
+            try:
+                logger.info(f"DEBUG: Trying provider: {try_provider}")
+                recommendations = await ai_service.get_meal_recommendations(
+                    family_members=family_members,
+                    pantry_items=pantry_items,
+                    preferences=request.preferences,
+                    num_recommendations=request.num_recommendations,
+                    provider=try_provider
+                )
+                logger.info(f"DEBUG: Successfully got recommendations from {try_provider}")
+                break
+            except Exception as e:
+                logger.warning(f"DEBUG: Provider {try_provider} failed: {str(e)}")
+                last_error = e
+                continue
+        
+        if not recommendations:
+            logger.error(f"DEBUG: All providers failed. Last error: {last_error}")
+            raise Exception(f"All AI providers failed. Last error: {str(last_error)}")
         
         logger.info(f"DEBUG: Got {len(recommendations)} recommendations")
         if recommendations:
