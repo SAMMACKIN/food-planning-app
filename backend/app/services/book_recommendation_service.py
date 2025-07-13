@@ -3,7 +3,7 @@ Book Recommendation Service with AI-powered suggestions and learning feedback sy
 """
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, or_
@@ -40,7 +40,7 @@ class BookRecommendationService:
         context = await self._build_user_context(user_id, db)
         
         # Generate session ID for tracking feedback
-        session_id = f"rec_{user_id[:8]}_{int(datetime.now().timestamp())}"
+        session_id = f"rec_{user_id[:8]}_{int(datetime.now(timezone.utc).timestamp())}"
         
         # Create AI prompt with learned preferences
         prompt = self._create_recommendation_prompt(context, request)
@@ -487,8 +487,8 @@ Format your response as JSON:
         """
         Analyze recent reading activity
         """
-        recent_books = [book for book in books if book.updated_at and book.updated_at > datetime.now() - timedelta(days=30)]
-        recent_feedback = [f for f in feedback_history if f.created_at > datetime.now() - timedelta(days=30)]
+        recent_books = [book for book in books if book.updated_at and book.updated_at > datetime.now(timezone.utc) - timedelta(days=30)]
+        recent_feedback = [f for f in feedback_history if f.created_at > datetime.now(timezone.utc) - timedelta(days=30)]
         
         return {
             "books_added_recently": len(recent_books),
