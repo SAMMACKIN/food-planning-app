@@ -210,14 +210,12 @@ class BookRecommendationService:
             if feedback.feedback_type == "want_to_read":
                 feedback_patterns["recent_positive"].append({
                     "title": feedback.recommended_title,
-                    "author": feedback.recommended_author,
-                    "genre": feedback.recommended_genre
+                    "author": feedback.recommended_author
                 })
             elif feedback.feedback_type == "not_interested":
                 feedback_patterns["recent_negative"].append({
                     "title": feedback.recommended_title,
-                    "author": feedback.recommended_author,
-                    "genre": feedback.recommended_genre
+                    "author": feedback.recommended_author
                 })
         
         return {

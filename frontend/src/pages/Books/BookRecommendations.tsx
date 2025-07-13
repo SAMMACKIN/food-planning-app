@@ -102,6 +102,7 @@ const BookRecommendations: React.FC = () => {
 
   const loadRecommendations = async () => {
     try {
+      console.log('🚀 Starting to load book recommendations...');
       setLoading(true);
       setError(null);
       
@@ -111,8 +112,12 @@ const BookRecommendations: React.FC = () => {
         preferred_genres: preferredGenres,
         include_reasoning: includeReasoning
       };
+      
+      console.log('📋 Request params:', request);
+      const url = `${process.env.REACT_APP_API_URL}/api/v1/books/recommendations`;
+      console.log('🔗 Making request to:', url);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books/recommendations`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,18 +126,23 @@ const BookRecommendations: React.FC = () => {
         body: JSON.stringify(request)
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
+        console.error('❌ Error response:', errorData);
         throw new Error(errorData?.detail || `HTTP ${response.status}`);
       }
 
       const data: RecommendationsResponse = await response.json();
+      console.log('✅ Recommendations received:', data);
+      
       setRecommendations(data.recommendations);
       setSessionId(data.session_id);
       setContextSummary(data.context_summary);
       
     } catch (error: any) {
-      console.error('Error loading recommendations:', error);
+      console.error('❌ Error loading recommendations:', error);
       setError(error.message || 'Failed to load recommendations');
     } finally {
       setLoading(false);
