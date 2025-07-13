@@ -87,15 +87,16 @@ const Layout: React.FC = () => {
     if (location.pathname.includes('/recipes')) return 4;
     if (location.pathname.includes('/meal-planning')) return 5;
     // Books section
+    if (location.pathname.includes('/books/recommendations')) return 7;
     if (location.pathname.includes('/books')) return 6;
     // TV Shows section
-    if (location.pathname.includes('/tv-shows')) return 7;
+    if (location.pathname.includes('/tv-shows')) return 8;
     // Movies section
-    if (location.pathname.includes('/movies')) return 8;
+    if (location.pathname.includes('/movies')) return 9;
     // Other sections
-    if (location.pathname.includes('/user-guide')) return 9;
-    if (location.pathname.includes('/changes')) return 10;
-    if (location.pathname.includes('/admin')) return 11;
+    if (location.pathname.includes('/user-guide')) return 10;
+    if (location.pathname.includes('/changes')) return 11;
+    if (location.pathname.includes('/admin')) return 12;
     return 0; // dashboard
   };
 
@@ -138,7 +139,8 @@ const Layout: React.FC = () => {
       title: 'Books',
       icon: <BooksIcon />,
       items: [
-        { label: 'My Books', icon: <BooksIcon />, path: '/books' }
+        { label: 'My Books', icon: <BooksIcon />, path: '/books' },
+        { label: 'Recommendations', icon: <RecommendationsIcon />, path: '/books/recommendations' }
       ]
     },
     {

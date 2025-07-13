@@ -211,6 +211,40 @@ class EpisodeWatch(Base):
     tv_show = relationship("TVShow", back_populates="episode_watches")
 
 
+class BookRecommendationFeedback(Base):
+    """
+    Track user feedback on book recommendations to improve AI suggestions
+    """
+    __tablename__ = "book_recommendation_feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Recommendation details
+    recommendation_session_id = Column(String(100), nullable=False)  # Group recommendations by session
+    recommended_title = Column(String(500), nullable=False)
+    recommended_author = Column(String(300), nullable=False)
+    recommended_genre = Column(String(100))
+    recommended_description = Column(Text)
+    ai_reasoning = Column(Text)  # Why the AI recommended this book
+    
+    # User feedback
+    feedback_type = Column(String(50), nullable=False)  # "read", "want_to_read", "not_interested"
+    feedback_notes = Column(Text)  # Optional user notes
+    
+    # Context that led to this recommendation
+    context_books = Column(JSON, default=list)  # Books that influenced this recommendation
+    context_genres = Column(JSON, default=list)  # User's preferred genres at time of recommendation
+    context_feedback_history = Column(JSON, default=dict)  # Previous feedback patterns
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="book_recommendation_feedback")
+
+
 class ContentShare(Base):
     """
     Universal content sharing system

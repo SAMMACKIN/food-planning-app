@@ -11,7 +11,11 @@ from sqlalchemy import desc, or_, and_
 from ..db.database import get_db
 from ..core.auth_service import AuthService
 from ..models.content import Book
-from ..schemas.books import BookCreate, BookUpdate, BookResponse, BookListResponse, BookFilters, ReadingStatus, BookDetailsRequest, BookDetailsResponse
+from ..schemas.books import (
+    BookCreate, BookUpdate, BookResponse, BookListResponse, BookFilters, ReadingStatus, 
+    BookDetailsRequest, BookDetailsResponse, BookRecommendationRequest, BookRecommendationResponse,
+    BookRecommendationFeedbackRequest, BookRecommendationFeedbackResponse, FeedbackType
+)
 
 router = APIRouter(tags=["books"])
 logger = logging.getLogger(__name__)
@@ -484,3 +488,134 @@ async def fetch_book_details(
     except Exception as e:
         logger.error(f"❌ Fetch book details error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch book details: {str(e)}")
+
+
+@router.post("/recommendations", response_model=BookRecommendationResponse)
+async def get_book_recommendations(
+    request: BookRecommendationRequest,
+    current_user: dict = Depends(get_current_user_simple),
+    db: Session = Depends(get_db)
+):
+    """
+    Get AI-powered book recommendations based on user's reading history and preferences
+    
+    This endpoint analyzes the user's book collection, reading patterns, and past feedback
+    to generate personalized book recommendations. The AI learns from user preferences
+    and gets smarter with each interaction.
+    """
+    try:
+        user_id = current_user["id"]
+        logger.info(f"🤖 Generating book recommendations for user: {user_id}")
+        
+        # Import here to avoid circular imports
+        from ..services.book_recommendation_service import book_recommendation_service
+        
+        # Get personalized recommendations
+        recommendations = await book_recommendation_service.get_recommendations(
+            user_id=user_id,
+            db=db,
+            request=request
+        )
+        
+        logger.info(f"✅ Generated {len(recommendations.recommendations)} book recommendations")
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"❌ Book recommendations error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+
+
+@router.post("/recommendations/feedback", response_model=BookRecommendationFeedbackResponse)
+async def submit_recommendation_feedback(
+    feedback: BookRecommendationFeedbackRequest,
+    current_user: dict = Depends(get_current_user_simple),
+    db: Session = Depends(get_db)
+):
+    """
+    Submit feedback on book recommendations to improve future suggestions
+    
+    User can mark recommendations as:
+    - "read": They've already read this book
+    - "want_to_read": They're interested and want to add to their list
+    - "not_interested": They're not interested in this type of book
+    
+    The AI learns from this feedback to provide better future recommendations.
+    """
+    try:
+        user_id = current_user["id"]
+        logger.info(f"📝 Processing recommendation feedback: {feedback.feedback_type} for '{feedback.recommendation_title}'")
+        
+        # Import here to avoid circular imports
+        from ..services.book_recommendation_service import book_recommendation_service
+        
+        # Process the feedback
+        result = await book_recommendation_service.process_feedback(
+            user_id=user_id,
+            db=db,
+            session_id=feedback.session_id,
+            recommendation_title=feedback.recommendation_title,
+            recommendation_author=feedback.recommendation_author,
+            feedback_type=feedback.feedback_type,
+            feedback_notes=feedback.feedback_notes
+        )
+        
+        response = BookRecommendationFeedbackResponse(
+            success=result["success"],
+            message=result["message"]
+        )
+        
+        # If feedback suggests we should regenerate recommendations
+        if result.get("should_regenerate", False):
+            logger.info("🔄 Regenerating recommendations based on feedback")
+            try:
+                new_recommendations = await book_recommendation_service.regenerate_recommendations(
+                    user_id=user_id,
+                    db=db,
+                    request=BookRecommendationRequest(max_recommendations=5)
+                )
+                response.updated_recommendations = new_recommendations
+            except Exception as regen_error:
+                logger.error(f"❌ Failed to regenerate recommendations: {regen_error}")
+                # Don't fail the feedback submission if regeneration fails
+        
+        logger.info(f"✅ Feedback processed successfully")
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Recommendation feedback error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process feedback: {str(e)}")
+
+
+@router.post("/recommendations/regenerate", response_model=BookRecommendationResponse)
+async def regenerate_recommendations(
+    request: BookRecommendationRequest,
+    current_user: dict = Depends(get_current_user_simple),
+    db: Session = Depends(get_db)
+):
+    """
+    Regenerate book recommendations with latest user feedback incorporated
+    
+    This endpoint generates fresh recommendations taking into account the most
+    recent user feedback and reading activity. Use this when you want new
+    suggestions after providing feedback on previous recommendations.
+    """
+    try:
+        user_id = current_user["id"]
+        logger.info(f"🔄 Regenerating book recommendations for user: {user_id}")
+        
+        # Import here to avoid circular imports
+        from ..services.book_recommendation_service import book_recommendation_service
+        
+        # Generate fresh recommendations
+        recommendations = await book_recommendation_service.regenerate_recommendations(
+            user_id=user_id,
+            db=db,
+            request=request
+        )
+        
+        logger.info(f"✅ Regenerated {len(recommendations.recommendations)} book recommendations")
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"❌ Regenerate recommendations error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to regenerate recommendations: {str(e)}")

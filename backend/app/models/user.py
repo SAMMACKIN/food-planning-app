@@ -33,3 +33,4 @@ class User(Base):
     books = relationship("Book", back_populates="user", cascade="all, delete-orphan")
     tv_shows = relationship("TVShow", back_populates="user", cascade="all, delete-orphan")
     movies = relationship("Movie", back_populates="user", cascade="all, delete-orphan")
+    book_recommendation_feedback = relationship("BookRecommendationFeedback", back_populates="user", cascade="all, delete-orphan")

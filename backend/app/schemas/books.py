@@ -111,3 +111,49 @@ class BookDetailsResponse(BaseModel):
     open_library_id: Optional[str] = None
     confidence: Optional[BookDetailsConfidence] = None
     sources: List[str] = []  # e.g., ["ai", "openlibrary", "google_books"]
+
+
+class BookRecommendationRequest(BaseModel):
+    max_recommendations: Optional[int] = Field(5, ge=1, le=20)
+    exclude_genres: Optional[List[str]] = []
+    preferred_genres: Optional[List[str]] = []
+    include_reasoning: Optional[bool] = True
+
+
+class BookRecommendation(BaseModel):
+    title: str = Field(..., max_length=500)
+    author: str = Field(..., max_length=300)
+    genre: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = None
+    publication_year: Optional[int] = None
+    pages: Optional[int] = None
+    cover_image_url: Optional[str] = None
+    reasoning: Optional[str] = None  # AI explanation for this recommendation
+    confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class BookRecommendationResponse(BaseModel):
+    recommendations: List[BookRecommendation]
+    session_id: str
+    context_summary: str  # Summary of what influenced these recommendations
+    total_recommendations: int
+    
+    
+class FeedbackType(str, Enum):
+    READ = "read"
+    WANT_TO_READ = "want_to_read"
+    NOT_INTERESTED = "not_interested"
+
+
+class BookRecommendationFeedbackRequest(BaseModel):
+    session_id: str = Field(..., max_length=100)
+    recommendation_title: str = Field(..., max_length=500)
+    recommendation_author: str = Field(..., max_length=300)
+    feedback_type: FeedbackType
+    feedback_notes: Optional[str] = None
+
+
+class BookRecommendationFeedbackResponse(BaseModel):
+    success: bool
+    message: str
+    updated_recommendations: Optional[BookRecommendationResponse] = None  # New recommendations based on feedback
