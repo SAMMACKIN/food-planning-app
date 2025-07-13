@@ -53,6 +53,17 @@ class BookRecommendationService:
             
             # Get AI recommendations
             print(f"🤖 Calling AI service for recommendations...")
+            print(f"🤖 AI service available: {self.ai is not None}")
+            print(f"🤖 Prompt length: {len(prompt)} characters")
+            
+            # Check if AI providers are available
+            if hasattr(self.ai, 'groq_client'):
+                print(f"🤖 Groq client available: {self.ai.groq_client is not None}")
+            if hasattr(self.ai, 'claude_client'):
+                print(f"🤖 Claude client available: {self.ai.claude_client is not None}")
+            if hasattr(self.ai, 'perplexity_api_key'):
+                print(f"🤖 Perplexity available: {self.ai.perplexity_api_key is not None}")
+            
             ai_response = await self.ai.get_ai_response(prompt)
             print(f"✅ AI response received, length: {len(ai_response)}")
             
@@ -84,9 +95,12 @@ class BookRecommendationService:
             
         except Exception as e:
             print(f"❌ Error generating book recommendations: {e}")
+            print(f"❌ Error type: {type(e).__name__}")
+            print(f"❌ Error details: {str(e)}")
             import traceback
             traceback.print_exc()
             # Return fallback recommendations
+            print("⚠️ Returning fallback recommendations due to AI error")
             return await self._get_fallback_recommendations(request, session_id)
     
     async def process_feedback(

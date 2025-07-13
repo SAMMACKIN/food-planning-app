@@ -850,24 +850,44 @@ IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
         Used for book recommendations and other general AI tasks
         """
         try:
-            # Determine which provider to use
-            if provider == "all" or provider == "perplexity":
-                if self.perplexity_api_key:
-                    return await self._get_perplexity_response(prompt)
-            
-            if provider == "all" or provider == "claude":
-                if self.claude_client:
-                    return await self._get_claude_response(prompt)
-            
+            # Prioritize Groq as requested
             if provider == "all" or provider == "groq":
                 if self.groq_client:
-                    return await self._get_groq_response(prompt)
+                    try:
+                        logger.info("🤖 Using Groq for AI response")
+                        return await self._get_groq_response(prompt)
+                    except Exception as e:
+                        logger.error(f"Groq failed: {e}")
+                        if provider == "groq":
+                            raise
+            
+            # Fallback to Perplexity
+            if provider == "all" or provider == "perplexity":
+                if self.perplexity_api_key:
+                    try:
+                        logger.info("🤖 Using Perplexity for AI response")
+                        return await self._get_perplexity_response(prompt)
+                    except Exception as e:
+                        logger.error(f"Perplexity failed: {e}")
+                        if provider == "perplexity":
+                            raise
+            
+            # Fallback to Claude
+            if provider == "all" or provider == "claude":
+                if self.claude_client:
+                    try:
+                        logger.info("🤖 Using Claude for AI response")
+                        return await self._get_claude_response(prompt)
+                    except Exception as e:
+                        logger.error(f"Claude failed: {e}")
+                        if provider == "claude":
+                            raise
             
             # If no provider is available, raise an error
             raise ValueError("No AI provider available for generating response")
             
         except Exception as e:
-            logger.error(f"Error getting AI response: {e}")
+            logger.error(f"❌ Error getting AI response: {e}")
             raise
 
     async def _get_perplexity_response(self, prompt: str) -> str:
