@@ -11,9 +11,19 @@ export const useRecipes = () => {
 
   const fetchSavedRecipes = useCallback(async (search?: string, difficulty?: string, tags?: string) => {
     console.log('📚 fetchSavedRecipes called - starting fetch...');
+    console.log('🔍 Search parameters:', { search, difficulty, tags });
+    
     try {
       setLoading(true);
       setError(null);
+      
+      // Check if we have authentication
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('❌ No authentication token found');
+        setError('Please log in to view your saved recipes');
+        return;
+      }
       
       const params = new URLSearchParams();
       if (search) params.append('search', search);
@@ -21,11 +31,39 @@ export const useRecipes = () => {
       if (tags) params.append('tags', tags);
       
       const endpoint = `/recipes${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('🌐 Fetching from endpoint:', endpoint);
+      console.log('🔑 Token available:', !!token);
+      
       const recipes = await apiRequest<Recipe[]>('GET', endpoint);
+      console.log('✅ Recipes fetched successfully:', recipes.length, 'recipes');
       setSavedRecipes(recipes);
     } catch (error: any) {
-      console.error('Error fetching saved recipes:', error);
-      setError('Failed to fetch saved recipes');
+      console.error('❌ Error fetching saved recipes:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        config: error.config
+      });
+      
+      let errorMessage = 'Failed to fetch saved recipes';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+        // Clear invalid token
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Recipes endpoint not found. This might be a deployment issue.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -157,7 +195,12 @@ export const useRecipes = () => {
       } else if (error.response?.status === 404) {
         errorMessage = 'Recipe not found. It may have been deleted.';
       } else if (error.response?.status === 400) {
-        errorMessage = 'Invalid rating data. Please check all fields.';
+        // Check for "already rated" error
+        if (error.response?.data?.detail?.includes('already rated')) {
+          errorMessage = 'You have already rated this recipe. Use the update option to change your rating.';
+        } else {
+          errorMessage = 'Invalid rating data. Please check all fields.';
+        }
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       }

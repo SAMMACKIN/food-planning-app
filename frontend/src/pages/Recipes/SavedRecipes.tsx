@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -43,8 +43,12 @@ import { Recipe, RecipeRating } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
+import { useAuthStore } from '../../store/authStore';
+import { apiRequest } from '../../services/api';
+import ApiDebugInfo from '../../components/Debug/ApiDebugInfo';
 
 const SavedRecipes: React.FC = () => {
+  const [healthCheckStatus, setHealthCheckStatus] = useState<string | null>(null);
   const {
     savedRecipes,
     loading,
@@ -57,6 +61,7 @@ const SavedRecipes: React.FC = () => {
     updateRecipeRating,
     clearError
   } = useRecipes();
+  const { user, isAuthenticated } = useAuthStore();
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -94,13 +99,21 @@ const SavedRecipes: React.FC = () => {
 
   const handleOpenRatingDialog = async (recipe: Recipe) => {
     try {
+      console.log('🔍 Opening rating dialog for recipe:', recipe.id);
+      console.log('👤 Current user ID:', user?.id);
+      
       const ratings = await getRecipeRatings(recipe.id);
-      const userRating = ratings.find(r => r.user_id === recipe.user_id); // Simplified check
+      console.log('⭐ Found ratings:', ratings);
+      
+      // Find the current user's rating for this recipe
+      const userRating = ratings.find(r => r.user_id === user?.id);
+      console.log('👤 User rating found:', userRating);
+      
       setExistingRating(userRating);
       setRecipeToRate(recipe);
       setRatingDialogOpen(true);
     } catch (error) {
-      console.error('Error loading existing rating:', error);
+      console.error('❌ Error loading existing rating:', error);
       setExistingRating(undefined);
       setRecipeToRate(recipe);
       setRatingDialogOpen(true);
@@ -155,6 +168,25 @@ const SavedRecipes: React.FC = () => {
     return false;
   };
 
+  // Add health check on component mount
+  useEffect(() => {
+    const checkRecipesHealth = async () => {
+      try {
+        console.log('🏥 Running recipes health check...');
+        const response = await apiRequest<any>('GET', '/recipes/debug/health');
+        console.log('✅ Health check response:', response);
+        setHealthCheckStatus(`Recipes system healthy - ${response.user_recipe_count} recipes found`);
+      } catch (error: any) {
+        console.error('❌ Health check failed:', error);
+        setHealthCheckStatus(`Health check failed: ${error.response?.status || 'Unknown error'}`);
+      }
+    };
+    
+    if (isAuthenticated) {
+      checkRecipesHealth();
+    }
+  }, [isAuthenticated]);
+
   const filteredRecipes = savedRecipes.filter(recipe =>
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -171,6 +203,11 @@ const SavedRecipes: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {/* Debug info - remove after fixing the issue */}
+      {process.env.NODE_ENV === 'development' || window.location.hostname.includes('preview') ? (
+        <ApiDebugInfo />
+      ) : null}
+      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <MenuBook color="primary" />
@@ -198,6 +235,15 @@ const SavedRecipes: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
           {error}
+        </Alert>
+      )}
+      
+      {healthCheckStatus && (
+        <Alert 
+          severity={healthCheckStatus.includes('healthy') ? 'success' : 'warning'} 
+          sx={{ mb: 2 }}
+        >
+          {healthCheckStatus}
         </Alert>
       )}
 
