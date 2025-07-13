@@ -160,6 +160,15 @@ def create_app() -> FastAPI:
             router_status["admin"] = f"❌ Failed: {e}"
             logger.error(f"❌ Admin router error: {e}")
         
+        try:
+            from .api import books
+            app.include_router(books.router, prefix="/api/v1/books", tags=["books"])
+            router_status["books"] = "✅ Success"
+            logger.info(f"📚 Books router registered at: /api/v1/books")
+        except Exception as e:
+            router_status["books"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Books router error: {e}")
+        
         # Migration endpoints for database schema updates
         try:
             from .api import migrate

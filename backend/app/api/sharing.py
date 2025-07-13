@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
 from ..db.database import get_db
-from ..models import User, ContentShare, ContentType, Book, TVShow, Movie, RecipeV2
-from ..core.auth import get_current_user
+from ..models import User, ContentShare, Book, TVShow, Movie, RecipeV2
+from ..models.content import ContentType
+from ..core.auth_service import get_current_user
 from ..schemas.sharing import (
     ContentShareCreate, ContentShareResponse, SharedContentResponse,
     UserProfileResponse, PublicUserProfile
