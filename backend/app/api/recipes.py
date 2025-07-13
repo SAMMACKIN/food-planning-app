@@ -152,46 +152,26 @@ def list_recipes(
         if recipes:
             logger.info(f"📋 Sample recipe IDs: {[str(r.id) for r in recipes[:3]]}")
         
-        # Convert to response format
+        # Convert to response format (simplified like production)
         response_recipes = []
         for recipe in recipes:
             try:
-                # Handle ingredients_needed processing with error handling
-                ingredients_needed = []
-                if recipe.ingredients_needed:
-                    for ingredient in recipe.ingredients_needed:
-                        try:
-                            if isinstance(ingredient, dict):
-                                ingredients_needed.append(IngredientNeeded(**ingredient))
-                            else:
-                                logger.warning(f"Unexpected ingredient format in recipe {recipe.id}: {ingredient}")
-                                # Create a fallback ingredient
-                                ingredients_needed.append(IngredientNeeded(
-                                    name=str(ingredient),
-                                    quantity="1",
-                                    unit="unit",
-                                    have_in_pantry=False
-                                ))
-                        except Exception as ingredient_error:
-                            logger.error(f"Error processing ingredient in recipe {recipe.id}: {ingredient_error}")
-                            # Skip malformed ingredients rather than failing the whole request
-                            continue
-                
+                ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
                 response_recipes.append(RecipeV2Response(
                     id=str(recipe.id),
                     user_id=str(recipe.user_id),
                     name=recipe.name,
-                    description=recipe.description or "",
+                    description=recipe.description,
                     prep_time=recipe.prep_time,
                     difficulty=recipe.difficulty,
                     servings=recipe.servings,
                     ingredients_needed=ingredients_needed,
-                    instructions=recipe.instructions or [],
-                    tags=recipe.tags or [],
-                    nutrition_notes=recipe.nutrition_notes or "",
+                    instructions=recipe.instructions,
+                    tags=recipe.tags,
+                    nutrition_notes=recipe.nutrition_notes,
                     pantry_usage_score=recipe.pantry_usage_score,
-                    source=recipe.source or "unknown",
-                    ai_generated=recipe.ai_generated or False,
+                    source=recipe.source,
+                    ai_generated=recipe.ai_generated,
                     ai_provider=recipe.ai_provider,
                     rating=calculate_average_rating(db, recipe.id),
                     created_at=recipe.created_at.isoformat(),
@@ -200,7 +180,6 @@ def list_recipes(
                 logger.info(f"✅ Successfully processed recipe {recipe.id}: {recipe.name}")
             except Exception as recipe_error:
                 logger.error(f"❌ Error processing recipe {recipe.id}: {recipe_error}")
-                logger.error(f"❌ Recipe data: name={getattr(recipe, 'name', 'N/A')}, ingredients_type={type(getattr(recipe, 'ingredients_needed', None))}")
                 # Skip malformed recipes rather than failing the whole request
                 continue
         
