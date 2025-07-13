@@ -111,11 +111,15 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
 
       // Clean up data
       const bookData: BookCreate = {
-        ...data,
+        title: data.title,
+        author: data.author,
         description: data.description || undefined,
         genre: data.genre || undefined,
         isbn: data.isbn || undefined,
+        pages: data.pages === null ? undefined : data.pages,
+        publication_year: data.publication_year === null ? undefined : data.publication_year,
         cover_image_url: data.cover_image_url || undefined,
+        reading_status: data.reading_status,
         user_notes: data.user_notes || undefined,
         current_page: data.current_page || 0,
         is_favorite: data.is_favorite || false,
