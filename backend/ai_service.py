@@ -844,5 +844,221 @@ IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
             "ai_provider": "mock"
         }
 
+    async def extract_book_details(self, title: str, author: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Extract book details using AI services"""
+        try:
+            logger.info(f"🤖 Extracting book details for: {title} by {author or 'Unknown Author'}")
+            
+            # Return mock data in testing mode
+            if self.is_testing:
+                logger.info("Testing mode: returning mock book details")
+                return self._get_mock_book_details(title, author)
+            
+            # Try providers in order of preference
+            providers = ["perplexity", "claude", "groq"]
+            
+            for provider in providers:
+                try:
+                    logger.info(f"🔄 Trying book details extraction with {provider}")
+                    
+                    if provider == "perplexity" and self.perplexity_key:
+                        result = await self._extract_book_details_perplexity(title, author)
+                    elif provider == "claude" and self.claude_client:
+                        result = await self._extract_book_details_claude(title, author)
+                    elif provider == "groq" and self.groq_client:
+                        result = await self._extract_book_details_groq(title, author)
+                    else:
+                        continue
+                    
+                    if result and self._validate_extracted_book_details(result):
+                        logger.info(f"✅ Book details extracted successfully with {provider}")
+                        result['ai_provider'] = provider
+                        return result
+                    else:
+                        logger.warning(f"❌ Book details extraction failed with {provider}")
+                        
+                except Exception as e:
+                    logger.error(f"{provider.title()} book details extraction error: {e}")
+                    logger.warning(f"❌ Book details extraction failed with {provider}: {e}")
+                    continue
+            
+            logger.error("❌ All providers failed for book details extraction")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Book details extraction failed: {e}")
+            return None
+
+    async def _extract_book_details_perplexity(self, title: str, author: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Extract book details using Perplexity AI"""
+        prompt = self._build_book_details_prompt(title, author)
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.perplexity_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.1-sonar-small-128k-online",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 1000
+                },
+                timeout=60
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+            
+            return self._parse_book_details_response(content)
+
+    async def _extract_book_details_claude(self, title: str, author: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Extract book details using Claude AI"""
+        prompt = self._build_book_details_prompt(title, author)
+        
+        message = self.claude_client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=1000,
+            temperature=0.1,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        return self._parse_book_details_response(message.content[0].text)
+
+    async def _extract_book_details_groq(self, title: str, author: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Extract book details using Groq"""
+        prompt = self._build_book_details_prompt(title, author)
+        
+        chat_completion = self.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=1000
+        )
+        
+        content = chat_completion.choices[0].message.content
+        return self._parse_book_details_response(content)
+
+    def _build_book_details_prompt(self, title: str, author: Optional[str] = None) -> str:
+        """Build structured prompt for book details extraction"""
+        author_part = f" by {author}" if author else ""
+        
+        return f"""
+Extract detailed information about the book "{title}"{author_part}. 
+
+Return the information in this exact JSON format:
+{{
+    "title": "Full book title",
+    "author": "Author name",
+    "publication_year": 2023,
+    "pages": 300,
+    "genre": "Fiction",
+    "description": "Brief book description/synopsis",
+    "isbn": "ISBN number if available",
+    "confidence": {{
+        "publication_year": 0.95,
+        "pages": 0.85,
+        "genre": 0.90,
+        "description": 0.88
+    }}
+}}
+
+Guidelines:
+- If information is not available, use null
+- For confidence, use 0.0-1.0 scale (1.0 = very certain)
+- Keep description under 500 characters
+- Use the most common/recognized title and author name
+- For genre, use broad categories like "Fiction", "Non-fiction", "Mystery", "Science Fiction", etc.
+- Only include ISBN if you're confident it's correct
+
+Book: "{title}"{author_part}
+"""
+
+    def _parse_book_details_response(self, content: str) -> Optional[Dict[str, Any]]:
+        """Parse book details from AI response"""
+        try:
+            # Extract JSON from response
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if not json_match:
+                logger.error("No JSON found in book details response")
+                return None
+            
+            json_str = json_match.group()
+            book_data = json.loads(json_str)
+            
+            # Validate and clean the data
+            cleaned_data = {
+                'title': str(book_data.get('title', '')).strip(),
+                'author': str(book_data.get('author', '')).strip(),
+                'publication_year': book_data.get('publication_year'),
+                'pages': book_data.get('pages'),
+                'genre': str(book_data.get('genre', '')).strip() if book_data.get('genre') else None,
+                'description': str(book_data.get('description', '')).strip() if book_data.get('description') else None,
+                'isbn': str(book_data.get('isbn', '')).strip() if book_data.get('isbn') else None,
+                'confidence': book_data.get('confidence', {})
+            }
+            
+            # Validate publication year
+            if cleaned_data['publication_year']:
+                try:
+                    year = int(cleaned_data['publication_year'])
+                    if year < 0 or year > 3000:
+                        cleaned_data['publication_year'] = None
+                    else:
+                        cleaned_data['publication_year'] = year
+                except (ValueError, TypeError):
+                    cleaned_data['publication_year'] = None
+            
+            # Validate pages
+            if cleaned_data['pages']:
+                try:
+                    pages = int(cleaned_data['pages'])
+                    if pages <= 0:
+                        cleaned_data['pages'] = None
+                    else:
+                        cleaned_data['pages'] = pages
+                except (ValueError, TypeError):
+                    cleaned_data['pages'] = None
+            
+            return cleaned_data
+            
+        except Exception as e:
+            logger.error(f"Error parsing book details response: {e}")
+            return None
+
+    def _validate_extracted_book_details(self, book_details: Dict[str, Any]) -> bool:
+        """Validate extracted book details"""
+        if not book_details.get('title') or not book_details.get('author'):
+            return False
+        
+        # At least one meaningful piece of information should be present
+        meaningful_fields = ['publication_year', 'pages', 'genre', 'description']
+        has_meaningful_data = any(book_details.get(field) for field in meaningful_fields)
+        
+        return has_meaningful_data
+
+    def _get_mock_book_details(self, title: str, author: Optional[str] = None) -> Dict[str, Any]:
+        """Return mock book details for testing"""
+        return {
+            "title": title,
+            "author": author or "Mock Author",
+            "publication_year": 2020,
+            "pages": 250,
+            "genre": "Fiction",
+            "description": f"This is a mock description for the book '{title}' used for testing purposes.",
+            "isbn": "9780123456789",
+            "confidence": {
+                "publication_year": 0.95,
+                "pages": 0.85,
+                "genre": 0.90,
+                "description": 0.88
+            },
+            "ai_provider": "mock"
+        }
+
 # Global instance
 ai_service = AIService()

@@ -11,7 +11,7 @@ from sqlalchemy import desc, or_, and_
 from ..db.database import get_db
 from ..core.auth_service import AuthService
 from ..models.content import Book
-from ..schemas.books import BookCreate, BookUpdate, BookResponse, BookListResponse, BookFilters, ReadingStatus
+from ..schemas.books import BookCreate, BookUpdate, BookResponse, BookListResponse, BookFilters, ReadingStatus, BookDetailsRequest, BookDetailsResponse
 
 router = APIRouter(tags=["books"])
 logger = logging.getLogger(__name__)
@@ -429,3 +429,58 @@ def books_health_check(
             "database_connected": False,
             "table_accessible": False
         }
+
+
+@router.post("/fetch-details", response_model=BookDetailsResponse)
+async def fetch_book_details(
+    request: BookDetailsRequest,
+    current_user: dict = Depends(get_current_user_simple),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch book details using AI and external APIs
+    
+    This endpoint accepts a book title and optional author name,
+    then uses AI services and external APIs to fetch comprehensive
+    book information including publication year, pages, genre,
+    description, ISBN, and cover image.
+    """
+    try:
+        logger.info(f"📚 Fetching book details for: {request.title} by {request.author or 'Unknown Author'}")
+        
+        # Import here to avoid circular imports
+        from ..services.book_details_service import book_details_service
+        
+        # Fetch book details from multiple sources
+        book_data = await book_details_service.fetch_book_details(request.title, request.author)
+        
+        if not book_data:
+            raise HTTPException(
+                status_code=404, 
+                detail="Could not find book details for the provided title and author"
+            )
+        
+        # Convert to response format
+        response = BookDetailsResponse(
+            title=book_data.get('title', request.title),
+            author=book_data.get('author', request.author or ''),
+            publication_year=book_data.get('publication_year'),
+            pages=book_data.get('pages'),
+            genre=book_data.get('genre'),
+            description=book_data.get('description'),
+            isbn=book_data.get('isbn'),
+            cover_image_url=book_data.get('cover_image_url'),
+            google_books_id=book_data.get('google_books_id'),
+            open_library_id=book_data.get('open_library_id'),
+            confidence=book_data.get('confidence'),
+            sources=book_data.get('sources', [])
+        )
+        
+        logger.info(f"✅ Successfully fetched book details for: {request.title}")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Fetch book details error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch book details: {str(e)}")
