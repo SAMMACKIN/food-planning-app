@@ -22,6 +22,7 @@ const Changes = lazy(() => import('./pages/Changes/Changes'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const SavedRecipes = lazy(() => import('./pages/Recipes/SavedRecipes'));
 const BooksManagement = lazy(() => import('./pages/Books/BooksManagement'));
+const BookRecommendations = lazy(() => import('./pages/Books/BookRecommendations'));
 const TVShowsManagement = lazy(() => import('./pages/TVShows/TVShowsManagement'));
 const MoviesManagement = lazy(() => import('./pages/Movies/MoviesManagement'));
 
@@ -93,6 +94,13 @@ function App() {
               <RouteErrorBoundary>
                 <Suspense fallback={<LoadingSpinner />}>
                   <BooksManagement />
+                </Suspense>
+              </RouteErrorBoundary>
+            } />
+            <Route path="books/recommendations" element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BookRecommendations />
                 </Suspense>
               </RouteErrorBoundary>
             } />

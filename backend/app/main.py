@@ -58,6 +58,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Ingredient categories migration failed: {e}")
     
+    # Add book recommendation feedback table
+    try:
+        from .migrations.add_book_recommendation_feedback import add_book_recommendation_feedback_table
+        add_book_recommendation_feedback_table()
+    except Exception as e:
+        logger.warning(f"⚠️ Book recommendation feedback table migration failed: {e}")
+    
     logger.info("✅ Application startup complete")
     
     yield
