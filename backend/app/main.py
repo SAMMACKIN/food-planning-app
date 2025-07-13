@@ -22,7 +22,7 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    logger.info("🚀 Starting Food Planning App API (PostgreSQL ready) - Preview deployment with AI and ingredients v2...")
+    logger.info("🚀 Starting Food Planning App API (PostgreSQL ready) - Preview deployment with AI, ingredients v2, and recipe ratings...")
     logger.info(f"Database URL: {get_settings().DATABASE_URL}")
     init_db()
     logger.info("✅ Database initialization complete")
