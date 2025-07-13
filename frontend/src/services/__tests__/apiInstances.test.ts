@@ -120,7 +120,7 @@ describe('API Instances', () => {
     });
 
     test('should handle canceled requests without redirect', async () => {
-      const cancelError = new Error('Request canceled');
+      const cancelError = new Error('Request canceled') as Error & { code: string };
       cancelError.code = 'ERR_CANCELED';
 
       const errorInterceptor = (navigationApi.interceptors.response as any).handlers[0]?.rejected;

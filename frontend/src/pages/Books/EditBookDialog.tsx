@@ -424,7 +424,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                   <Button
                     variant="outlined"
                     onClick={handleAutoFill}
-                    disabled={autoFillLoading || !watch('title').trim()}
+                    disabled={autoFillLoading || !(watch('title') || '').trim()}
                     startIcon={autoFillLoading ? <Psychology sx={{ animation: 'pulse 2s infinite' }} /> : <AutoFixHigh />}
                     sx={{
                       borderColor: 'primary.main',

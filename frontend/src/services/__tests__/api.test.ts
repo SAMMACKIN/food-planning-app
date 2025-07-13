@@ -255,7 +255,7 @@ describe('API Service', () => {
     });
 
     test('should handle ERR_CANCELED errors', async () => {
-      const cancelError = new Error('Request canceled');
+      const cancelError = new Error('Request canceled') as Error & { code: string };
       cancelError.code = 'ERR_CANCELED';
       mockDataApi.request.mockRejectedValue(cancelError);
 
