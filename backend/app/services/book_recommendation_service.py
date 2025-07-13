@@ -46,21 +46,31 @@ class BookRecommendationService:
         prompt = self._create_recommendation_prompt(context, request)
         
         try:
+            # Log context details
+            print(f"🔍 Book recommendation context: {context['total_books']} total books, {len(context['read_books'])} read")
+            print(f"🔍 Preferred genres: {context['preferred_genres']}")
+            print(f"🔍 Existing books to exclude: {len(context['existing_books'])}")
+            
             # Get AI recommendations
+            print(f"🤖 Calling AI service for recommendations...")
             ai_response = await self.ai.get_ai_response(prompt)
+            print(f"✅ AI response received, length: {len(ai_response)}")
             
             # Parse AI response
             recommendations = self._parse_ai_recommendations(ai_response, session_id)
+            print(f"📚 Parsed {len(recommendations)} recommendations from AI")
             
             # Filter out books user already has
             filtered_recommendations = self._filter_existing_books(
                 recommendations, context['existing_books']
             )
+            print(f"📚 After filtering existing: {len(filtered_recommendations)} recommendations")
             
             # Apply user preferences and exclusions
             final_recommendations = self._apply_user_filters(
                 filtered_recommendations, request, context
             )
+            print(f"📚 After applying filters: {len(final_recommendations)} recommendations")
             
             # Limit to requested count
             final_recommendations = final_recommendations[:request.max_recommendations]
@@ -73,7 +83,9 @@ class BookRecommendationService:
             )
             
         except Exception as e:
-            print(f"Error generating book recommendations: {e}")
+            print(f"❌ Error generating book recommendations: {e}")
+            import traceback
+            traceback.print_exc()
             # Return fallback recommendations
             return await self._get_fallback_recommendations(request, session_id)
     
@@ -308,15 +320,21 @@ Format your response as JSON:
         Parse AI response into structured recommendations
         """
         try:
+            print(f"🔍 AI Response preview: {ai_response[:200]}...")
+            
             # Try to extract JSON from the response
             start_idx = ai_response.find('{')
             end_idx = ai_response.rfind('}') + 1
             
             if start_idx == -1 or end_idx == 0:
+                print(f"❌ No JSON found in AI response")
                 raise ValueError("No JSON found in response")
             
             json_str = ai_response[start_idx:end_idx]
+            print(f"🔍 Extracted JSON length: {len(json_str)}")
+            
             data = json.loads(json_str)
+            print(f"✅ Successfully parsed JSON with {len(data.get('recommendations', []))} recommendations")
             
             recommendations = []
             for item in data.get('recommendations', []):
@@ -331,11 +349,13 @@ Format your response as JSON:
                     confidence_score=item.get('confidence_score', 0.5)
                 )
                 recommendations.append(recommendation)
+                print(f"  📖 Added: {recommendation.title} by {recommendation.author}")
             
             return recommendations
             
         except Exception as e:
-            print(f"Error parsing AI recommendations: {e}")
+            print(f"❌ Error parsing AI recommendations: {e}")
+            print(f"❌ Full AI response: {ai_response}")
             return []
     
     def _filter_existing_books(

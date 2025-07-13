@@ -844,6 +844,101 @@ IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
             "ai_provider": "mock"
         }
 
+    async def get_ai_response(self, prompt: str, provider: AIProvider = "all") -> str:
+        """
+        Get a generic AI response for a given prompt
+        Used for book recommendations and other general AI tasks
+        """
+        try:
+            # Determine which provider to use
+            if provider == "all" or provider == "perplexity":
+                if self.perplexity_api_key:
+                    return await self._get_perplexity_response(prompt)
+            
+            if provider == "all" or provider == "claude":
+                if self.claude_client:
+                    return await self._get_claude_response(prompt)
+            
+            if provider == "all" or provider == "groq":
+                if self.groq_client:
+                    return await self._get_groq_response(prompt)
+            
+            # If no provider is available, raise an error
+            raise ValueError("No AI provider available for generating response")
+            
+        except Exception as e:
+            logger.error(f"Error getting AI response: {e}")
+            raise
+
+    async def _get_perplexity_response(self, prompt: str) -> str:
+        """Get response from Perplexity API"""
+        try:
+            logger.info("Getting response from Perplexity...")
+            url = "https://api.perplexity.ai/chat/completions"
+            
+            payload = {
+                "model": "llama-3.1-sonar-small-128k-online",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 4096,
+                "temperature": 0.7
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {self.perplexity_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+                response.raise_for_status()
+                
+                data = response.json()
+                content = data['choices'][0]['message']['content']
+                logger.info(f"Perplexity response received, length: {len(content)}")
+                return content
+                
+        except Exception as e:
+            logger.error(f"Perplexity API error: {e}")
+            raise
+
+    async def _get_claude_response(self, prompt: str) -> str:
+        """Get response from Claude API"""
+        try:
+            logger.info("Getting response from Claude...")
+            response = self.claude_client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=4096,
+                temperature=0.7,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            content = response.content[0].text
+            logger.info(f"Claude response received, length: {len(content)}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            raise
+
+    async def _get_groq_response(self, prompt: str) -> str:
+        """Get response from Groq API"""
+        try:
+            logger.info("Getting response from Groq...")
+            response = self.groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=4096,
+                temperature=0.7
+            )
+            
+            content = response.choices[0].message.content
+            logger.info(f"Groq response received, length: {len(content)}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"Groq API error: {e}")
+            raise
+
     async def extract_book_details(self, title: str, author: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Extract book details using AI services"""
         try:

@@ -506,6 +506,7 @@ async def get_book_recommendations(
     try:
         user_id = current_user["id"]
         logger.info(f"🤖 Generating book recommendations for user: {user_id}")
+        logger.info(f"📋 Request params: max={request.max_recommendations}, exclude_genres={request.exclude_genres}, preferred_genres={request.preferred_genres}")
         
         # Import here to avoid circular imports
         from ..services.book_recommendation_service import book_recommendation_service
@@ -518,6 +519,7 @@ async def get_book_recommendations(
         )
         
         logger.info(f"✅ Generated {len(recommendations.recommendations)} book recommendations")
+        logger.info(f"📊 Session ID: {recommendations.session_id}")
         return recommendations
         
     except Exception as e:
