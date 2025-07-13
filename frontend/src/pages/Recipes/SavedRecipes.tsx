@@ -32,11 +32,18 @@ import {
   FilterList,
   Add,
   MenuBook,
+  Star,
+  Psychology,
+  AutoFixHigh,
+  SmartToy,
+  AutoAwesome,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
-import { Recipe } from '../../types';
+import { Recipe, RecipeRating } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
+import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
+import StarRating from '../../components/Recipe/StarRating';
 
 const SavedRecipes: React.FC = () => {
   const {
@@ -46,6 +53,9 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes,
     deleteRecipe,
     saveRecipe,
+    createRecipeRating,
+    getRecipeRatings,
+    updateRecipeRating,
     clearError
   } = useRecipes();
 
@@ -56,6 +66,10 @@ const SavedRecipes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
+  // Rating dialog state
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
+  const [existingRating, setExistingRating] = useState<RecipeRating | undefined>(undefined);
 
   const handleViewRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -79,7 +93,55 @@ const SavedRecipes: React.FC = () => {
     }
   };
 
-  // Rating functionality temporarily removed (no ratings in RecipeV2)
+  const handleOpenRatingDialog = async (recipe: Recipe) => {
+    try {
+      const ratings = await getRecipeRatings(recipe.id);
+      const userRating = ratings.find(r => r.user_id === recipe.user_id); // Simplified check
+      setExistingRating(userRating);
+      setRecipeToRate(recipe);
+      setRatingDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading existing rating:', error);
+      setExistingRating(undefined);
+      setRecipeToRate(recipe);
+      setRatingDialogOpen(true);
+    }
+  };
+
+  const handleSubmitRating = async (ratingData: Omit<RecipeRating, 'id' | 'recipe_id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+    if (!recipeToRate) return false;
+    
+    let success = false;
+    if (existingRating) {
+      // Update existing rating
+      const updatedRating = await updateRecipeRating(recipeToRate.id, existingRating.id, ratingData);
+      success = !!updatedRating;
+    } else {
+      // Create new rating
+      const newRating = await createRecipeRating(recipeToRate.id, ratingData);
+      success = !!newRating;
+    }
+    
+    if (success) {
+      // Refresh recipes to show updated rating data
+      fetchSavedRecipes();
+    }
+    
+    return success;
+  };
+
+  const getAIProviderInfo = (provider?: string) => {
+    switch (provider?.toLowerCase()) {
+      case 'claude':
+        return { name: 'Claude AI', icon: Psychology, color: '#FF6B35' };
+      case 'perplexity':
+        return { name: 'Perplexity', icon: AutoFixHigh, color: '#1FB6FF' };
+      case 'groq':
+        return { name: 'Groq', icon: SmartToy, color: '#F7931E' };
+      default:
+        return { name: 'AI Generated', icon: AutoAwesome, color: '#9C27B0' };
+    }
+  };
 
   const handleSearch = () => {
     fetchSavedRecipes(searchTerm, difficultyFilter);
@@ -220,6 +282,20 @@ const SavedRecipes: React.FC = () => {
                         recipe.difficulty === 'Medium' ? 'warning' : 'error'
                       }
                     />
+                    {recipe.ai_provider && (
+                      <Chip
+                        icon={React.createElement(getAIProviderInfo(recipe.ai_provider).icon)}
+                        label={getAIProviderInfo(recipe.ai_provider).name}
+                        size="small"
+                        sx={{ 
+                          backgroundColor: getAIProviderInfo(recipe.ai_provider).color + '20',
+                          color: getAIProviderInfo(recipe.ai_provider).color,
+                          '& .MuiChip-icon': {
+                            color: getAIProviderInfo(recipe.ai_provider).color
+                          }
+                        }}
+                      />
+                    )}
                   </Box>
 
                   {recipe.tags && recipe.tags.length > 0 && (
@@ -256,6 +332,16 @@ const SavedRecipes: React.FC = () => {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => {
+          const recipe = savedRecipes.find(r => r.id === menuRecipeId);
+          if (recipe) {
+            handleOpenRatingDialog(recipe);
+          }
+          handleMenuClose();
+        }}>
+          <Star sx={{ mr: 1 }} />
+          Rate Recipe
+        </MenuItem>
         <MenuItem onClick={() => {/* TODO: Add to meal plan */}}>
           <CalendarToday sx={{ mr: 1 }} />
           Add to Meal Plan
@@ -317,7 +403,18 @@ const SavedRecipes: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Rating functionality temporarily removed */}
+      {/* Rate Recipe Dialog */}
+      <RateRecipeDialog
+        open={ratingDialogOpen}
+        onClose={() => {
+          setRatingDialogOpen(false);
+          setRecipeToRate(null);
+          setExistingRating(undefined);
+        }}
+        recipe={recipeToRate}
+        existingRating={existingRating}
+        onSubmit={handleSubmitRating}
+      />
 
       {/* Create Recipe Dialog */}
       <CreateRecipeForm

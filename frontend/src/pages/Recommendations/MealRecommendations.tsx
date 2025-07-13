@@ -38,12 +38,17 @@ import {
   Settings,
   Save,
   CalendarToday,
+  Psychology,
+  SmartToy,
+  AutoFixHigh,
+  Star,
 } from '@mui/icons-material';
-import { MealRecommendation } from '../../types';
+import { MealRecommendation, Recipe, RecipeRating } from '../../types';
 import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';
 import { useRecipes } from '../../hooks/useRecipes';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import RecipeDebugPanel from '../../components/Recipe/RecipeDebugPanel';
+import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
 
 const MealRecommendations: React.FC = () => {
   const {
@@ -62,6 +67,7 @@ const MealRecommendations: React.FC = () => {
   const {
     saveRecommendationAsRecipe,
     addRecommendationToMealPlan,
+    createRecipeRating,
     error: recipeError,
     clearError: clearRecipeError
   } = useRecipes();
@@ -77,6 +83,9 @@ const MealRecommendations: React.FC = () => {
     difficulty: 'all',
     prepTime: 'all'
   });
+  // Rating dialog state
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
 
   const handleSaveRecipe = async (meal: MealRecommendation) => {
     console.log('🍽️ Attempting to save recipe:', meal.name);
@@ -110,9 +119,26 @@ const MealRecommendations: React.FC = () => {
     }
   };
 
-  // Rating dialog functionality removed
+  const handleOpenRatingDialog = async (meal: MealRecommendation) => {
+    // First save the recipe if it hasn't been saved yet
+    const savedRecipe = await saveRecommendationAsRecipe(meal);
+    if (savedRecipe) {
+      setRecipeToRate(savedRecipe);
+      setRatingDialogOpen(true);
+    }
+  };
 
-  // Rating functionality temporarily removed (RecipeV2 doesn't support ratings yet)
+  const handleSubmitRating = async (ratingData: Omit<RecipeRating, 'id' | 'recipe_id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+    if (!recipeToRate) return false;
+    
+    const rating = await createRecipeRating(recipeToRate.id, ratingData);
+    if (rating) {
+      setSnackbarMessage(`Rating saved for "${recipeToRate.name}"!`);
+      setSnackbarOpen(true);
+      return true;
+    }
+    return false;
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
@@ -127,6 +153,19 @@ const MealRecommendations: React.FC = () => {
     if (score >= 80) return 'success';
     if (score >= 60) return 'warning';
     return 'error';
+  };
+
+  const getAIProviderInfo = (provider?: string) => {
+    switch (provider?.toLowerCase()) {
+      case 'claude':
+        return { name: 'Claude AI', icon: Psychology, color: '#FF6B35' };
+      case 'perplexity':
+        return { name: 'Perplexity', icon: AutoFixHigh, color: '#1FB6FF' };
+      case 'groq':
+        return { name: 'Groq', icon: SmartToy, color: '#F7931E' };
+      default:
+        return { name: 'AI Generated', icon: AutoAwesome, color: '#9C27B0' };
+    }
   };
 
   const handleDifficultyFilter = (difficulty: string) => {
@@ -432,6 +471,22 @@ const MealRecommendations: React.FC = () => {
                     variant="outlined"
                     sx={{ fontSize: '0.7rem', height: 22 }}
                   />
+                  {meal.ai_provider && (
+                    <Chip
+                      icon={React.createElement(getAIProviderInfo(meal.ai_provider).icon)}
+                      label={getAIProviderInfo(meal.ai_provider).name}
+                      size="small"
+                      sx={{ 
+                        fontSize: '0.7rem', 
+                        height: 22,
+                        backgroundColor: getAIProviderInfo(meal.ai_provider).color + '20',
+                        color: getAIProviderInfo(meal.ai_provider).color,
+                        '& .MuiChip-icon': {
+                          color: getAIProviderInfo(meal.ai_provider).color
+                        }
+                      }}
+                    />
+                  )}
                 </Box>
 
                 <Box mb={1.5}>
@@ -468,7 +523,15 @@ const MealRecommendations: React.FC = () => {
                     >
                       Save
                     </Button>
-                    {/* Rate button removed (RecipeV2 doesn't support ratings yet) */}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Star />}
+                      onClick={() => handleOpenRatingDialog(meal)}
+                      sx={{ flex: 1, fontSize: '0.7rem', py: 0.5 }}
+                    >
+                      Rate
+                    </Button>
                   </Box>
                   <Box display="flex" gap={0.5}>
                     <Button
@@ -553,6 +616,20 @@ const MealRecommendations: React.FC = () => {
                     size="small"
                     color={getDifficultyColor(selectedMeal.difficulty) as any}
                   />
+                  {selectedMeal.ai_provider && (
+                    <Chip
+                      icon={React.createElement(getAIProviderInfo(selectedMeal.ai_provider).icon)}
+                      label={getAIProviderInfo(selectedMeal.ai_provider).name}
+                      size="small"
+                      sx={{ 
+                        backgroundColor: getAIProviderInfo(selectedMeal.ai_provider).color + '20',
+                        color: getAIProviderInfo(selectedMeal.ai_provider).color,
+                        '& .MuiChip-icon': {
+                          color: getAIProviderInfo(selectedMeal.ai_provider).color
+                        }
+                      }}
+                    />
+                  )}
                 </Box>
               </Box>
             </DialogTitle>
@@ -623,7 +700,12 @@ const MealRecommendations: React.FC = () => {
               >
                 Save Recipe
               </Button>
-              {/* Rating button removed (RecipeV2 doesn't support ratings yet) */}
+              <Button 
+                startIcon={<Star />} 
+                onClick={() => selectedMeal && handleOpenRatingDialog(selectedMeal)}
+              >
+                Rate Recipe
+              </Button>
               <Button 
                 variant="contained" 
                 startIcon={<CalendarToday />}
@@ -636,7 +718,16 @@ const MealRecommendations: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Rating dialog removed (RecipeV2 doesn't support ratings yet) */}
+      {/* Rate Recipe Dialog */}
+      <RateRecipeDialog
+        open={ratingDialogOpen}
+        onClose={() => {
+          setRatingDialogOpen(false);
+          setRecipeToRate(null);
+        }}
+        recipe={recipeToRate}
+        onSubmit={handleSubmitRating}
+      />
 
       {/* Meal Plan Dialog */}
       <Dialog open={mealPlanDialogOpen} onClose={() => setMealPlanDialogOpen(false)} maxWidth="sm" fullWidth>

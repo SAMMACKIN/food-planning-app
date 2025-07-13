@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
-import { Recipe, RecipeCreate, MealRecommendation } from '../types';
+import { Recipe, RecipeCreate, MealRecommendation, RecipeRating, RecipeRatingCreate } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 export const useRecipes = () => {
@@ -134,8 +134,92 @@ export const useRecipes = () => {
     }
   }, []);
 
-  // Recipe rating functionality temporarily removed (no ratings in RecipeV2)
-  // Can be re-added when rating system is implemented for RecipeV2
+  // Recipe Rating Functions
+  const createRecipeRating = useCallback(async (
+    recipeId: string, 
+    ratingData: RecipeRatingCreate
+  ): Promise<RecipeRating | null> => {
+    try {
+      setError(null);
+      console.log('⭐ Creating recipe rating:', { recipeId, ratingData });
+      
+      const rating = await apiRequest<RecipeRating>('POST', `/recipes/${recipeId}/ratings`, ratingData);
+      console.log('✅ Rating created successfully:', rating);
+      
+      return rating;
+    } catch (error: any) {
+      console.error('❌ Error creating recipe rating:', error);
+      
+      let errorMessage = 'Failed to save rating';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Recipe not found. It may have been deleted.';
+      } else if (error.response?.status === 400) {
+        errorMessage = 'Invalid rating data. Please check all fields.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
+      return null;
+    }
+  }, []);
+
+  const getRecipeRatings = useCallback(async (recipeId: string): Promise<RecipeRating[]> => {
+    try {
+      setError(null);
+      const ratings = await apiRequest<RecipeRating[]>('GET', `/recipes/${recipeId}/ratings`);
+      return ratings;
+    } catch (error: any) {
+      console.error('❌ Error fetching recipe ratings:', error);
+      setError('Failed to load ratings');
+      return [];
+    }
+  }, []);
+
+  const updateRecipeRating = useCallback(async (
+    recipeId: string, 
+    ratingId: string, 
+    ratingData: RecipeRatingCreate
+  ): Promise<RecipeRating | null> => {
+    try {
+      setError(null);
+      console.log('⭐ Updating recipe rating:', { recipeId, ratingId, ratingData });
+      
+      const rating = await apiRequest<RecipeRating>('PUT', `/recipes/${recipeId}/ratings/${ratingId}`, ratingData);
+      console.log('✅ Rating updated successfully:', rating);
+      
+      return rating;
+    } catch (error: any) {
+      console.error('❌ Error updating recipe rating:', error);
+      
+      let errorMessage = 'Failed to update rating';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Rating not found. It may have been deleted.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      setError(errorMessage);
+      return null;
+    }
+  }, []);
+
+  const deleteRecipeRating = useCallback(async (recipeId: string, ratingId: string): Promise<boolean> => {
+    try {
+      setError(null);
+      await apiRequest('DELETE', `/recipes/${recipeId}/ratings/${ratingId}`);
+      console.log('✅ Rating deleted successfully');
+      return true;
+    } catch (error: any) {
+      console.error('❌ Error deleting recipe rating:', error);
+      setError('Failed to delete rating');
+      return false;
+    }
+  }, []);
 
   const addRecipeToMealPlan = useCallback(async (
     recipeId: string, 
@@ -219,6 +303,12 @@ export const useRecipes = () => {
     saveRecipe,
     saveRecommendationAsRecipe,
     deleteRecipe,
+    // Rating functions
+    createRecipeRating,
+    getRecipeRatings,
+    updateRecipeRating,
+    deleteRecipeRating,
+    // Meal plan functions
     addRecipeToMealPlan,
     addRecommendationToMealPlan,
     clearError: () => setError(null)
