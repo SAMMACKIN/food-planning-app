@@ -87,7 +87,7 @@ const PantryManagement: React.FC = () => {
         saveScrollPosition();
       }
       
-      const items = await apiRequest<PantryItem[]>('GET', '/pantry');
+      const items = await apiRequest<PantryItem[]>('GET', '/pantry', null, { requestType: 'navigation' });
       setPantryItems(items);
       setError(null);
       

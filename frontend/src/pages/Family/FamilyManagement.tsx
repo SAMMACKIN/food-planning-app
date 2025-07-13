@@ -72,7 +72,7 @@ const FamilyManagement: React.FC = () => {
     console.log('👨‍👩‍👧‍👦 fetchFamilyMembers called - starting fetch...');
     try {
       setLoading(true);
-      const members = await apiRequest<FamilyMember[]>('GET', '/family/members');
+      const members = await apiRequest<FamilyMember[]>('GET', '/family/members', null, { requestType: 'navigation' });
       setFamilyMembers(members);
       setError(null);
     } catch (error: any) {
