@@ -19,7 +19,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, AutoFixHigh, Psychology } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -69,6 +69,8 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
   const {
     control,
@@ -118,7 +120,117 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
 
   const handleClose = () => {
     setError(null);
+    setAutoFilledFields(new Set());
     onClose();
+  };
+
+  const getAutoFilledFieldProps = (fieldName: string, originalHelperText?: string) => ({
+    sx: autoFilledFields.has(fieldName) ? {
+      '& .MuiOutlinedInput-root': {
+        backgroundColor: 'success.light',
+        '& fieldset': {
+          borderColor: 'success.main',
+        },
+      },
+      '& .MuiInputLabel-root': {
+        color: 'success.main',
+      },
+    } : undefined,
+    helperText: autoFilledFields.has(fieldName) 
+      ? '✨ Auto-filled by AI' 
+      : originalHelperText,
+    FormHelperTextProps: autoFilledFields.has(fieldName) ? {
+      sx: { color: 'success.main' }
+    } : undefined,
+  });
+
+  const handleAutoFill = async () => {
+    const title = watch('title');
+    const author = watch('author');
+    
+    if (!title.trim()) {
+      setError('Please enter a book title before using auto-fill');
+      return;
+    }
+    
+    try {
+      setAutoFillLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books/fetch-details`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          author: author.trim() || null
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch book details');
+      }
+      
+      const bookDetails = await response.json();
+      const newAutoFilledFields = new Set<string>();
+      
+      // Auto-fill fields that are empty or significantly different
+      if (bookDetails.publication_year && !watch('publication_year')) {
+        setValue('publication_year', bookDetails.publication_year);
+        newAutoFilledFields.add('publication_year');
+      }
+      
+      if (bookDetails.pages && !watch('pages')) {
+        setValue('pages', bookDetails.pages);
+        newAutoFilledFields.add('pages');
+      }
+      
+      if (bookDetails.genre && !(watch('genre') || '').trim()) {
+        setValue('genre', bookDetails.genre);
+        newAutoFilledFields.add('genre');
+      }
+      
+      if (bookDetails.description && !(watch('description') || '').trim()) {
+        setValue('description', bookDetails.description);
+        newAutoFilledFields.add('description');
+      }
+      
+      if (bookDetails.isbn && !(watch('isbn') || '').trim()) {
+        setValue('isbn', bookDetails.isbn);
+        newAutoFilledFields.add('isbn');
+      }
+      
+      if (bookDetails.cover_image_url && !(watch('cover_image_url') || '').trim()) {
+        setValue('cover_image_url', bookDetails.cover_image_url);
+        newAutoFilledFields.add('cover_image_url');
+      }
+      
+      // Update author if it was empty and we got a better match
+      if (bookDetails.author && !author.trim()) {
+        setValue('author', bookDetails.author);
+        newAutoFilledFields.add('author');
+      }
+      
+      setAutoFilledFields(newAutoFilledFields);
+      
+      if (newAutoFilledFields.size > 0) {
+        // Show success message
+        const filledCount = newAutoFilledFields.size;
+        setError(`✅ Auto-filled ${filledCount} field${filledCount > 1 ? 's' : ''} successfully!`);
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('No additional book details found to auto-fill');
+        setTimeout(() => setError(null), 3000);
+      }
+      
+    } catch (error) {
+      console.error('Auto-fill error:', error);
+      setError('Failed to fetch book details. Please try again or fill in manually.');
+    } finally {
+      setAutoFillLoading(false);
+    }
   };
 
   const onSubmit = async (data: BookFormData) => {
@@ -304,8 +416,33 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                   label="Author *"
                   fullWidth
                   error={!!errors.author}
-                  helperText={errors.author?.message}
+                  {...getAutoFilledFieldProps('author', errors.author?.message)}
                 />
+                
+                {/* Auto-fill Button */}
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleAutoFill}
+                    disabled={autoFillLoading || !watch('title').trim()}
+                    startIcon={autoFillLoading ? <Psychology sx={{ animation: 'pulse 2s infinite' }} /> : <AutoFixHigh />}
+                    sx={{
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'primary.main',
+                        color: 'white',
+                      },
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 },
+                      },
+                    }}
+                  >
+                    {autoFillLoading ? 'Fetching Details...' : 'Auto-fill Missing Details'}
+                  </Button>
+                </Box>
                 
                 <Controller
                   name="genre"
@@ -320,7 +457,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                           {...params}
                           label="Genre"
                           error={!!errors.genre}
-                          helperText={errors.genre?.message}
+                          {...getAutoFilledFieldProps('genre', errors.genre?.message)}
                         />
                       )}
                       onChange={(_, value) => field.onChange(value || '')}
@@ -336,7 +473,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                   multiline
                   rows={3}
                   error={!!errors.description}
-                  helperText={errors.description?.message}
+                  {...getAutoFilledFieldProps('description', errors.description?.message)}
                 />
               </Box>
             </Box>
@@ -354,7 +491,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                     label="ISBN"
                     fullWidth
                     error={!!errors.isbn}
-                    helperText={errors.isbn?.message}
+                    {...getAutoFilledFieldProps('isbn', errors.isbn?.message)}
                   />
                   
                   <TextField
@@ -365,7 +502,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                     type="number"
                     fullWidth
                     error={!!errors.pages}
-                    helperText={errors.pages?.message}
+                    {...getAutoFilledFieldProps('pages', errors.pages?.message)}
                     inputProps={{ min: 1, max: 10000 }}
                   />
                   
@@ -377,19 +514,53 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                     type="number"
                     fullWidth
                     error={!!errors.publication_year}
-                    helperText={errors.publication_year?.message}
+                    {...getAutoFilledFieldProps('publication_year', errors.publication_year?.message)}
                     inputProps={{ min: 1, max: new Date().getFullYear() + 1 }}
                   />
                 </Box>
                 
-                <TextField
-                  {...register('cover_image_url')}
-                  label="Cover Image URL"
-                  fullWidth
-                  error={!!errors.cover_image_url}
-                  helperText={errors.cover_image_url?.message}
-                  placeholder="https://example.com/book-cover.jpg"
-                />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <TextField
+                    {...register('cover_image_url')}
+                    label="Cover Image URL"
+                    fullWidth
+                    error={!!errors.cover_image_url}
+                    {...getAutoFilledFieldProps('cover_image_url', errors.cover_image_url?.message)}
+                    placeholder="https://example.com/book-cover.jpg"
+                  />
+                  
+                  {/* Cover Image Preview */}
+                  {watch('cover_image_url') && (
+                    <Box
+                      sx={{
+                        minWidth: 80,
+                        height: 120,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'grey.50'
+                      }}
+                    >
+                      <img
+                        src={watch('cover_image_url')}
+                        alt="Book cover preview"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '📖';
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Box>
               </Box>
             </Box>
 
