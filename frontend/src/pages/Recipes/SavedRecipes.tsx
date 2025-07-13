@@ -369,21 +369,37 @@ const SavedRecipes: React.FC = () => {
                       
                       console.log('- Has valid source:', hasValidSource);
                       
-                      return hasValidSource ? (
+                      // TEMP: Force show link for any imported recipe to test component
+                      const shouldShowLink = hasValidSource || (recipe.tags && recipe.tags.includes('imported'));
+                      
+                      // Use actual URL if available, otherwise use a placeholder
+                      const linkUrl = hasValidSource ? recipe.source : 'https://example.com';
+                      const linkLabel = hasValidSource ? 'View Original' : 'Imported Recipe';
+                      
+                      console.log('- Should show link:', shouldShowLink);
+                      
+                      return shouldShowLink ? (
                         <Chip
                           icon={<Link />}
-                          label="View Original"
+                          label={linkLabel}
                           size="small"
                           clickable
-                          onClick={() => window.open(recipe.source, '_blank')}
+                          onClick={() => {
+                            console.log('Link clicked, URL:', linkUrl);
+                            if (hasValidSource) {
+                              window.open(linkUrl, '_blank');
+                            } else {
+                              alert(`Recipe source: ${recipe.source || 'No source URL available'}`);
+                            }
+                          }}
                           sx={{ 
-                            backgroundColor: '#2196F3' + '20',
-                            color: '#2196F3',
+                            backgroundColor: hasValidSource ? '#2196F3' + '20' : '#FF9800' + '20',
+                            color: hasValidSource ? '#2196F3' : '#FF9800',
                             '& .MuiChip-icon': {
-                              color: '#2196F3'
+                              color: hasValidSource ? '#2196F3' : '#FF9800'
                             },
                             '&:hover': {
-                              backgroundColor: '#2196F3' + '40'
+                              backgroundColor: hasValidSource ? '#2196F3' + '40' : '#FF9800' + '40'
                             }
                           }}
                         />
