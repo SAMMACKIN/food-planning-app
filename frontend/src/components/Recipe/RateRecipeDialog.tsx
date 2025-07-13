@@ -69,9 +69,9 @@ const RateRecipeDialog: React.FC<RateRecipeDialogProps> = ({
     try {
       const ratingData = {
         rating,
-        review_text: reviewText.trim() || null,
+        review_text: reviewText.trim() || undefined,
         would_make_again: wouldMakeAgain,
-        cooking_notes: cookingNotes.trim() || null
+        cooking_notes: cookingNotes.trim() || undefined
       };
 
       const success = await onSubmit(ratingData);
