@@ -16,9 +16,12 @@ export const useRecommendationsCache = () => {
   const { isAuthenticated } = useAuthStore();
   const [recommendations, setRecommendations] = useState<MealRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('perplexity');
+  const [lastCompletedRequest, setLastCompletedRequest] = useState<string>('');
+  const [backgroundLoadCompleted, setBackgroundLoadCompleted] = useState(false);
   const lastRequestRef = useRef<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -79,7 +82,7 @@ export const useRecommendationsCache = () => {
     }
   }, []);
 
-  const fetchRecommendations = useCallback(async (request: MealRecommendationRequest = {}, forceRefresh = false) => {
+  const fetchRecommendations = useCallback(async (request: MealRecommendationRequest = {}, forceRefresh = false, useBackground = false) => {
     const requestKey = generateRequestKey(request, selectedProvider);
     
     // Don't refetch if it's the same request and we're not forcing refresh
@@ -94,6 +97,7 @@ export const useRecommendationsCache = () => {
       if (cachedData) {
         setRecommendations(cachedData);
         lastRequestRef.current = requestKey;
+        setLastCompletedRequest(requestKey);
         return;
       }
     }
@@ -107,7 +111,16 @@ export const useRecommendationsCache = () => {
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
       
-      setLoading(true);
+      // Use background loading if requested or if we already have recommendations
+      const shouldUseBackground = useBackground || (recommendations.length > 0);
+      
+      if (shouldUseBackground) {
+        setBackgroundLoading(true);
+        console.log('🔄 Starting background fetch...');
+      } else {
+        setLoading(true);
+        console.log('🔄 Starting foreground fetch...');
+      }
       setError(null);
       
       const requestWithTimestamp = {
@@ -116,7 +129,7 @@ export const useRecommendationsCache = () => {
         timestamp: Date.now()
       };
       
-      console.log(`🤖 Fetching fresh AI recommendations from ${selectedProvider}...`);
+      console.log(`🤖 Fetching AI recommendations from ${selectedProvider}...`);
       const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
       
       // Check if request was aborted
@@ -130,6 +143,13 @@ export const useRecommendationsCache = () => {
       setRecommendations(recs);
       saveToCache(recs, requestKey);
       lastRequestRef.current = requestKey;
+      setLastCompletedRequest(requestKey);
+      
+      // Show success notification for background loading
+      if (shouldUseBackground) {
+        console.log('🎉 Background recommendations completed!');
+        setBackgroundLoadCompleted(true);
+      }
     } catch (error: any) {
       // Don't set error if request was aborted
       if (abortControllerRef.current?.signal.aborted) {
@@ -142,12 +162,17 @@ export const useRecommendationsCache = () => {
       // Only set loading to false if request wasn't aborted
       if (!abortControllerRef.current?.signal.aborted) {
         setLoading(false);
+        setBackgroundLoading(false);
       }
     }
   }, [selectedProvider, generateRequestKey, loadFromCache, saveToCache, recommendations.length]);
 
   const refreshRecommendations = useCallback((request: MealRecommendationRequest = {}) => {
     fetchRecommendations(request, true);
+  }, [fetchRecommendations]);
+
+  const refreshRecommendationsInBackground = useCallback((request: MealRecommendationRequest = {}) => {
+    fetchRecommendations(request, true, true);
   }, [fetchRecommendations]);
 
   const clearCache = useCallback(() => {
@@ -167,8 +192,14 @@ export const useRecommendationsCache = () => {
     }
     // Reset all states
     setLoading(false);
+    setBackgroundLoading(false);
+    setBackgroundLoadCompleted(false);
     setError(null);
     console.log('🔄 Recommendations state reset');
+  }, []);
+
+  const clearBackgroundLoadCompleted = useCallback(() => {
+    setBackgroundLoadCompleted(false);
   }, []);
 
   const handleMealTypeFilter = useCallback((mealType: string) => {
@@ -194,6 +225,8 @@ export const useRecommendationsCache = () => {
         console.log('🧹 Cleaning up: aborting ongoing recommendations request');
         abortControllerRef.current.abort();
         setLoading(false);
+        setBackgroundLoading(false);
+        setBackgroundLoadCompleted(false);
       }
     };
   }, []);
@@ -201,15 +234,19 @@ export const useRecommendationsCache = () => {
   return {
     recommendations,
     loading,
+    backgroundLoading,
+    backgroundLoadCompleted,
     error,
     availableProviders,
     selectedProvider,
     setSelectedProvider,
     fetchRecommendations,
     refreshRecommendations,
+    refreshRecommendationsInBackground,
     handleMealTypeFilter,
     clearCache,
     resetState,
+    clearBackgroundLoadCompleted,
     clearError: () => setError(null)
   };
 };

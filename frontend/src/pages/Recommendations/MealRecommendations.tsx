@@ -42,6 +42,7 @@ import {
   SmartToy,
   AutoFixHigh,
   Star,
+  CloudDownload,
 } from '@mui/icons-material';
 import { MealRecommendation, Recipe, RecipeRating } from '../../types';
 import { useRecommendationsCache } from '../../hooks/useRecommendationsCache';
@@ -54,13 +55,17 @@ const MealRecommendations: React.FC = () => {
   const {
     recommendations,
     loading,
+    backgroundLoading,
+    backgroundLoadCompleted,
     error,
     availableProviders,
     selectedProvider,
     setSelectedProvider,
     refreshRecommendations,
+    refreshRecommendationsInBackground,
     handleMealTypeFilter,
     clearError,
+    clearBackgroundLoadCompleted,
     resetState
   } = useRecommendationsCache();
 
@@ -214,6 +219,15 @@ const MealRecommendations: React.FC = () => {
     setFilteredRecommendations(filtered);
   }, [recommendations, activeFilters]);
 
+  // Show notification when background loading completes
+  React.useEffect(() => {
+    if (backgroundLoadCompleted) {
+      setSnackbarMessage(`🎉 Fresh recommendations loaded! Found ${recommendations.length} new meal ideas.`);
+      setSnackbarOpen(true);
+      clearBackgroundLoadCompleted();
+    }
+  }, [backgroundLoadCompleted, recommendations.length, clearBackgroundLoadCompleted]);
+
 
   return (
     <Box>
@@ -222,6 +236,14 @@ const MealRecommendations: React.FC = () => {
           <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AutoAwesome color="primary" />
             Meal Recommendations
+            {backgroundLoading && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+                <CircularProgress size={20} />
+                <Typography variant="caption" color="text.secondary">
+                  Getting fresh ideas...
+                </Typography>
+              </Box>
+            )}
           </Typography>
           {availableProviders.length === 0 && (
             <Alert severity="warning" sx={{ mb: 2 }}>
@@ -232,11 +254,18 @@ const MealRecommendations: React.FC = () => {
         </Box>
         <Button
           variant="contained"
-          startIcon={<Refresh />}
-          onClick={() => refreshRecommendations()}
-          disabled={loading}
+          startIcon={backgroundLoading ? <CloudDownload /> : <Refresh />}
+          onClick={() => {
+            // Use background loading if we already have recommendations
+            if (recommendations.length > 0) {
+              refreshRecommendationsInBackground();
+            } else {
+              refreshRecommendations();
+            }
+          }}
+          disabled={loading || backgroundLoading}
         >
-          Get New Ideas
+          {backgroundLoading ? 'Loading...' : 'Get New Ideas'}
         </Button>
       </Box>
 
@@ -308,19 +337,50 @@ const MealRecommendations: React.FC = () => {
             Meal Type
           </Typography>
           <Box display="flex" gap={1} flexWrap="wrap">
-            <Button size="small" variant="outlined" onClick={() => refreshRecommendations()}>
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => {
+                if (recommendations.length > 0) {
+                  refreshRecommendationsInBackground();
+                } else {
+                  refreshRecommendations();
+                }
+              }}
+              disabled={loading || backgroundLoading}
+            >
               All Meals
             </Button>
-            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('breakfast')}>
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => handleMealTypeFilter('breakfast')}
+              disabled={loading || backgroundLoading}
+            >
               Breakfast
             </Button>
-            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('lunch')}>
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => handleMealTypeFilter('lunch')}
+              disabled={loading || backgroundLoading}
+            >
               Lunch
             </Button>
-            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('dinner')}>
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => handleMealTypeFilter('dinner')}
+              disabled={loading || backgroundLoading}
+            >
               Dinner
             </Button>
-            <Button size="small" variant="outlined" onClick={() => handleMealTypeFilter('snack')}>
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => handleMealTypeFilter('snack')}
+              disabled={loading || backgroundLoading}
+            >
               Snacks
             </Button>
           </Box>
@@ -402,7 +462,7 @@ const MealRecommendations: React.FC = () => {
         </Box>
       </Card>
 
-      {loading ? (
+      {loading && recommendations.length === 0 ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
           <Typography variant="body1" sx={{ ml: 2 }}>
