@@ -87,9 +87,12 @@ class RecipeURLService:
             result = await self._ai_extract_recipe(soup, url)
             if result:
                 logger.info(f"✅ AI extraction successful: {result.get('name', 'Unknown')}")
+                # Validate and clean the result
+                cleaned_result = self._validate_and_clean_recipe_data(result)
+                return cleaned_result
             else:
                 logger.warning("❌ AI extraction failed or returned no data")
-            return result
+            return None
             
         except Exception as e:
             logger.error(f"❌ Recipe extraction failed for {url}: {e}")
@@ -279,7 +282,9 @@ class RecipeURLService:
             # Validate we have minimum required data
             if recipe['name'] and recipe['ingredients_needed'] and recipe['instructions']:
                 logger.info(f"✅ Successfully processed structured data: {recipe['name']}")
-                return recipe
+                # Validate and clean the structured data too
+                cleaned_recipe = self._validate_and_clean_recipe_data(recipe)
+                return cleaned_recipe
             else:
                 logger.warning("❌ Structured data missing required fields")
                 return None
@@ -451,6 +456,119 @@ class RecipeURLService:
             return int(number_match.group(1))
         
         return None
+
+    def _validate_and_clean_recipe_data(self, recipe_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and clean recipe data to match the expected schema"""
+        try:
+            logger.info("🧹 Validating and cleaning recipe data...")
+            
+            # Ensure all required fields exist with proper types
+            cleaned = {
+                'name': str(recipe_data.get('name', 'Imported Recipe')).strip(),
+                'description': str(recipe_data.get('description', '')).strip(),
+                'prep_time': int(recipe_data.get('prep_time', 30)),
+                'difficulty': self._validate_difficulty(recipe_data.get('difficulty', 'Medium')),
+                'servings': int(recipe_data.get('servings', 4)),
+                'instructions': self._validate_instructions(recipe_data.get('instructions', [])),
+                'tags': self._validate_tags(recipe_data.get('tags', [])),
+                'nutrition_notes': str(recipe_data.get('nutrition_notes', '')).strip(),
+                'pantry_usage_score': int(recipe_data.get('pantry_usage_score', 0)),
+                'ai_generated': bool(recipe_data.get('ai_generated', True)),
+                'ai_provider': recipe_data.get('ai_provider'),
+                'source': str(recipe_data.get('source', 'imported')),
+            }
+            
+            # Clean and validate ingredients
+            cleaned['ingredients_needed'] = self._validate_ingredients(recipe_data.get('ingredients_needed', []))
+            
+            # Ensure we have minimum required data
+            if not cleaned['name'] or not cleaned['ingredients_needed'] or not cleaned['instructions']:
+                logger.error("❌ Recipe missing critical data after cleaning")
+                return None
+            
+            logger.info(f"✅ Recipe data cleaned successfully: {cleaned['name']}")
+            logger.info(f"📋 Final data: ingredients={len(cleaned['ingredients_needed'])}, instructions={len(cleaned['instructions'])}")
+            
+            return cleaned
+            
+        except Exception as e:
+            logger.error(f"❌ Error cleaning recipe data: {e}")
+            return None
+
+    def _validate_difficulty(self, difficulty: str) -> str:
+        """Ensure difficulty is valid"""
+        valid_difficulties = ['Easy', 'Medium', 'Hard']
+        if str(difficulty).title() in valid_difficulties:
+            return str(difficulty).title()
+        return 'Medium'
+
+    def _validate_instructions(self, instructions) -> list:
+        """Ensure instructions is a list of strings"""
+        if not instructions:
+            return ['No instructions provided']
+        
+        if isinstance(instructions, str):
+            # Split by common delimiters
+            instructions = instructions.split('\n')
+        
+        if not isinstance(instructions, list):
+            return ['No instructions provided']
+        
+        # Clean and filter instructions
+        cleaned = []
+        for instruction in instructions:
+            clean_instruction = str(instruction).strip()
+            if clean_instruction and len(clean_instruction) > 3:  # Minimum instruction length
+                cleaned.append(clean_instruction)
+        
+        return cleaned if cleaned else ['No instructions provided']
+
+    def _validate_tags(self, tags) -> list:
+        """Ensure tags is a list of strings"""
+        if not tags:
+            return ['imported']
+        
+        if isinstance(tags, str):
+            tags = [tags]
+        
+        if not isinstance(tags, list):
+            return ['imported']
+        
+        # Clean tags
+        cleaned = []
+        for tag in tags:
+            clean_tag = str(tag).strip()
+            if clean_tag and len(clean_tag) > 1:
+                cleaned.append(clean_tag)
+        
+        return cleaned if cleaned else ['imported']
+
+    def _validate_ingredients(self, ingredients) -> list:
+        """Ensure ingredients match the expected format"""
+        if not ingredients:
+            return []
+        
+        cleaned = []
+        for ingredient in ingredients:
+            if isinstance(ingredient, dict):
+                # Ensure all required fields exist
+                clean_ingredient = {
+                    'name': str(ingredient.get('name', 'Unknown ingredient')).strip(),
+                    'quantity': str(ingredient.get('quantity', '')).strip(),
+                    'unit': str(ingredient.get('unit', '')).strip(),
+                    'have_in_pantry': bool(ingredient.get('have_in_pantry', False))
+                }
+                
+                # Only add if we have a valid name
+                if clean_ingredient['name'] and clean_ingredient['name'] != 'Unknown ingredient':
+                    cleaned.append(clean_ingredient)
+            elif isinstance(ingredient, str):
+                # Parse string ingredient
+                parsed = self._parse_ingredient(ingredient)
+                if parsed:
+                    cleaned.append(parsed)
+        
+        return cleaned
 
 
 # Global instance
