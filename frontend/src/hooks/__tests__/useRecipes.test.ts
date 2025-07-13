@@ -33,32 +33,37 @@ const mockUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore
 describe('useRecipes', () => {
   const mockRecipe: Recipe = {
     id: '1',
+    user_id: 'user1',
     name: 'Test Recipe',
     description: 'A test recipe',
     prep_time: 30,
     difficulty: 'medium',
     servings: 4,
-    ingredients_needed: ['ingredient1', 'ingredient2'],
-    instructions: 'Test instructions',
+    ingredients_needed: [
+      { name: 'ingredient1', quantity: '1', unit: 'cup', have_in_pantry: false },
+      { name: 'ingredient2', quantity: '2', unit: 'tbsp', have_in_pantry: true }
+    ],
+    instructions: ['Test instructions'],
     tags: ['dinner', 'healthy'],
     nutrition_notes: 'High protein',
     pantry_usage_score: 0.8,
     ai_generated: false,
-    ai_provider: null,
+    ai_provider: undefined,
     source: 'manual',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z'
   };
 
   const mockRecommendation: MealRecommendation = {
-    id: 'rec1',
     name: 'Recommended Recipe',
     description: 'A recommended recipe',
     prep_time: 25,
     difficulty: 'easy',
     servings: 2,
-    ingredients_needed: ['rec_ingredient1'],
-    instructions: 'Recommendation instructions',
+    ingredients_needed: [
+      { name: 'rec_ingredient1', quantity: '1', unit: 'piece', have_in_pantry: true }
+    ],
+    instructions: ['Recommendation instructions'],
     tags: ['lunch'],
     nutrition_notes: 'Balanced',
     pantry_usage_score: 0.9,
@@ -217,8 +222,10 @@ describe('useRecipes', () => {
       prep_time: 45,
       difficulty: 'hard',
       servings: 6,
-      ingredients_needed: ['new_ingredient'],
-      instructions: 'New instructions',
+      ingredients_needed: [
+        { name: 'new_ingredient', quantity: '3', unit: 'oz', have_in_pantry: false }
+      ],
+      instructions: ['New instructions'],
       tags: ['dinner'],
       nutrition_notes: 'High fiber',
       pantry_usage_score: 0.7,
@@ -389,13 +396,18 @@ describe('useRecipes', () => {
       recipe_id: mockRecipe.id,
       user_id: 'user1',
       rating: 5,
-      comment: 'Great recipe!',
-      created_at: '2024-01-01T00:00:00Z'
+      review_text: 'Great recipe!',
+      would_make_again: true,
+      cooking_notes: 'Easy to follow',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
     };
 
     const mockRatingCreate: RecipeRatingCreate = {
       rating: 5,
-      comment: 'Great recipe!'
+      review_text: 'Great recipe!',
+      would_make_again: true,
+      cooking_notes: 'Easy to follow'
     };
 
     test('should create recipe rating successfully', async () => {
@@ -439,17 +451,25 @@ describe('useRecipes', () => {
     });
 
     test('should update recipe rating successfully', async () => {
-      const updatedRating = { ...mockRating, rating: 4, comment: 'Good recipe!' };
+      const updatedRating = { ...mockRating, rating: 4, review_text: 'Good recipe!' };
       mockApiRequest.mockResolvedValue(updatedRating);
       const { result } = renderHook(() => useRecipes());
 
       let rating: RecipeRating | null = null;
       await act(async () => {
-        rating = await result.current.updateRecipeRating(mockRecipe.id, mockRating.id, { rating: 4, comment: 'Good recipe!' });
+        rating = await result.current.updateRecipeRating(mockRecipe.id, mockRating.id, { 
+          rating: 4, 
+          review_text: 'Good recipe!',
+          would_make_again: true
+        });
       });
 
       expect(rating).toEqual(updatedRating);
-      expect(mockApiRequest).toHaveBeenCalledWith('PUT', `/recipes/${mockRecipe.id}/ratings/${mockRating.id}`, { rating: 4, comment: 'Good recipe!' });
+      expect(mockApiRequest).toHaveBeenCalledWith('PUT', `/recipes/${mockRecipe.id}/ratings/${mockRating.id}`, { 
+        rating: 4, 
+        review_text: 'Good recipe!',
+        would_make_again: true
+      });
     });
 
     test('should delete recipe rating successfully', async () => {

@@ -34,14 +34,16 @@ const mockUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore
 
 describe('useRecommendationsCache', () => {
   const mockRecommendation: MealRecommendation = {
-    id: 'rec1',
     name: 'Test Recipe',
     description: 'A test recipe',
     prep_time: 30,
     difficulty: 'medium',
     servings: 4,
-    ingredients_needed: ['ingredient1', 'ingredient2'],
-    instructions: 'Test instructions',
+    ingredients_needed: [
+      { name: 'ingredient1', quantity: '1', unit: 'cup', have_in_pantry: false },
+      { name: 'ingredient2', quantity: '2', unit: 'tbsp', have_in_pantry: true }
+    ],
+    instructions: ['Test instructions'],
     tags: ['dinner'],
     nutrition_notes: 'Healthy',
     pantry_usage_score: 0.8,

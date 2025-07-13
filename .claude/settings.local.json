@@ -22,7 +22,8 @@
       "Bash(brew services:*)",
       "Bash(npm ls:*)",
       "Bash(cd:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }
