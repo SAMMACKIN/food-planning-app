@@ -117,7 +117,7 @@ const Dashboard: React.FC = () => {
       {/* Main Cards */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
         {dashboardCards.map((card, index) => (
-          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+          <Grid item xs={12} sm={6} md={6} lg={3} key={card.title}>
             <Card 
               sx={{ 
                 height: '100%',
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <Grid container spacing={2}>
             {quickActions.map((action) => (
-              <Grid key={action.label} size="auto">
+              <Grid item key={action.label}>
                 <Button
                   variant={action.variant}
                   color={action.color}

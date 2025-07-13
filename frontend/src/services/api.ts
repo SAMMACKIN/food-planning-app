@@ -11,7 +11,7 @@ console.log('🔧 All env vars:', Object.keys(process.env).filter(key => key.sta
 export const api = dataApi;
 
 export const apiRequest = async <T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   url: string,
   data?: any,
   config?: { signal?: AbortSignal; requestType?: 'navigation' | 'data' | 'recommendations' }

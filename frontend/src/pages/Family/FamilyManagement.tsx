@@ -5,7 +5,7 @@ import {
   Button,
   Card,
   CardContent,
-  Grid,
+  Grid2 as Grid,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -202,7 +202,7 @@ const FamilyManagement: React.FC = () => {
       ) : (
         <Grid container spacing={3}>
           {familyMembers.map((member) => (
-            <Grid key={member.id} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={member.id}>
               <Card>
                 <CardContent>
                   <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
