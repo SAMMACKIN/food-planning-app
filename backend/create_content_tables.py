@@ -10,19 +10,21 @@ from sqlalchemy.exc import ProgrammingError
 # Add the backend directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Set environment for preview deployment
-os.environ["RAILWAY_ENVIRONMENT_NAME"] = "preview"
+# Check if we're on Railway by looking for environment variables
+is_railway = bool(os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PROJECT_ID'))
 
-from app.core.config import get_settings
+if is_railway:
+    # Running on Railway - use the configured database
+    from app.db.database import engine
+    print("Running on Railway - using configured database")
+else:
+    # Running locally - need to use Railway database URL
+    print("Running locally - this script should be run on Railway deployment")
+    print("Please deploy to preview and run the migration there, or set up local PostgreSQL")
+    sys.exit(1)
+
 from app.db.database import Base
 from app.models import Book, TVShow, Movie, ContentRating, EpisodeWatch, ContentShare
-
-# Get the configured engine for preview environment
-settings = get_settings()
-DATABASE_URL = settings.DATABASE_URL
-print(f"Using database: {DATABASE_URL}")
-
-engine = create_engine(DATABASE_URL)
 
 
 def create_content_tables():

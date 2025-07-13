@@ -18,7 +18,8 @@
       "WebFetch(domain:docs.perplexity.ai)",
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(brew services:*)"
     ],
     "deny": []
   }
