@@ -19,7 +19,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, AutoFixHigh, Psychology } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,6 +67,8 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
   const {
     control,
@@ -109,8 +111,118 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
   const handleClose = () => {
     reset();
     setError(null);
+    setAutoFilledFields(new Set());
     onClose();
   };
+
+  const handleAutoFill = async () => {
+    const title = watch('title');
+    const author = watch('author');
+    
+    if (!title.trim()) {
+      setError('Please enter a book title before using auto-fill');
+      return;
+    }
+    
+    try {
+      setAutoFillLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books/fetch-details`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          author: author.trim() || null
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch book details');
+      }
+      
+      const bookDetails = await response.json();
+      const newAutoFilledFields = new Set<string>();
+      
+      // Auto-fill fields that are empty or unchanged
+      if (bookDetails.publication_year && !watch('publication_year')) {
+        setValue('publication_year', bookDetails.publication_year);
+        newAutoFilledFields.add('publication_year');
+      }
+      
+      if (bookDetails.pages && !watch('pages')) {
+        setValue('pages', bookDetails.pages);
+        newAutoFilledFields.add('pages');
+      }
+      
+      if (bookDetails.genre && !watch('genre').trim()) {
+        setValue('genre', bookDetails.genre);
+        newAutoFilledFields.add('genre');
+      }
+      
+      if (bookDetails.description && !watch('description').trim()) {
+        setValue('description', bookDetails.description);
+        newAutoFilledFields.add('description');
+      }
+      
+      if (bookDetails.isbn && !watch('isbn').trim()) {
+        setValue('isbn', bookDetails.isbn);
+        newAutoFilledFields.add('isbn');
+      }
+      
+      if (bookDetails.cover_image_url && !watch('cover_image_url').trim()) {
+        setValue('cover_image_url', bookDetails.cover_image_url);
+        newAutoFilledFields.add('cover_image_url');
+      }
+      
+      // Update author if it was empty and we got a better match
+      if (bookDetails.author && !author.trim()) {
+        setValue('author', bookDetails.author);
+        newAutoFilledFields.add('author');
+      }
+      
+      setAutoFilledFields(newAutoFilledFields);
+      
+      if (newAutoFilledFields.size > 0) {
+        // Show success message
+        const filledCount = newAutoFilledFields.size;
+        setError(`✅ Auto-filled ${filledCount} field${filledCount > 1 ? 's' : ''} successfully!`);
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('No additional book details found to auto-fill');
+        setTimeout(() => setError(null), 3000);
+      }
+      
+    } catch (error) {
+      console.error('Auto-fill error:', error);
+      setError('Failed to fetch book details. Please try again or fill in manually.');
+    } finally {
+      setAutoFillLoading(false);
+    }
+  };
+
+  const getAutoFilledFieldProps = (fieldName: string) => ({
+    sx: autoFilledFields.has(fieldName) ? {
+      '& .MuiOutlinedInput-root': {
+        backgroundColor: 'success.light',
+        '& fieldset': {
+          borderColor: 'success.main',
+        },
+      },
+      '& .MuiInputLabel-root': {
+        color: 'success.main',
+      },
+    } : {},
+    helperText: autoFilledFields.has(fieldName) 
+      ? '✨ Auto-filled by AI' 
+      : undefined,
+    FormHelperTextProps: autoFilledFields.has(fieldName) ? {
+      sx: { color: 'success.main' }
+    } : undefined,
+  });
 
   const onSubmit = async (data: BookFormData) => {
     try {
@@ -211,6 +323,31 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                   helperText={errors.author?.message}
                 />
                 
+                {/* Auto-fill Button */}
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleAutoFill}
+                    disabled={autoFillLoading || !watch('title').trim()}
+                    startIcon={autoFillLoading ? <Psychology sx={{ animation: 'pulse 2s infinite' }} /> : <AutoFixHigh />}
+                    sx={{
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'primary.main',
+                        color: 'white',
+                      },
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 },
+                      },
+                    }}
+                  >
+                    {autoFillLoading ? 'Fetching Details...' : 'Auto-fill Book Details'}
+                  </Button>
+                </Box>
+                
                 <Controller
                   name="genre"
                   control={control}
@@ -240,7 +377,9 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                   multiline
                   rows={3}
                   error={!!errors.description}
-                  helperText={errors.description?.message}
+                  helperText={errors.description?.message || getAutoFilledFieldProps('description').helperText}
+                  FormHelperTextProps={getAutoFilledFieldProps('description').FormHelperTextProps}
+                  sx={getAutoFilledFieldProps('description').sx}
                 />
               </Box>
             </Box>
