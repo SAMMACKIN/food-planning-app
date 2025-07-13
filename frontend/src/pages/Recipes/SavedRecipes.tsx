@@ -43,7 +43,6 @@ import { Recipe, RecipeRating } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
-import StarRating from '../../components/Recipe/StarRating';
 
 const SavedRecipes: React.FC = () => {
   const {

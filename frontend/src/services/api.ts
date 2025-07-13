@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import { AxiosResponse } from 'axios';
 import { apiDebugger } from '../utils/debugApi';
 import { navigationApi, dataApi, recommendationsApi } from './apiInstances';
 

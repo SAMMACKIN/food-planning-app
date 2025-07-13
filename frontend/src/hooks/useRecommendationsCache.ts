@@ -20,7 +20,6 @@ export const useRecommendationsCache = () => {
   const [error, setError] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('perplexity');
-  const [lastCompletedRequest, setLastCompletedRequest] = useState<string>('');
   const [backgroundLoadCompleted, setBackgroundLoadCompleted] = useState(false);
   const lastRequestRef = useRef<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -97,7 +96,6 @@ export const useRecommendationsCache = () => {
       if (cachedData) {
         setRecommendations(cachedData);
         lastRequestRef.current = requestKey;
-        setLastCompletedRequest(requestKey);
         return;
       }
     }
@@ -153,7 +151,6 @@ export const useRecommendationsCache = () => {
       setRecommendations(recs);
       saveToCache(recs, requestKey);
       lastRequestRef.current = requestKey;
-      setLastCompletedRequest(requestKey);
       
       // Show success notification for background loading
       if (shouldUseBackground) {

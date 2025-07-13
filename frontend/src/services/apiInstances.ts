@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -33,7 +33,7 @@ export const recommendationsApi = axios.create({
 });
 
 // Add auth interceptor to all instances
-const addAuthInterceptor = (instance: typeof axios) => {
+const addAuthInterceptor = (instance: AxiosInstance) => {
   instance.interceptors.request.use((config) => {
     const token = localStorage.getItem('access_token');
     
