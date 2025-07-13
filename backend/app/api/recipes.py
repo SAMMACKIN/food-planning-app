@@ -52,11 +52,16 @@ def save_recipe(
 ):
     """Save a new recipe - dead simple"""
     try:
+        logger.info(f"💾 Attempting to save recipe: {recipe_data.name}")
+        logger.info(f"💾 Recipe data: {recipe_data.dict()}")
+        
         # Convert user ID to UUID
         user_uuid = uuid.UUID(current_user["id"])
+        logger.info(f"💾 User UUID: {user_uuid}")
         
         # Convert ingredients_needed to JSON-serializable format
         ingredients_data = []
+        logger.info(f"💾 Processing {len(recipe_data.ingredients_needed)} ingredients")
         for ingredient in recipe_data.ingredients_needed:
             if hasattr(ingredient, 'dict'):
                 # It's a Pydantic model
@@ -66,6 +71,7 @@ def save_recipe(
                 ingredients_data.append(ingredient)
         
         # Create recipe
+        logger.info(f"💾 Creating RecipeV2 object...")
         recipe = RecipeV2(
             user_id=user_uuid,
             name=recipe_data.name,
@@ -84,17 +90,21 @@ def save_recipe(
         )
         
         # Save to database
+        logger.info(f"💾 Saving to database...")
         db.add(recipe)
         db.commit()
         db.refresh(recipe)
+        logger.info(f"💾 Database save complete. Recipe ID: {recipe.id}")
         
         logger.info(f"✅ Recipe saved: {recipe.id} by user {user_uuid}")
         
         # Convert ingredients back to IngredientNeeded objects
+        logger.info(f"💾 Converting ingredients for response...")
         ingredients_needed = [IngredientNeeded(**ingredient) for ingredient in recipe.ingredients_needed]
         
         # Return response
-        return RecipeV2Response(
+        logger.info(f"💾 Creating response object...")
+        response = RecipeV2Response(
             id=str(recipe.id),
             user_id=str(recipe.user_id),
             name=recipe.name,
@@ -114,6 +124,8 @@ def save_recipe(
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
+        logger.info(f"💾 Response created successfully")
+        return response
         
     except Exception as e:
         db.rollback()
