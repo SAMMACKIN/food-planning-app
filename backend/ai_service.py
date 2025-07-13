@@ -636,5 +636,213 @@ Return ONLY valid JSON in this exact format:
         required_fields = ['name', 'description', 'prep_time', 'difficulty', 'servings']
         return all(field in rec for field in required_fields)
 
+    async def extract_recipe_from_content(self, content: str, source_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract recipe data from web content using AI
+        """
+        logger.info(f"🤖 AI extracting recipe from content ({len(content)} chars)")
+        
+        # In testing mode, return mock data
+        if self.is_testing:
+            return self._get_mock_recipe_extraction(source_url)
+        
+        # Try providers in order of preference
+        providers = ["perplexity", "claude", "groq"]
+        
+        for provider in providers:
+            if not self.is_provider_available(provider):
+                continue
+                
+            try:
+                logger.info(f"🔄 Trying recipe extraction with {provider}")
+                
+                if provider == "perplexity" and self.perplexity_key:
+                    result = await self._extract_recipe_perplexity(content, source_url)
+                elif provider == "claude" and self.claude_client:
+                    result = await self._extract_recipe_claude(content, source_url)
+                elif provider == "groq" and self.groq_client:
+                    result = await self._extract_recipe_groq(content, source_url)
+                else:
+                    continue
+                
+                if result and self._validate_extracted_recipe(result):
+                    logger.info(f"✅ Successfully extracted recipe with {provider}: {result.get('name', 'Unknown')}")
+                    return result
+                    
+            except Exception as e:
+                logger.warning(f"❌ Recipe extraction failed with {provider}: {e}")
+                continue
+        
+        logger.error("❌ All providers failed for recipe extraction")
+        return None
+
+    async def _extract_recipe_perplexity(self, content: str, source_url: str) -> Optional[Dict[str, Any]]:
+        """Extract recipe using Perplexity"""
+        prompt = self._build_recipe_extraction_prompt(content, source_url)
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.perplexity.ai/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.perplexity_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-sonar-small-128k-online",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 2048,
+                        "temperature": 0.3
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                return self._parse_recipe_extraction(data["choices"][0]["message"]["content"], "perplexity")
+                
+        except Exception as e:
+            logger.error(f"Perplexity recipe extraction error: {e}")
+            raise
+
+    async def _extract_recipe_claude(self, content: str, source_url: str) -> Optional[Dict[str, Any]]:
+        """Extract recipe using Claude"""
+        prompt = self._build_recipe_extraction_prompt(content, source_url)
+        
+        try:
+            response = self.claude_client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=2048,
+                temperature=0.3,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            return self._parse_recipe_extraction(response.content[0].text, "claude")
+            
+        except Exception as e:
+            logger.error(f"Claude recipe extraction error: {e}")
+            raise
+
+    async def _extract_recipe_groq(self, content: str, source_url: str) -> Optional[Dict[str, Any]]:
+        """Extract recipe using Groq"""
+        prompt = self._build_recipe_extraction_prompt(content, source_url)
+        
+        try:
+            response = self.groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
+                temperature=0.3
+            )
+            
+            return self._parse_recipe_extraction(response.choices[0].message.content, "groq")
+            
+        except Exception as e:
+            logger.error(f"Groq recipe extraction error: {e}")
+            raise
+
+    def _build_recipe_extraction_prompt(self, content: str, source_url: str) -> str:
+        """Build prompt for recipe extraction"""
+        return f"""
+You are a professional recipe extraction specialist. Extract recipe information from the following web content and return it in valid JSON format.
+
+SOURCE URL: {source_url}
+
+WEB CONTENT:
+{content}
+
+INSTRUCTIONS:
+- Extract the main recipe from this content
+- Parse ingredients with quantities and units when possible
+- Break down instructions into clear steps
+- Determine appropriate difficulty level (Easy/Medium/Hard)
+- Estimate prep time if not explicitly stated
+- Extract servings/yield information
+- Identify relevant tags (cuisine type, dietary restrictions, etc.)
+- If multiple recipes exist, extract the main/featured one
+
+Return ONLY valid JSON in this exact format:
+{{
+  "name": "Recipe Name",
+  "description": "Brief description of the dish",
+  "prep_time": 30,
+  "difficulty": "Easy|Medium|Hard",
+  "servings": 4,
+  "ingredients_needed": [
+    {{"name": "ingredient name", "quantity": "1", "unit": "cup", "have_in_pantry": false}},
+    {{"name": "ingredient name", "quantity": "2", "unit": "tsp", "have_in_pantry": false}}
+  ],
+  "instructions": [
+    "Step 1: Detailed instruction",
+    "Step 2: Next step with specifics",
+    "Step 3: Continue until complete"
+  ],
+  "tags": ["cuisine-type", "dietary-info", "cooking-method"],
+  "nutrition_notes": "Nutritional highlights or dietary information",
+  "pantry_usage_score": 0
+}}
+
+IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
+"""
+
+    def _parse_recipe_extraction(self, response_text: str, provider: str) -> Optional[Dict[str, Any]]:
+        """Parse recipe extraction response"""
+        try:
+            # Extract JSON from response
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            
+            if start_idx == -1 or end_idx == 0:
+                raise ValueError("No JSON found in response")
+            
+            json_str = response_text[start_idx:end_idx]
+            recipe_data = json.loads(json_str)
+            
+            # Add AI metadata
+            recipe_data['ai_generated'] = True
+            recipe_data['ai_provider'] = provider
+            
+            return recipe_data
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Error parsing {provider} recipe extraction: {e}")
+            return None
+
+    def _validate_extracted_recipe(self, recipe: Dict[str, Any]) -> bool:
+        """Validate extracted recipe data"""
+        required_fields = ['name', 'ingredients_needed', 'instructions']
+        
+        if not all(field in recipe for field in required_fields):
+            return False
+        
+        # Check that we have meaningful data
+        if not recipe['name'] or not recipe['ingredients_needed'] or not recipe['instructions']:
+            return False
+        
+        # Ensure ingredients and instructions are lists
+        if not isinstance(recipe['ingredients_needed'], list) or not isinstance(recipe['instructions'], list):
+            return False
+        
+        return True
+
+    def _get_mock_recipe_extraction(self, source_url: str) -> Dict[str, Any]:
+        """Return mock recipe for testing"""
+        return {
+            "name": "Mock Extracted Recipe",
+            "description": "A test recipe extracted from URL for testing purposes",
+            "prep_time": 25,
+            "difficulty": "Easy",
+            "servings": 4,
+            "ingredients_needed": [
+                {"name": "test ingredient", "quantity": "2", "unit": "cups", "have_in_pantry": False}
+            ],
+            "instructions": ["Test instruction 1", "Test instruction 2"],
+            "tags": ["test", "extracted", "mock"],
+            "nutrition_notes": "Mock nutritional information",
+            "pantry_usage_score": 0,
+            "ai_generated": True,
+            "ai_provider": "mock"
+        }
+
 # Global instance
 ai_service = AIService()

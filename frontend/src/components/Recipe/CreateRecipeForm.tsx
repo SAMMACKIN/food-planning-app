@@ -21,7 +21,7 @@ import {
   Divider,
   Alert,
 } from '@mui/material';
-import { Add, Delete, Restaurant, Timer, People } from '@mui/icons-material';
+import { Add, Delete, Restaurant, Timer, People, Link as LinkIcon, Close as CloseIcon } from '@mui/icons-material';
 import { RecipeCreate, IngredientNeeded } from '../../types';
 
 interface CreateRecipeFormProps {
@@ -58,6 +58,9 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
   const [newTag, setNewTag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
 
   const handleAddIngredient = () => {
     if (newIngredient.name && newIngredient.quantity && newIngredient.unit) {
@@ -141,6 +144,61 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
     setLoading(false);
   };
 
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) {
+      setError('Please enter a URL');
+      return;
+    }
+
+    setImportLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/v1/recipes/import-from-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({ url: importUrl.trim() })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to import recipe');
+      }
+
+      const result = await response.json();
+      const recipeData = result.recipe_data;
+
+      // Populate form with imported data
+      setFormData({
+        name: recipeData.name || '',
+        description: recipeData.description || '',
+        prep_time: recipeData.prep_time || 30,
+        difficulty: recipeData.difficulty || 'Medium',
+        servings: recipeData.servings || 4,
+        nutrition_notes: recipeData.nutrition_notes || ''
+      });
+
+      setIngredients(recipeData.ingredients_needed || []);
+      setInstructions(recipeData.instructions || ['']);
+      setTags(recipeData.tags || []);
+
+      setImportMode(false);
+      setImportUrl('');
+      
+      // Show success message
+      setError(null);
+      
+    } catch (error: any) {
+      console.error('Import error:', error);
+      setError(error.message || 'Failed to import recipe from URL');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   const handleReset = () => {
     setFormData({
       name: '',
@@ -156,6 +214,8 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
     setNewIngredient({ name: '', quantity: '', unit: '' });
     setNewTag('');
     setError(null);
+    setImportMode(false);
+    setImportUrl('');
   };
 
   const handleClose = () => {
@@ -166,13 +226,64 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Restaurant color="primary" />
-          <Typography variant="h6">Create Your Own Recipe</Typography>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box display="flex" alignItems="center" gap={1}>
+            <Restaurant color="primary" />
+            <Typography variant="h6">Create Your Own Recipe</Typography>
+          </Box>
+          <Button 
+            variant="outlined" 
+            size="small"
+            startIcon={<LinkIcon />}
+            onClick={() => setImportMode(!importMode)}
+            disabled={loading || importLoading}
+          >
+            {importMode ? 'Manual Entry' : 'Import from URL'}
+          </Button>
         </Box>
       </DialogTitle>
       
       <DialogContent>
+        {/* URL Import Section */}
+        {importMode && (
+          <Box mb={3} p={2} border={1} borderColor="primary.main" borderRadius={2} bgcolor="primary.50">
+            <Typography variant="h6" gutterBottom color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LinkIcon />
+              Import Recipe from URL
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Paste a link to any recipe website and we'll automatically extract the details for you.
+            </Typography>
+            
+            <Box display="flex" gap={1} mt={2}>
+              <TextField
+                fullWidth
+                label="Recipe URL"
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="https://example.com/recipe"
+                disabled={importLoading}
+                onKeyPress={(e) => e.key === 'Enter' && handleImportFromUrl()}
+              />
+              <Button 
+                variant="contained" 
+                onClick={handleImportFromUrl}
+                disabled={!importUrl.trim() || importLoading}
+                sx={{ minWidth: 120 }}
+              >
+                {importLoading ? 'Importing...' : 'Import'}
+              </Button>
+            </Box>
+            
+            {importLoading && (
+              <Box mt={2} display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2" color="text.secondary">
+                  🤖 AI is extracting recipe details from the webpage...
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}

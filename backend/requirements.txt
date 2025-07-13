@@ -16,6 +16,7 @@ httpx
 tenacity
 requests
 email-validator
+beautifulsoup4
 psycopg2-binary
 pytest
 pytest-asyncio

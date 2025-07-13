@@ -580,3 +580,41 @@ def delete_recipe_rating(
         db.rollback()
         logger.error(f"❌ Delete recipe rating error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete recipe rating: {str(e)}")
+
+
+# Recipe URL Import endpoint
+@router.post("/import-from-url")
+async def import_recipe_from_url(
+    url_data: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Import a recipe from a URL using AI extraction"""
+    try:
+        from ..services.recipe_url_service import recipe_url_service
+        
+        url = url_data.get("url")
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        logger.info(f"🌐 Importing recipe from URL: {url}")
+        
+        # Extract recipe data from URL using AI
+        recipe_data = await recipe_url_service.extract_recipe_from_url(url)
+        
+        if not recipe_data:
+            raise HTTPException(status_code=400, detail="Could not extract recipe from this URL")
+        
+        logger.info(f"✅ Successfully extracted recipe: {recipe_data.get('name', 'Unknown')}")
+        
+        return {
+            "success": True,
+            "recipe_data": recipe_data,
+            "message": "Recipe extracted successfully. Review and save if desired."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Import recipe from URL error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import recipe: {str(e)}")
