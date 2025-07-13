@@ -51,15 +51,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Database migration failed: {e}")
     
-    # Add expanded ingredients list
+    # Update ingredient categories to new structure
     try:
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.abspath(__file__ + "/../")))
-        from add_expanded_ingredients import add_expanded_ingredients
-        add_expanded_ingredients()
+        from .migrations.update_ingredient_categories import migrate_ingredient_categories
+        migrate_ingredient_categories()
     except Exception as e:
-        logger.warning(f"⚠️ Expanded ingredients migration failed: {e}")
+        logger.warning(f"⚠️ Ingredient categories migration failed: {e}")
     
     logger.info("✅ Application startup complete")
     
