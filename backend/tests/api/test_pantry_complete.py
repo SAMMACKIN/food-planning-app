@@ -116,13 +116,23 @@ class TestPantryManagement:
         token = register_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        pantry_data = {
+        # First test with invalid UUID format
+        pantry_data_invalid_format = {
             "ingredient_id": "nonexistent-ingredient-id",
             "quantity": 1.0
         }
         
-        response = client.post("/api/v1/pantry", json=pantry_data, headers=headers)
+        response = client.post("/api/v1/pantry", json=pantry_data_invalid_format, headers=headers)
+        assert response.status_code == 400
+        assert "Invalid ingredient_id" in response.json()["detail"]
         
+        # Then test with valid UUID but non-existent ingredient
+        pantry_data = {
+            "ingredient_id": str(uuid.uuid4()),
+            "quantity": 1.0
+        }
+        
+        response = client.post("/api/v1/pantry", json=pantry_data, headers=headers)
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
         

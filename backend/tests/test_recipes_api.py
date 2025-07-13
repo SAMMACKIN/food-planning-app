@@ -3,14 +3,18 @@ Test recipe API endpoints
 """
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 import uuid
 from datetime import datetime
 
-from app.main import app
+from app.main import create_app
 from app.models.recipe_v2 import RecipeV2
 from app.models.recipe_rating import RecipeRating
+from app.api.recipes import get_current_user_simple
+from app.db.database import get_db
 
+# Create test app
+app = create_app()
 client = TestClient(app)
 
 
