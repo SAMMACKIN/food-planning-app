@@ -9,13 +9,13 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.config import get_settings
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, Boolean, DateTime, Text, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
 
 def ensure_recipe_ratings_table():
-    """Ensure recipe_ratings table exists"""
+    """Ensure recipe_ratings table exists with correct schema"""
     settings = get_settings()
     
     # Create engine
@@ -29,8 +29,24 @@ def ensure_recipe_ratings_table():
     print(f"Existing tables: {existing_tables}")
     
     if 'recipe_ratings' in existing_tables:
-        print("✅ recipe_ratings table already exists")
-        return
+        print("🔍 recipe_ratings table exists, checking schema...")
+        # Check if all required columns exist
+        columns = [col['name'] for col in inspector.get_columns('recipe_ratings')]
+        print(f"Existing columns: {columns}")
+        
+        required_columns = ['id', 'recipe_id', 'user_id', 'rating', 'review_text', 'would_make_again', 'cooking_notes', 'created_at', 'updated_at']
+        missing_columns = [col for col in required_columns if col not in columns]
+        
+        if missing_columns:
+            print(f"❌ Missing columns: {missing_columns}")
+            print("🔧 Recreating table with correct schema...")
+            # Drop and recreate the table
+            with engine.connect() as conn:
+                conn.execute(text("DROP TABLE recipe_ratings CASCADE"))
+                conn.commit()
+        else:
+            print("✅ recipe_ratings table has correct schema")
+            return
     
     print("🔧 Creating recipe_ratings table...")
     
