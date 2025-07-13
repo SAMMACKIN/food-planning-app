@@ -461,6 +461,7 @@ class RecipeURLService:
         """Validate and clean recipe data to match the expected schema"""
         try:
             logger.info("🧹 Validating and cleaning recipe data...")
+            logger.info(f"🔗 Input source: {recipe_data.get('source')}")
             
             # Ensure all required fields exist with proper types
             cleaned = {
@@ -475,7 +476,7 @@ class RecipeURLService:
                 'pantry_usage_score': int(recipe_data.get('pantry_usage_score', 0)),
                 'ai_generated': bool(recipe_data.get('ai_generated', True)),
                 'ai_provider': recipe_data.get('ai_provider'),
-                'source': str(recipe_data.get('source', 'imported')),
+                'source': str(recipe_data.get('source', 'imported')).strip(),
             }
             
             # Clean and validate ingredients
@@ -487,6 +488,7 @@ class RecipeURLService:
                 return None
             
             logger.info(f"✅ Recipe data cleaned successfully: {cleaned['name']}")
+            logger.info(f"🔗 Final source: {cleaned['source']}")
             logger.info(f"📋 Final data: ingredients={len(cleaned['ingredients_needed'])}, instructions={len(cleaned['instructions'])}")
             
             return cleaned

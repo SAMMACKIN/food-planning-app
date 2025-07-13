@@ -354,8 +354,11 @@ const SavedRecipes: React.FC = () => {
                       />
                     )}
                     {(() => {
-                      // Debug: log recipe source info
-                      console.log('Recipe:', recipe.name, 'Source:', recipe.source, 'Type:', typeof recipe.source);
+                      // Debug: log recipe info for debugging
+                      console.log('Recipe:', recipe.name);
+                      console.log('- Source:', recipe.source, 'Type:', typeof recipe.source);
+                      console.log('- Tags:', recipe.tags);
+                      console.log('- AI Generated:', recipe.ai_generated);
                       
                       // Show source chip if source exists and is a valid URL
                       const hasValidSource = recipe.source && 
@@ -364,10 +367,12 @@ const SavedRecipes: React.FC = () => {
                         recipe.source !== 'imported' &&
                         (recipe.source.startsWith('http://') || recipe.source.startsWith('https://'));
                       
+                      console.log('- Has valid source:', hasValidSource);
+                      
                       return hasValidSource ? (
                         <Chip
                           icon={<Link />}
-                          label="Source"
+                          label="View Original"
                           size="small"
                           clickable
                           onClick={() => window.open(recipe.source, '_blank')}
