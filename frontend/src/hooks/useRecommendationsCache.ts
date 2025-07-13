@@ -70,7 +70,7 @@ export const useRecommendationsCache = () => {
         available_providers: string[]; 
         default_provider: string;
         message: string 
-      }>('GET', '/recommendations/status');
+      }>('GET', '/recommendations/status', undefined, { requestType: 'recommendations' });
       
       setAvailableProviders(status.available_providers);
       if (status.default_provider) {
@@ -137,7 +137,7 @@ export const useRecommendationsCache = () => {
         'POST', 
         '/recommendations', 
         requestWithTimestamp,
-        { signal: currentAbortController.signal }
+        { signal: currentAbortController.signal, requestType: 'recommendations' }
       );
       
       // Check if this specific request was aborted
