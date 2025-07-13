@@ -32,7 +32,10 @@ class BookDetailsService:
                 return cached_result
             
             # Import here to avoid circular imports
-            from ...ai_service import ai_service
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            from ai_service import ai_service
             
             # Start AI extraction and external API calls concurrently
             tasks = [
