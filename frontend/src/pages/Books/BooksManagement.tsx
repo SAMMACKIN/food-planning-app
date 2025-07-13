@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CardActions,
-  Grid,
   Chip,
   IconButton,
   Alert,
@@ -426,13 +425,9 @@ const BooksManagement: React.FC = () => {
               </Button>
             </Box>
           ) : (
-            <Grid container spacing={3}>
-              {books.map((book) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
-                  {renderBookCard(book)}
-                </Grid>
-              ))}
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
+              {books.map(renderBookCard)}
+            </Box>
           )}
           
           {/* Stats */}

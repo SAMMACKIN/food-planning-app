@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Grid,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,7 +22,6 @@ import {
   Checkbox,
   ListItemText,
 } from '@mui/material';
-import { Grid2 as Grid } from '@mui/material';
 import { Add, Edit, Delete, Person } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

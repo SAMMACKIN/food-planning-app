@@ -20,7 +20,8 @@
       "Bash(git merge:*)",
       "Bash(git stash:*)",
       "Bash(brew services:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(cd:*)"
     ],
     "deny": []
   }

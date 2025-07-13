@@ -12,7 +12,6 @@ import {
   Avatar,
   Divider,
 } from '@mui/material';
-import { Grid2 as Grid } from '@mui/material';
 import {
   FamilyRestroom,
   Kitchen,
@@ -115,25 +114,35 @@ const Dashboard: React.FC = () => {
       </Box>
 
       {/* Main Cards */}
-      <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { 
+          xs: '1fr', 
+          sm: '1fr 1fr', 
+          md: '1fr 1fr', 
+          lg: '1fr 1fr 1fr 1fr' 
+        }, 
+        gap: isMobile ? 2 : 3, 
+        mb: 4 
+      }}>
         {dashboardCards.map((card, index) => (
-          <Grid xs={12} sm={6} md={6} lg={3} key={card.title}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                background: isMobile 
-                  ? `linear-gradient(135deg, ${card.color}08 0%, ${card.color}04 100%)`
-                  : 'transparent', // Use theme background instead of hardcoded white
-                border: isMobile ? `1px solid ${card.color}20` : 'none',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: `0 8px 25px ${card.color}25`,
-                },
-              }}
-              onClick={card.action}
-            >
+          <Card 
+            key={card.title}
+            sx={{ 
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              background: isMobile 
+                ? `linear-gradient(135deg, ${card.color}08 0%, ${card.color}04 100%)`
+                : 'transparent', // Use theme background instead of hardcoded white
+              border: isMobile ? `1px solid ${card.color}20` : 'none',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: `0 8px 25px ${card.color}25`,
+              },
+            }}
+            onClick={card.action}
+          >
               <CardContent sx={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
@@ -216,9 +225,8 @@ const Dashboard: React.FC = () => {
                 </Button>
               </CardContent>
             </Card>
-          </Grid>
         ))}
-      </Grid>
+      </Box>
 
       <Divider sx={{ my: 3 }} />
 
@@ -254,20 +262,19 @@ const Dashboard: React.FC = () => {
             ))}
           </Stack>
         ) : (
-          <Grid container spacing={2}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             {quickActions.map((action) => (
-              <Grid key={action.label}>
-                <Button
-                  variant={action.variant}
-                  color={action.color}
-                  startIcon={<action.icon />}
-                  onClick={action.action}
-                >
-                  {action.label}
-                </Button>
-              </Grid>
+              <Button
+                key={action.label}
+                variant={action.variant}
+                color={action.color}
+                startIcon={<action.icon />}
+                onClick={action.action}
+              >
+                {action.label}
+              </Button>
             ))}
-          </Grid>
+          </Box>
         )}
       </Box>
     </Box>
