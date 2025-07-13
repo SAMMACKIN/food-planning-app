@@ -65,6 +65,7 @@ import { Book, ReadingStatus, BookFilters } from '../../types';
 import { booksApi, bookHelpers } from '../../services/booksApi';
 import AddBookDialog from './AddBookDialog';
 import EditBookDialog from './EditBookDialog';
+import GoodreadsImportDialog from './GoodreadsImportDialog';
 
 const BooksManagement: React.FC = () => {
   const theme = useTheme();
@@ -88,6 +89,7 @@ const BooksManagement: React.FC = () => {
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [bookMenuAnchorEl, setBookMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [menuBook, setMenuBook] = useState<Book | null>(null);
@@ -486,14 +488,21 @@ const BooksManagement: React.FC = () => {
         </Box>
         
         {!isMobile && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setAddDialogOpen(true)}
-            sx={{ alignSelf: 'flex-start' }}
-          >
-            Add Book
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setAddDialogOpen(true)}
+            >
+              Add Book
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              Import from Goodreads
+            </Button>
+          </Box>
         )}
       </Box>
 
@@ -726,6 +735,15 @@ const BooksManagement: React.FC = () => {
         onBookUpdated={() => {
           setEditDialogOpen(false);
           setSelectedBook(null);
+          loadBooks();
+        }}
+      />
+      
+      <GoodreadsImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImportComplete={() => {
+          setImportDialogOpen(false);
           loadBooks();
         }}
       />

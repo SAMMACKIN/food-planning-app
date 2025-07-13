@@ -4,7 +4,7 @@ Books API - Content management for reading collection
 import logging
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Header, Query
+from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_, and_
 
@@ -619,3 +619,74 @@ async def regenerate_recommendations(
     except Exception as e:
         logger.error(f"❌ Regenerate recommendations error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to regenerate recommendations: {str(e)}")
+
+
+@router.post("/import/goodreads")
+async def import_goodreads_library(
+    csv_file: UploadFile = File(..., description="Goodreads CSV export file"),
+    current_user: dict = Depends(get_current_user_simple),
+    db: Session = Depends(get_db)
+):
+    """
+    Import books from Goodreads CSV export
+    
+    Upload your Goodreads library export CSV file to import your books.
+    To export from Goodreads:
+    1. Go to My Books on Goodreads
+    2. Click on Tools > Import and Export
+    3. Click Export Library
+    4. Download the CSV file
+    
+    This will import books with their reading status, ratings, and other metadata.
+    Duplicate books (based on title and author) will be skipped.
+    """
+    try:
+        user_id = current_user["id"]
+        logger.info(f"📚 Starting Goodreads import for user: {user_id}")
+        
+        # Validate file type
+        if not csv_file.filename.endswith('.csv'):
+            raise HTTPException(
+                status_code=400, 
+                detail="Please upload a CSV file. Make sure you downloaded the CSV export from Goodreads."
+            )
+        
+        # Read CSV content
+        content = await csv_file.read()
+        csv_content = content.decode('utf-8-sig')  # Handle BOM if present
+        
+        # Import here to avoid circular imports
+        from ..services.goodreads_import_service import goodreads_import_service
+        
+        # Process the import
+        result = await goodreads_import_service.import_books(
+            user_id=user_id,
+            csv_content=csv_content,
+            db=db
+        )
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        logger.info(f"✅ Goodreads import complete: {result['imported']} imported, {result['skipped']} skipped")
+        
+        return {
+            "success": True,
+            "message": result["message"],
+            "imported": result["imported"],
+            "skipped": result["skipped"],
+            "errors": result["errors"],
+            "total": result.get("total", 0)
+        }
+        
+    except HTTPException:
+        raise
+    except UnicodeDecodeError:
+        logger.error("❌ Failed to decode CSV file")
+        raise HTTPException(
+            status_code=400, 
+            detail="Failed to read CSV file. Please ensure it's a valid Goodreads export."
+        )
+    except Exception as e:
+        logger.error(f"❌ Goodreads import error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import Goodreads library: {str(e)}")

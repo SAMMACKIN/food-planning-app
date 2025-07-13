@@ -138,12 +138,35 @@ class GoodreadsImportService:
                         # Try to extract a genre from bookshelves
                         shelves = book_data['bookshelves'].split(',')
                         for shelf in shelves:
-                            shelf = shelf.strip()
+                            shelf = shelf.strip().lower()
                             # Common genre mappings
-                            if shelf in ['fiction', 'non-fiction', 'nonfiction', 'fantasy', 'science-fiction', 
-                                        'mystery', 'romance', 'historical-fiction', 'biography', 'history',
-                                        'self-help', 'business', 'psychology', 'philosophy']:
-                                book.genre = shelf.replace('-', ' ').title()
+                            genre_mappings = {
+                                'fiction': 'Fiction',
+                                'non-fiction': 'Non-Fiction',
+                                'nonfiction': 'Non-Fiction',
+                                'fantasy': 'Fantasy',
+                                'science-fiction': 'Science Fiction',
+                                'sci-fi': 'Science Fiction',
+                                'mystery': 'Mystery',
+                                'romance': 'Romance',
+                                'historical-fiction': 'Historical Fiction',
+                                'biography': 'Biography',
+                                'history': 'History',
+                                'self-help': 'Self-Help',
+                                'business': 'Business',
+                                'psychology': 'Psychology',
+                                'philosophy': 'Philosophy',
+                                'memoir': 'Memoir',
+                                'thriller': 'Thriller',
+                                'horror': 'Horror',
+                                'poetry': 'Poetry',
+                                'classic': 'Classic Literature',
+                                'young-adult': 'Young Adult',
+                                'ya': 'Young Adult'
+                            }
+                            
+                            if shelf in genre_mappings:
+                                book.genre = genre_mappings[shelf]
                                 break
                     
                     db.add(book)
