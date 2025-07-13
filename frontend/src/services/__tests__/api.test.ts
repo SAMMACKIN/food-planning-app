@@ -144,7 +144,7 @@ describe('API Service', () => {
     });
 
     test('should use navigation API for navigation requests', async () => {
-      mockGetApiInstance.mockReturnValue(mockNavigationApi);
+      mockNavigationApi.request.mockResolvedValue({ data: mockResponseData });
       
       await apiRequest('GET', '/auth/me', undefined, { requestType: 'navigation' });
 
@@ -152,7 +152,7 @@ describe('API Service', () => {
     });
 
     test('should use recommendations API for recommendation requests', async () => {
-      mockGetApiInstance.mockReturnValue(mockRecommendationsApi);
+      mockRecommendationsApi.request.mockResolvedValue({ data: mockResponseData });
       
       await apiRequest('POST', '/recommendations', {}, { requestType: 'recommendations' });
 
@@ -160,7 +160,7 @@ describe('API Service', () => {
     });
 
     test('should auto-detect recommendations API from URL', async () => {
-      mockGetApiInstance.mockReturnValue(mockRecommendationsApi);
+      mockRecommendationsApi.request.mockResolvedValue({ data: mockResponseData });
       
       await apiRequest('GET', '/recommendations/status');
 
@@ -268,7 +268,7 @@ describe('API Service', () => {
 
   describe('Request Type Selection', () => {
     test('should default to data API when no request type specified', async () => {
-      mockGetApiInstance.mockReturnValue(mockDataApi);
+      mockDataApi.request.mockResolvedValue({ data: 'success' });
       
       await apiRequest('GET', '/test');
 
@@ -276,7 +276,7 @@ describe('API Service', () => {
     });
 
     test('should use navigation API for urgent requests', async () => {
-      mockGetApiInstance.mockReturnValue(mockNavigationApi);
+      mockNavigationApi.request.mockResolvedValue({ data: 'success' });
       
       await apiRequest('GET', '/auth/logout', undefined, { requestType: 'navigation' });
 
@@ -284,7 +284,7 @@ describe('API Service', () => {
     });
 
     test('should use recommendations API for AI requests', async () => {
-      mockGetApiInstance.mockReturnValue(mockRecommendationsApi);
+      mockRecommendationsApi.request.mockResolvedValue({ data: 'success' });
       
       await apiRequest('POST', '/ai/recommendations', {}, { requestType: 'recommendations' });
 
@@ -292,7 +292,7 @@ describe('API Service', () => {
     });
 
     test('should prioritize explicit requestType over URL detection', async () => {
-      mockGetApiInstance.mockReturnValue(mockNavigationApi);
+      mockNavigationApi.request.mockResolvedValue({ data: 'success' });
       
       // URL contains 'recommendations' but explicit type is 'navigation'
       await apiRequest('GET', '/recommendations/cancel', undefined, { requestType: 'navigation' });
@@ -303,6 +303,8 @@ describe('API Service', () => {
 
   describe('Integration with API Debugger', () => {
     test('should start and end request tracking', async () => {
+      mockDataApi.request.mockResolvedValue({ data: 'success' });
+      
       await apiRequest('GET', '/test');
 
       expect(mockApiDebugger.startRequest).toHaveBeenCalledWith('GET /test');
@@ -357,7 +359,7 @@ describe('API Service', () => {
         requestType: 'recommendations' as const,
       };
       
-      mockGetApiInstance.mockReturnValue(mockRecommendationsApi);
+      mockRecommendationsApi.request.mockResolvedValue({ data: 'success' });
       
       await apiRequest('POST', '/test', { data: 'test' }, config);
 
