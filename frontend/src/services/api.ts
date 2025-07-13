@@ -12,11 +12,17 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
-  if (token) {
+  
+  // Only add Authorization header to API requests, not static files
+  const isApiRequest = config.url?.includes('/api/') || config.baseURL?.includes('/api/');
+  
+  if (token && isApiRequest) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('🔑 Adding Authorization header to request:', config.url);
+    console.log('🔑 Adding Authorization header to API request:', config.url);
+  } else if (!isApiRequest) {
+    console.log('📄 Static file request (no auth needed):', config.url);
   } else {
-    console.log('⚠️ No access token found for request:', config.url);
+    console.log('⚠️ No access token found for API request:', config.url);
   }
   return config;
 });
