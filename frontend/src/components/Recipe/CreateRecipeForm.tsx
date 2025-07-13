@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -22,12 +22,14 @@ import {
   Alert,
 } from '@mui/material';
 import { Add, Delete, Restaurant, Timer, People, Link as LinkIcon, Close as CloseIcon } from '@mui/icons-material';
-import { RecipeCreate, IngredientNeeded } from '../../types';
+import { RecipeCreate, IngredientNeeded, Recipe } from '../../types';
 
 interface CreateRecipeFormProps {
   open: boolean;
   onClose: () => void;
   onSave: (recipe: RecipeCreate) => Promise<boolean>;
+  initialData?: Recipe | null;
+  isEdit?: boolean;
 }
 
 const DIFFICULTY_OPTIONS = ['Easy', 'Medium', 'Hard'];
@@ -37,19 +39,19 @@ const COMMON_TAGS = [
   'Healthy', 'Kid-Friendly', 'One-Pot', 'Meal Prep', 'Budget-Friendly'
 ];
 
-const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSave }) => {
+const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSave, initialData, isEdit = false }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    prep_time: 30,
-    difficulty: 'Easy',
-    servings: 4,
-    nutrition_notes: ''
+    name: initialData?.name || '',
+    description: initialData?.description || '',
+    prep_time: initialData?.prep_time || 30,
+    difficulty: initialData?.difficulty || 'Easy',
+    servings: initialData?.servings || 4,
+    nutrition_notes: initialData?.nutrition_notes || ''
   });
 
-  const [ingredients, setIngredients] = useState<IngredientNeeded[]>([]);
-  const [instructions, setInstructions] = useState<string[]>(['']);
-  const [tags, setTags] = useState<string[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientNeeded[]>(initialData?.ingredients_needed || []);
+  const [instructions, setInstructions] = useState<string[]>(initialData?.instructions || ['']);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     quantity: '',
@@ -61,6 +63,36 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
   const [importMode, setImportMode] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importLoading, setImportLoading] = useState(false);
+
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        description: initialData.description || '',
+        prep_time: initialData.prep_time || 30,
+        difficulty: initialData.difficulty || 'Easy',
+        servings: initialData.servings || 4,
+        nutrition_notes: initialData.nutrition_notes || ''
+      });
+      setIngredients(initialData.ingredients_needed || []);
+      setInstructions(initialData.instructions || ['']);
+      setTags(initialData.tags || []);
+    } else {
+      // Reset form for create mode
+      setFormData({
+        name: '',
+        description: '',
+        prep_time: 30,
+        difficulty: 'Easy',
+        servings: 4,
+        nutrition_notes: ''
+      });
+      setIngredients([]);
+      setInstructions(['']);
+      setTags([]);
+    }
+  }, [initialData]);
 
   const handleAddIngredient = () => {
     if (newIngredient.name && newIngredient.quantity && newIngredient.unit) {
@@ -242,17 +274,19 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={1}>
             <Restaurant color="primary" />
-            <Typography variant="h6">Create Your Own Recipe</Typography>
+            <Typography variant="h6">{isEdit ? 'Edit Recipe' : 'Create Your Own Recipe'}</Typography>
           </Box>
-          <Button 
-            variant="outlined" 
-            size="small"
-            startIcon={<LinkIcon />}
-            onClick={() => setImportMode(!importMode)}
-            disabled={loading || importLoading}
-          >
-            {importMode ? 'Manual Entry' : 'Import from URL'}
-          </Button>
+          {!isEdit && (
+            <Button 
+              variant="outlined" 
+              size="small"
+              startIcon={<LinkIcon />}
+              onClick={() => setImportMode(!importMode)}
+              disabled={loading || importLoading}
+            >
+              {importMode ? 'Manual Entry' : 'Import from URL'}
+            </Button>
+          )}
         </Box>
       </DialogTitle>
       

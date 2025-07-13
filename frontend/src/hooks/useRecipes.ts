@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
-import { Recipe, RecipeCreate, MealRecommendation, RecipeRating, RecipeRatingCreate } from '../types';
+import { Recipe, RecipeCreate, RecipeUpdate, MealRecommendation, RecipeRating, RecipeRatingCreate } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 export const useRecipes = () => {
@@ -170,6 +170,27 @@ export const useRecipes = () => {
       console.error('Error deleting recipe:', error);
       setError('Failed to delete recipe');
       return false;
+    }
+  }, []);
+
+  const updateRecipe = useCallback(async (recipeId: string, recipeData: RecipeUpdate): Promise<Recipe | null> => {
+    try {
+      setError(null);
+      console.log('✏️ Updating recipe:', recipeId, recipeData);
+      
+      const updatedRecipe = await apiRequest<Recipe>('PUT', `/recipes/${recipeId}`, recipeData);
+      console.log('✅ Recipe updated successfully:', updatedRecipe);
+      
+      // Update local state
+      setSavedRecipes(prev => prev.map(recipe => 
+        recipe.id === recipeId ? updatedRecipe : recipe
+      ));
+      
+      return updatedRecipe;
+    } catch (error: any) {
+      console.error('❌ Error updating recipe:', error);
+      setError('Failed to update recipe');
+      return null;
     }
   }, []);
 
@@ -347,6 +368,7 @@ export const useRecipes = () => {
     saveRecipe,
     saveRecommendationAsRecipe,
     deleteRecipe,
+    updateRecipe,
     // Rating functions
     createRecipeRating,
     getRecipeRatings,

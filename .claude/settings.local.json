@@ -21,7 +21,8 @@
       "Bash(git stash:*)",
       "Bash(brew services:*)",
       "Bash(npm ls:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }

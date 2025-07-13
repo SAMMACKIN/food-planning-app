@@ -26,46 +26,6 @@ const TVShowsManagement = lazy(() => import('./pages/TVShows/TVShowsManagement')
 const MoviesManagement = lazy(() => import('./pages/Movies/MoviesManagement'));
 
 
-// Debug component to show which backend we're pointing to
-const BackendDebugBanner = () => {
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-  const isProduction = apiUrl.includes('production');
-  const isPreview = apiUrl.includes('preview');
-  const isLocal = apiUrl.includes('localhost');
-  
-  let environment = 'Unknown';
-  
-  if (isProduction) {
-    environment = 'Production';
-  } else if (isPreview) {
-    environment = 'Preview';
-  } else if (isLocal) {
-    environment = 'Local';
-  }
-  
-  return (
-    <Box
-      sx={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        backgroundColor: isProduction ? '#4caf50' : isPreview ? '#ff9800' : '#2196f3',
-        color: 'white',
-        padding: '4px 8px',
-        textAlign: 'center',
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        borderBottom: '1px solid rgba(255,255,255,0.3)'
-      }}
-    >
-      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '11px' }}>
-        Backend: <strong>{environment}</strong> ({apiUrl})
-      </Typography>
-    </Box>
-  );
-};
 
 function App() {
   const { isAuthenticated, isLoading, checkAuth, user } = useAuthStore();
@@ -88,9 +48,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <BackendDebugBanner />
-        <Box sx={{ paddingTop: '24px' }}>
-          <Router>
+        <Router>
         <Routes>
           <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" />} />
@@ -185,7 +143,6 @@ function App() {
           </Route>
         </Routes>
       </Router>
-      </Box>
     </ThemeProvider>
     </ErrorBoundary>
   );

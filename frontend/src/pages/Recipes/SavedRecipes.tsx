@@ -37,6 +37,8 @@ import {
   AutoFixHigh,
   SmartToy,
   AutoAwesome,
+  Link,
+  Edit,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useAuthStore } from '../../store/authStore';
@@ -55,6 +57,7 @@ const SavedRecipes: React.FC = () => {
     fetchSavedRecipes,
     deleteRecipe,
     saveRecipe,
+    updateRecipe,
     createRecipeRating,
     getRecipeRatings,
     updateRecipeRating,
@@ -68,6 +71,7 @@ const SavedRecipes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [createRecipeDialogOpen, setCreateRecipeDialogOpen] = useState(false);
+  const [editRecipeDialogOpen, setEditRecipeDialogOpen] = useState(false);
   // Rating dialog state
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
@@ -163,6 +167,18 @@ const SavedRecipes: React.FC = () => {
     const result = await saveRecipe(recipeData);
     if (result) {
       setCreateRecipeDialogOpen(false);
+      return true;
+    }
+    return false;
+  };
+
+  const handleUpdateRecipe = async (recipeData: any): Promise<boolean> => {
+    if (!selectedRecipe) return false;
+    
+    const result = await updateRecipe(selectedRecipe.id, recipeData);
+    if (result) {
+      setEditRecipeDialogOpen(false);
+      setSelectedRecipe(null);
       return true;
     }
     return false;
@@ -337,6 +353,25 @@ const SavedRecipes: React.FC = () => {
                         }}
                       />
                     )}
+                    {recipe.source && recipe.source !== 'user_created' && recipe.source !== 'recommendation' && (
+                      <Chip
+                        icon={<Link />}
+                        label="Source"
+                        size="small"
+                        clickable
+                        onClick={() => window.open(recipe.source, '_blank')}
+                        sx={{ 
+                          backgroundColor: '#2196F3' + '20',
+                          color: '#2196F3',
+                          '& .MuiChip-icon': {
+                            color: '#2196F3'
+                          },
+                          '&:hover': {
+                            backgroundColor: '#2196F3' + '40'
+                          }
+                        }}
+                      />
+                    )}
                   </Box>
 
                   {recipe.tags && recipe.tags.length > 0 && (
@@ -382,6 +417,17 @@ const SavedRecipes: React.FC = () => {
         }}>
           <Star sx={{ mr: 1 }} />
           Rate Recipe
+        </MenuItem>
+        <MenuItem onClick={() => {
+          const recipe = savedRecipes.find(r => r.id === menuRecipeId);
+          if (recipe) {
+            setSelectedRecipe(recipe);
+            setEditRecipeDialogOpen(true);
+          }
+          handleMenuClose();
+        }}>
+          <Edit sx={{ mr: 1 }} />
+          Edit Recipe
         </MenuItem>
         <MenuItem onClick={() => {/* TODO: Add to meal plan */}}>
           <CalendarToday sx={{ mr: 1 }} />
@@ -462,6 +508,18 @@ const SavedRecipes: React.FC = () => {
         open={createRecipeDialogOpen}
         onClose={() => setCreateRecipeDialogOpen(false)}
         onSave={handleCreateCustomRecipe}
+      />
+
+      {/* Edit Recipe Dialog */}
+      <CreateRecipeForm
+        open={editRecipeDialogOpen}
+        onClose={() => {
+          setEditRecipeDialogOpen(false);
+          setSelectedRecipe(null);
+        }}
+        onSave={handleUpdateRecipe}
+        initialData={selectedRecipe}
+        isEdit={true}
       />
     </Box>
   );

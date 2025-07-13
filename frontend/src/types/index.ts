@@ -228,6 +228,20 @@ export interface RecipeCreate {
   source?: string;
 }
 
+export interface RecipeUpdate {
+  name?: string;
+  description?: string;
+  prep_time?: number;
+  difficulty?: string;
+  servings?: number;
+  ingredients_needed?: IngredientNeeded[];
+  instructions?: string[];
+  tags?: string[];
+  nutrition_notes?: string;
+  pantry_usage_score?: number;
+  source?: string;
+}
+
 export interface RecipeRating {
   id: string;
   recipe_id: string;
