@@ -130,7 +130,9 @@ class GoodreadsImportService:
                         date_started=book_data['date_added'] if book_data['reading_status'] == ReadingStatus.READING else None,
                         date_finished=book_data['date_read'] if book_data['reading_status'] == ReadingStatus.READ else None,
                         user_notes=book_data['private_notes'] or book_data['my_review'],
-                        source='goodreads_import'
+                        source='goodreads_import',
+                        # Add Goodreads metadata
+                        description=f"Publisher: {book_data['publisher']}" if book_data.get('publisher') else None
                     )
                     
                     # Add genre from bookshelves if available
