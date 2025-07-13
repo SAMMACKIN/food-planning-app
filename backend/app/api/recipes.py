@@ -120,7 +120,7 @@ def save_recipe(
             source=recipe.source,
             ai_generated=recipe.ai_generated,
             ai_provider=recipe.ai_provider,
-            rating=calculate_average_rating(db, recipe.id),
+            rating=None,  # Temporarily disable rating calculation
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
@@ -173,7 +173,7 @@ def list_recipes(
                     source=recipe.source,
                     ai_generated=recipe.ai_generated,
                     ai_provider=recipe.ai_provider,
-                    rating=calculate_average_rating(db, recipe.id),
+                    rating=None,  # Temporarily disable rating calculation
                     created_at=recipe.created_at.isoformat(),
                     updated_at=recipe.updated_at.isoformat()
                 ))
