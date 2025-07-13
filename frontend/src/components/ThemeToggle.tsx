@@ -20,11 +20,13 @@ import { useTheme } from '../contexts/ThemeContext';
 interface ThemeToggleProps {
   variant?: 'icon' | 'menu';
   showLabel?: boolean;
+  fullWidth?: boolean;
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
   variant = 'icon', 
-  showLabel = false 
+  showLabel = false,
+  fullWidth = false 
 }) => {
   const { mode, setTheme } = useTheme();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -73,7 +75,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
 
   if (variant === 'icon') {
     return (
-      <Box display="flex" alignItems="center" gap={1}>
+      <Box display="flex" alignItems="center" gap={1} justifyContent={fullWidth ? 'center' : 'flex-start'} width={fullWidth ? '100%' : 'auto'}>
         <Tooltip title={getTooltip()}>
           <IconButton
             onClick={handleClick}

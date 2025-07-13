@@ -30,6 +30,7 @@ import {
   TextField,
   Alert,
   Snackbar,
+  Collapse,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -398,111 +399,198 @@ const Layout: React.FC = () => {
     </Box>
   );
 
-  return (
+  // Desktop Sidebar Component
+  const desktopSidebar = (
     <Box sx={{ 
-      flexGrow: 1, 
-      pb: isMobile ? 7 : 0, // Add bottom padding for mobile bottom nav
+      width: 280, 
+      height: '100vh',
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      borderRight: '1px solid',
+      borderColor: 'divider',
+      bgcolor: 'background.paper',
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh'
+      overflowY: 'auto',
+      overflowX: 'hidden',
     }}>
-      {/* Desktop/Tablet Header */}
-      <AppBar position="static" elevation={isMobile ? 0 : 1}>
-        <Toolbar sx={{ minHeight: isMobile ? 56 : 64 }}>
-          {isMobile && (
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-          
-          <Typography 
-            variant={isMobile ? "h6" : "h5"} 
-            component="div" 
-            sx={{ 
-              flexGrow: 1,
-              fontWeight: 'bold',
-              fontSize: isMobile ? '1.1rem' : '1.5rem'
-            }}
-          >
-            {isMobile ? '📱 Content Hub' : '📱 Content Management Hub'}
-          </Typography>
-          
-          {!isMobile && (
-            <>
-              <Typography variant="body2" sx={{ mr: 2, opacity: 0.8 }}>
-                Welcome, {user?.name || user?.email}
-              </Typography>
-              <ThemeToggle variant="icon" />
-              <Button 
-                color="inherit" 
-                onClick={openDeleteDialog}
-                variant="text"
-                size="small"
-                startIcon={<DeleteIcon />}
-                sx={{ 
-                  ml: 1,
-                  mr: 1,
-                  color: 'error.light',
-                  '&:hover': { 
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: 'error.main'
-                  }
-                }}
-              >
-                Delete Account
-              </Button>
-              <Button 
-                color="inherit" 
-                onClick={logout}
-                variant="outlined"
-                size="small"
-                sx={{ 
-                  borderColor: 'rgba(255,255,255,0.3)',
-                  '&:hover': { borderColor: 'rgba(255,255,255,0.7)' }
-                }}
-              >
-                Logout
-              </Button>
-            </>
-          )}
-        </Toolbar>
-        
-        {/* Desktop Tabs */}
-        {!isMobile && (
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs 
-              value={getCurrentTab()} 
-              onChange={handleTabChange} 
-              textColor="inherit" 
-              indicatorColor="secondary"
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{ minHeight: 48 }}
-            >
-              {navigationItems.map((item, index) => (
-                <Tab 
-                  key={item.path}
-                  label={item.label} 
-                  icon={item.icon}
-                  iconPosition="start"
-                  sx={{ 
-                    minHeight: 48,
-                    textTransform: 'none',
-                    fontSize: '0.875rem',
-                    ...(item.label === 'Admin' && { color: 'error.light' })
-                  }} 
-                />
-              ))}
-            </Tabs>
+      {/* Header */}
+      <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h5" color="primary.main" fontWeight="bold" gutterBottom>
+          📱 Content Hub
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Welcome, {user?.name || user?.email}
+        </Typography>
+      </Box>
+      
+      {/* Navigation Sections */}
+      <Box sx={{ flex: 1, py: 2 }}>
+        {navigationSections.map((section, sectionIndex) => (
+          <Box key={section.title} sx={{ mb: sectionIndex < navigationSections.length - 1 ? 1 : 0 }}>
+            {section.title !== 'Main' && (
+              <>
+                {/* Section Header */}
+                {section.items.length > 1 ? (
+                  <ListItemButton
+                    onClick={() => toggleSection(section.title)}
+                    sx={{ 
+                      px: 3,
+                      py: 1.5,
+                      '&:hover': {
+                        backgroundColor: 'action.hover'
+                      }
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'primary.main', minWidth: 40 }}>
+                      {section.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={section.title}
+                      primaryTypographyProps={{
+                        fontWeight: 'medium',
+                        fontSize: '0.95rem',
+                      }}
+                    />
+                    {expandedSections[section.title] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </ListItemButton>
+                ) : (
+                  <Box sx={{ px: 3, py: 1.5 }}>
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight="medium">
+                      {section.title}
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
+            
+            {/* Section Items */}
+            <Collapse in={section.title === 'Main' || section.items.length === 1 || expandedSections[section.title]} timeout="auto" unmountOnExit>
+              <List sx={{ py: 0 }}>
+                {section.items.map((item) => {
+                  const isSelected = location.pathname === item.path;
+                  
+                  return (
+                    <ListItemButton 
+                      key={item.path}
+                      onClick={() => navigate(item.path)}
+                      selected={isSelected}
+                      sx={{ 
+                        px: section.title === 'Main' ? 3 : 5,
+                        py: 1.25,
+                        '&.Mui-selected': {
+                          backgroundColor: 'action.selected',
+                          borderRight: '3px solid',
+                          borderColor: 'primary.main',
+                          '&:hover': {
+                            backgroundColor: 'action.selected',
+                          }
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ 
+                        color: isSelected ? 'primary.main' : 'text.secondary',
+                        minWidth: 40
+                      }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={item.label} 
+                        primaryTypographyProps={{ 
+                          fontWeight: isSelected ? 'medium' : 'normal',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </List>
+            </Collapse>
+            
+            {sectionIndex < navigationSections.length - 1 && (
+              <Divider sx={{ mx: 3, my: 1 }} />
+            )}
           </Box>
+        ))}
+      </Box>
+      
+      {/* Bottom Actions */}
+      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ mb: 2 }}>
+          <ThemeToggle variant="icon" showLabel fullWidth />
+        </Box>
+        
+        <Button 
+          fullWidth
+          onClick={logout}
+          variant="outlined"
+          color="inherit"
+          sx={{ mb: 1 }}
+        >
+          Logout
+        </Button>
+        
+        <Button 
+          fullWidth
+          onClick={openDeleteDialog}
+          variant="text"
+          color="error"
+          size="small"
+          startIcon={<DeleteIcon />}
+        >
+          Delete Account
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ 
+      display: 'flex',
+      minHeight: '100vh',
+      bgcolor: 'background.default'
+    }}>
+      {/* Desktop Sidebar - always visible on desktop */}
+      {!isMobile && desktopSidebar}
+      
+      {/* Main Content Area */}
+      <Box sx={{ 
+        flexGrow: 1,
+        ml: !isMobile ? '280px' : 0, // Push content right on desktop
+        pb: isMobile ? 7 : 0, // Add bottom padding for mobile bottom nav
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%'
+      }}>
+        {/* Mobile Header */}
+        {isMobile && (
+          <AppBar position="sticky" elevation={0}>
+            <Toolbar sx={{ minHeight: 56 }}>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2 }}
+              >
+                <MenuIcon />
+              </IconButton>
+              
+              <Typography 
+                variant="h6" 
+                component="div" 
+                sx={{ 
+                  flexGrow: 1,
+                  fontWeight: 'bold',
+                  fontSize: '1.1rem'
+                }}
+              >
+                📱 Content Hub
+              </Typography>
+            </Toolbar>
+          </AppBar>
         )}
-      </AppBar>
 
       {/* Mobile Drawer */}
       {isMobile && (
@@ -522,22 +610,22 @@ const Layout: React.FC = () => {
         </Drawer>
       )}
 
-      {/* Main Content */}
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          mt: isMobile ? 1 : 3,
-          px: isMobile ? 1 : 3,
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        <Outlet />
-      </Container>
+        {/* Main Content */}
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
+            mt: isMobile ? 1 : 3,
+            px: isMobile ? 1 : 3,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <Outlet />
+        </Container>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
+        {/* Mobile Bottom Navigation */}
+        {isMobile && (
         <Paper 
           sx={{ 
             position: 'fixed', 
@@ -581,7 +669,8 @@ const Layout: React.FC = () => {
             ))}
           </BottomNavigation>
         </Paper>
-      )}
+        )}
+      </Box>
 
       {/* Delete Account Confirmation Dialog */}
       <Dialog
