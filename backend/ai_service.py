@@ -304,12 +304,12 @@ class AIService:
                 logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
                 logger.info(f"Prompt length: {len(prompt)} characters")
                 
-                # Try different model names in order of preference (updated for 2025)
+                # Try different model names in order of preference (simplified for 2025)
                 model_candidates = [
+                    "sonar",  # Try basic sonar first
                     "llama-3.1-sonar-small-128k-online",
                     "llama-3.1-sonar-large-128k-online", 
-                    "llama-3.1-sonar-huge-128k-online",
-                    "sonar"  # Fallback to basic sonar model
+                    "llama-3.1-sonar-huge-128k-online"
                 ]
                 
                 model_to_use = model_candidates[attempt % len(model_candidates)]
