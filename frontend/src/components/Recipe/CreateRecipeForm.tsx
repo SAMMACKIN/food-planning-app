@@ -63,6 +63,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
   const [importMode, setImportMode] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importLoading, setImportLoading] = useState(false);
+  const [importedSourceUrl, setImportedSourceUrl] = useState<string>('');
 
   // Update form when initialData changes
   useEffect(() => {
@@ -78,6 +79,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       setIngredients(initialData.ingredients_needed || []);
       setInstructions(initialData.instructions || ['']);
       setTags(initialData.tags || []);
+      setImportedSourceUrl(initialData.source || '');
     } else {
       // Reset form for create mode
       setFormData({
@@ -91,6 +93,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       setIngredients([]);
       setInstructions(['']);
       setTags([]);
+      setImportedSourceUrl('');
     }
   }, [initialData]);
 
@@ -163,8 +166,10 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       tags,
       pantry_usage_score: 0, // Default for user-created recipes
       ai_generated: false,
-      source: 'user_created'
+      source: importedSourceUrl || initialData?.source || 'user_created'
     };
+    
+    console.log('💾 Saving recipe with source:', recipeData.source);
 
     const success = await onSave(recipeData);
     
@@ -229,6 +234,10 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       setIngredients(recipeData.ingredients_needed || []);
       setInstructions(recipeData.instructions || ['']);
       setTags(recipeData.tags || []);
+      
+      // IMPORTANT: Preserve the source URL
+      setImportedSourceUrl(recipeData.source || importUrl.trim());
+      console.log('🔗 Imported source URL preserved:', recipeData.source || importUrl.trim());
 
       setImportMode(false);
       setImportUrl('');
@@ -261,6 +270,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
     setError(null);
     setImportMode(false);
     setImportUrl('');
+    setImportedSourceUrl('');
   };
 
   const handleClose = () => {
