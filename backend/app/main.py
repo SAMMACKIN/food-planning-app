@@ -37,6 +37,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ RecipeV2 table check failed: {e}")
     
+    # Ensure recipe_ratings table exists
+    try:
+        from ensure_recipe_ratings_table import ensure_recipe_ratings_table
+        ensure_recipe_ratings_table()
+    except Exception as e:
+        logger.warning(f"⚠️ Recipe ratings table check failed: {e}")
+    
     # Run database migrations
     try:
         from .migrations.add_dietary_restrictions import add_dietary_restrictions_column
