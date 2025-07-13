@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  Grid,
   Chip,
   IconButton,
   Alert,
@@ -22,7 +23,6 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Grid2 as Grid } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -428,7 +428,7 @@ const BooksManagement: React.FC = () => {
           ) : (
             <Grid container spacing={3}>
               {books.map((book) => (
-                <Grid xs={12} sm={6} md={4} lg={3} key={book.id}>
+                <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
                   {renderBookCard(book)}
                 </Grid>
               ))}
