@@ -76,7 +76,7 @@ class AIService:
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]] = None,
         num_recommendations: int = 5,
-        provider: AIProvider = "claude",  # Changed default to Claude for better reliability
+        provider: AIProvider = "all",  # Use all providers for maximum variety
         liked_recipes: Optional[List[Dict[str, Any]]] = None,
         disliked_recipes: Optional[List[Dict[str, Any]]] = None,
         recent_recipes: Optional[List[Dict[str, Any]]] = None
