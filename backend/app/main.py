@@ -169,6 +169,15 @@ def create_app() -> FastAPI:
             router_status["migrate"] = f"❌ Failed: {e}"
             logger.error(f"❌ Migration router error: {e}")
         
+        # Content sharing endpoints
+        try:
+            from .api import sharing
+            app.include_router(sharing.router, prefix="/api/v1/sharing", tags=["sharing"])
+            router_status["sharing"] = "✅ Success"
+        except Exception as e:
+            router_status["sharing"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Sharing router error: {e}")
+        
         logger.info(f"🔧 Router registration status: {router_status}")
         
     except Exception as e:
