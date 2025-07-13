@@ -83,13 +83,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
-    # CORS middleware
+    # CORS middleware - temporarily allow all origins for debugging
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=["*"],  # Temporarily allow all origins
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
+        max_age=3600,
     )
     
     # Import and include routers with detailed error handling

@@ -16,6 +16,7 @@ from ..schemas.books import (
     BookDetailsRequest, BookDetailsResponse, BookRecommendationRequest, BookRecommendationResponse,
     BookRecommendationFeedbackRequest, BookRecommendationFeedbackResponse, FeedbackType
 )
+from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["books"])
 logger = logging.getLogger(__name__)
@@ -503,6 +504,9 @@ async def get_book_recommendations(
     to generate personalized book recommendations. The AI learns from user preferences
     and gets smarter with each interaction.
     """
+    logger.info("📨 Book recommendations endpoint called!")
+    logger.info(f"📨 Request headers: {request}")
+    
     try:
         user_id = current_user["id"]
         logger.info(f"🤖 Generating book recommendations for user: {user_id}")
