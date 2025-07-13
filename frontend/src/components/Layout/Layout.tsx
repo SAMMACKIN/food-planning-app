@@ -38,6 +38,10 @@ import {
   CalendarMonth as CalendarIcon,
   AutoAwesome as RecommendationsIcon,
   MenuBook as SavedRecipesIcon,
+  LocalLibrary as BooksIcon,
+  Tv as TVIcon,
+  Movie as MovieIcon,
+  Restaurant as FoodIcon,
   Help as HelpIcon,
   History as HistoryIcon,
   AdminPanelSettings as AdminIcon,
@@ -45,6 +49,8 @@ import {
   Close as CloseIcon,
   DeleteForever as DeleteIcon,
   Warning as WarningIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 import { apiRequest } from '../../services/api';
@@ -57,6 +63,13 @@ const Layout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
+    'Food & Recipes': true, // Food section expanded by default
+    'Books': false,
+    'TV Shows': false,
+    'Movies': false,
+    'Other': false
+  });
   
   // Delete account states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -66,39 +79,105 @@ const Layout: React.FC = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const getCurrentTab = () => {
+    // Food section
     if (location.pathname.includes('/family')) return 1;
     if (location.pathname.includes('/pantry')) return 2;
     if (location.pathname.includes('/recommendations')) return 3;
     if (location.pathname.includes('/recipes')) return 4;
     if (location.pathname.includes('/meal-planning')) return 5;
-    if (location.pathname.includes('/user-guide')) return 6;
-    if (location.pathname.includes('/changes')) return 7;
-    if (location.pathname.includes('/admin')) return 8;
+    // Books section
+    if (location.pathname.includes('/books')) return 6;
+    // TV Shows section
+    if (location.pathname.includes('/tv-shows')) return 7;
+    // Movies section
+    if (location.pathname.includes('/movies')) return 8;
+    // Other sections
+    if (location.pathname.includes('/user-guide')) return 9;
+    if (location.pathname.includes('/changes')) return 10;
+    if (location.pathname.includes('/admin')) return 11;
     return 0; // dashboard
   };
 
   const getCurrentBottomNav = () => {
-    if (location.pathname.includes('/family')) return 1;
-    if (location.pathname.includes('/pantry')) return 2;
-    if (location.pathname.includes('/recommendations')) return 3;
-    if (location.pathname.includes('/recipes')) return 4;
+    // Food & Recipes section
+    if (location.pathname.includes('/family') || 
+        location.pathname.includes('/pantry') || 
+        location.pathname.includes('/recommendations') || 
+        location.pathname.includes('/recipes') || 
+        location.pathname.includes('/meal-planning')) return 1;
+    // Books section
+    if (location.pathname.includes('/books')) return 2;
+    // TV Shows section
+    if (location.pathname.includes('/tv-shows')) return 3;
+    // Movies section
+    if (location.pathname.includes('/movies')) return 4;
     return 0; // dashboard
   };
 
-  const navigationItems = [
-    { label: 'Dashboard', icon: <HomeIcon />, path: '/dashboard' },
-    { label: 'Family', icon: <PeopleIcon />, path: '/family' },
-    { label: 'Pantry', icon: <KitchenIcon />, path: '/pantry' },
-    { label: 'Recommendations', icon: <RecommendationsIcon />, path: '/recommendations' },
-    { label: 'Saved Recipes', icon: <SavedRecipesIcon />, path: '/recipes' },
-    { label: 'Meal Plans', icon: <CalendarIcon />, path: '/meal-planning' },
-    { label: 'Help', icon: <HelpIcon />, path: '/user-guide' },
-    { label: 'Changes', icon: <HistoryIcon />, path: '/changes' },
-    ...(user?.is_admin ? [{ label: 'Admin', icon: <AdminIcon />, path: '/admin' }] : []),
+  // Enhanced navigation with content sections
+  const navigationSections = [
+    {
+      title: 'Main',
+      items: [
+        { label: 'Dashboard', icon: <HomeIcon />, path: '/dashboard' }
+      ]
+    },
+    {
+      title: 'Food & Recipes',
+      icon: <FoodIcon />,
+      items: [
+        { label: 'Family', icon: <PeopleIcon />, path: '/family' },
+        { label: 'Pantry', icon: <KitchenIcon />, path: '/pantry' },
+        { label: 'Recommendations', icon: <RecommendationsIcon />, path: '/recommendations' },
+        { label: 'Saved Recipes', icon: <SavedRecipesIcon />, path: '/recipes' },
+        { label: 'Meal Plans', icon: <CalendarIcon />, path: '/meal-planning' }
+      ]
+    },
+    {
+      title: 'Books',
+      icon: <BooksIcon />,
+      items: [
+        { label: 'My Books', icon: <BooksIcon />, path: '/books' }
+      ]
+    },
+    {
+      title: 'TV Shows',
+      icon: <TVIcon />,
+      items: [
+        { label: 'My Shows', icon: <TVIcon />, path: '/tv-shows' }
+      ]
+    },
+    {
+      title: 'Movies',
+      icon: <MovieIcon />,
+      items: [
+        { label: 'My Movies', icon: <MovieIcon />, path: '/movies' }
+      ]
+    },
+    {
+      title: 'Other',
+      items: [
+        { label: 'Help', icon: <HelpIcon />, path: '/user-guide' },
+        { label: 'Changes', icon: <HistoryIcon />, path: '/changes' },
+        ...(user?.is_admin ? [{ label: 'Admin', icon: <AdminIcon />, path: '/admin' }] : [])
+      ]
+    }
   ];
 
-  const primaryNavItems = navigationItems.slice(0, 5); // First 5 for bottom nav
-  const secondaryNavItems = navigationItems.slice(5); // Rest for drawer
+  // Flatten for desktop tabs (backward compatibility)
+  const navigationItems = navigationSections.flatMap(section => section.items);
+
+  // Primary navigation for mobile bottom nav (main content sections)
+  const primaryNavItems = [
+    { label: 'Home', icon: <HomeIcon />, path: '/dashboard' },
+    { label: 'Food', icon: <FoodIcon />, path: '/recipes' }, // Default to recipes as main food page
+    { label: 'Books', icon: <BooksIcon />, path: '/books' },
+    { label: 'TV Shows', icon: <TVIcon />, path: '/tv-shows' },
+    { label: 'Movies', icon: <MovieIcon />, path: '/movies' }
+  ];
+
+  // Secondary items for drawer (non-primary content)
+  const secondaryNavItems = navigationSections.find(section => section.title === 'Other')?.items || [];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     const item = navigationItems[newValue];
@@ -121,6 +200,13 @@ const Layout: React.FC = () => {
   const handleDrawerNavigation = (path: string) => {
     navigate(path);
     setMobileDrawerOpen(false);
+  };
+
+  const toggleSection = (sectionTitle: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionTitle]: !prev[sectionTitle]
+    }));
   };
 
   const handleDeleteAccount = async () => {
@@ -163,7 +249,7 @@ const Layout: React.FC = () => {
     <Box sx={{ width: 280 }}>
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6" color="primary.main" fontWeight="bold">
-          🍽️ Food Planner
+          📱 Content Hub
         </Typography>
         <IconButton onClick={handleDrawerToggle} size="small">
           <CloseIcon />
@@ -181,45 +267,96 @@ const Layout: React.FC = () => {
         </Typography>
       </Box>
       
-      {/* Primary Navigation */}
-      <List>
-        {primaryNavItems.map((item, index) => (
-          <ListItemButton 
-            key={item.path}
-            onClick={() => handleDrawerNavigation(item.path)}
-            selected={getCurrentBottomNav() === index}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon sx={{ color: getCurrentBottomNav() === index ? 'primary.main' : 'inherit' }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText 
-              primary={item.label} 
-              primaryTypographyProps={{ 
-                fontWeight: getCurrentBottomNav() === index ? 'medium' : 'normal' 
-              }}
-            />
-          </ListItemButton>
-        ))}
-      </List>
-      
-      <Divider sx={{ my: 1 }} />
-      
-      {/* Secondary Navigation */}
-      <List>
-        {secondaryNavItems.map((item) => (
-          <ListItemButton 
-            key={item.path}
-            onClick={() => handleDrawerNavigation(item.path)}
-            sx={{ py: 1.5 }}
-          >
-            <ListItemIcon>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
+      {/* Hierarchical Navigation Sections */}
+      {navigationSections.map((section, sectionIndex) => (
+        <React.Fragment key={section.title}>
+          {section.title !== 'Main' && (
+            <>
+              {sectionIndex > 1 && <Divider sx={{ my: 1 }} />}
+              
+              {/* Section Header */}
+              {section.items.length > 1 ? (
+                <ListItemButton
+                  onClick={() => toggleSection(section.title)}
+                  sx={{ 
+                    py: 1,
+                    backgroundColor: 'grey.50',
+                    '&:hover': {
+                      backgroundColor: 'grey.100'
+                    }
+                  }}
+                >
+                  <ListItemIcon sx={{ color: 'primary.main' }}>
+                    {section.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={section.title}
+                    primaryTypographyProps={{
+                      fontWeight: 'medium',
+                      fontSize: '0.875rem',
+                      color: 'primary.main'
+                    }}
+                  />
+                  {expandedSections[section.title] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </ListItemButton>
+              ) : (
+                <ListItem sx={{ py: 0.5, backgroundColor: 'grey.50' }}>
+                  <ListItemIcon sx={{ color: 'primary.main' }}>
+                    {section.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={section.title}
+                    primaryTypographyProps={{
+                      fontWeight: 'medium',
+                      fontSize: '0.875rem',
+                      color: 'primary.main'
+                    }}
+                  />
+                </ListItem>
+              )}
+            </>
+          )}
+          
+          {/* Section Items */}
+          {(section.title === 'Main' || section.items.length === 1 || expandedSections[section.title]) && (
+            <List sx={{ pl: section.title === 'Main' ? 0 : 2 }}>
+              {section.items.map((item) => {
+                const isSelected = location.pathname === item.path ||
+                  (item.path === '/recipes' && getCurrentBottomNav() === 1) ||
+                  (item.path === '/books' && getCurrentBottomNav() === 2) ||
+                  (item.path === '/tv-shows' && getCurrentBottomNav() === 3) ||
+                  (item.path === '/movies' && getCurrentBottomNav() === 4);
+                
+                return (
+                  <ListItemButton 
+                    key={item.path}
+                    onClick={() => handleDrawerNavigation(item.path)}
+                    selected={isSelected}
+                    sx={{ 
+                      py: 1.5,
+                      pl: section.title === 'Main' ? 2 : 1
+                    }}
+                  >
+                    <ListItemIcon sx={{ 
+                      color: isSelected ? 'primary.main' : 'inherit',
+                      minWidth: 36
+                    }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.label} 
+                      primaryTypographyProps={{ 
+                        fontWeight: isSelected ? 'medium' : 'normal',
+                        fontSize: section.title === 'Main' ? '1rem' : '0.875rem'
+                      }}
+                    />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          )}
+        </React.Fragment>
+      ))}
       
       <Divider sx={{ my: 1 }} />
       
@@ -293,7 +430,7 @@ const Layout: React.FC = () => {
               fontSize: isMobile ? '1.1rem' : '1.5rem'
             }}
           >
-            {isMobile ? '🍽️ Food Planner' : '🍽️ Food Planning App'}
+            {isMobile ? '📱 Content Hub' : '📱 Content Management Hub'}
           </Typography>
           
           {!isMobile && (

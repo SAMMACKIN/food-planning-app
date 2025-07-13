@@ -293,3 +293,85 @@ export interface PaginatedResponse<T> {
   per_page: number;
   pages: number;
 }
+
+// Books and Content Types
+export type ReadingStatus = 'want_to_read' | 'reading' | 'read';
+
+export interface Book {
+  id: string;
+  user_id: string;
+  title: string;
+  author: string;
+  description?: string;
+  genre?: string;
+  isbn?: string;
+  pages?: number;
+  publication_year?: number;
+  cover_image_url?: string;
+  google_books_id?: string;
+  open_library_id?: string;
+  current_page: number;
+  reading_status: ReadingStatus;
+  date_started?: string;
+  date_finished?: string;
+  user_notes?: string;
+  is_favorite: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookCreate {
+  title: string;
+  author: string;
+  description?: string;
+  genre?: string;
+  isbn?: string;
+  pages?: number;
+  publication_year?: number;
+  cover_image_url?: string;
+  google_books_id?: string;
+  open_library_id?: string;
+  current_page?: number;
+  reading_status?: ReadingStatus;
+  date_started?: string;
+  date_finished?: string;
+  user_notes?: string;
+  is_favorite?: boolean;
+  source?: string;
+}
+
+export interface BookUpdate {
+  title?: string;
+  author?: string;
+  description?: string;
+  genre?: string;
+  isbn?: string;
+  pages?: number;
+  publication_year?: number;
+  cover_image_url?: string;
+  google_books_id?: string;
+  open_library_id?: string;
+  current_page?: number;
+  reading_status?: ReadingStatus;
+  date_started?: string;
+  date_finished?: string;
+  user_notes?: string;
+  is_favorite?: boolean;
+  source?: string;
+}
+
+export interface BookListResponse {
+  books: Book[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface BookFilters {
+  reading_status?: ReadingStatus;
+  genre?: string;
+  is_favorite?: boolean;
+  search?: string;
+}

@@ -21,6 +21,9 @@ const UserGuide = lazy(() => import('./pages/UserGuide/UserGuide'));
 const Changes = lazy(() => import('./pages/Changes/Changes'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const SavedRecipes = lazy(() => import('./pages/Recipes/SavedRecipes'));
+const BooksManagement = lazy(() => import('./pages/Books/BooksManagement'));
+const TVShowsManagement = lazy(() => import('./pages/TVShows/TVShowsManagement'));
+const MoviesManagement = lazy(() => import('./pages/Movies/MoviesManagement'));
 
 
 // Debug component to show which backend we're pointing to
@@ -125,6 +128,27 @@ function App() {
               <RouteErrorBoundary>
                 <Suspense fallback={<LoadingSpinner />}>
                   <SavedRecipes />
+                </Suspense>
+              </RouteErrorBoundary>
+            } />
+            <Route path="books" element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BooksManagement />
+                </Suspense>
+              </RouteErrorBoundary>
+            } />
+            <Route path="tv-shows" element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <TVShowsManagement />
+                </Suspense>
+              </RouteErrorBoundary>
+            } />
+            <Route path="movies" element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MoviesManagement />
                 </Suspense>
               </RouteErrorBoundary>
             } />
