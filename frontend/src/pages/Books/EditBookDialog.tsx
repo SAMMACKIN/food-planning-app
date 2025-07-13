@@ -32,8 +32,16 @@ const bookUpdateSchema = z.object({
   description: z.string().max(5000, 'Description is too long').optional().or(z.literal('')),
   genre: z.string().max(100, 'Genre is too long').optional().or(z.literal('')),
   isbn: z.string().max(20, 'ISBN is too long').optional().or(z.literal('')),
-  pages: z.number().min(1, 'Pages must be at least 1').max(10000, 'Pages must be less than 10,000').optional(),
-  publication_year: z.number().min(1, 'Year must be valid').max(new Date().getFullYear() + 1, 'Year cannot be in the future').optional(),
+  pages: z.union([
+    z.number().min(1, 'Pages must be at least 1').max(10000, 'Pages must be less than 10,000'),
+    z.nan(),
+    z.undefined()
+  ]).optional(),
+  publication_year: z.union([
+    z.number().min(1, 'Year must be valid').max(new Date().getFullYear() + 1, 'Year cannot be in the future'),
+    z.nan(),
+    z.undefined()
+  ]).optional(),
   cover_image_url: z.string().url('Invalid URL').optional().or(z.literal('')),
   reading_status: z.enum(['want_to_read', 'reading', 'read'] as const),
   current_page: z.number().min(0, 'Current page cannot be negative').optional(),
@@ -350,8 +358,10 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                   />
                   
                   <TextField
-                    {...register('pages', { valueAsNumber: true })}
-                    label="Total Pages"
+                    {...register('pages', { 
+                      setValueAs: (v) => (v === '' ? undefined : Number(v))
+                    })}
+                    label="Total Pages (Optional)"
                     type="number"
                     fullWidth
                     error={!!errors.pages}
@@ -360,8 +370,10 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                   />
                   
                   <TextField
-                    {...register('publication_year', { valueAsNumber: true })}
-                    label="Publication Year"
+                    {...register('publication_year', { 
+                      setValueAs: (v) => (v === '' ? undefined : Number(v))
+                    })}
+                    label="Publication Year (Optional)"
                     type="number"
                     fullWidth
                     error={!!errors.publication_year}
