@@ -353,25 +353,37 @@ const SavedRecipes: React.FC = () => {
                         }}
                       />
                     )}
-                    {recipe.source && recipe.source !== 'user_created' && recipe.source !== 'recommendation' && (
-                      <Chip
-                        icon={<Link />}
-                        label="Source"
-                        size="small"
-                        clickable
-                        onClick={() => window.open(recipe.source, '_blank')}
-                        sx={{ 
-                          backgroundColor: '#2196F3' + '20',
-                          color: '#2196F3',
-                          '& .MuiChip-icon': {
-                            color: '#2196F3'
-                          },
-                          '&:hover': {
-                            backgroundColor: '#2196F3' + '40'
-                          }
-                        }}
-                      />
-                    )}
+                    {(() => {
+                      // Debug: log recipe source info
+                      console.log('Recipe:', recipe.name, 'Source:', recipe.source, 'Type:', typeof recipe.source);
+                      
+                      // Show source chip if source exists and is a valid URL
+                      const hasValidSource = recipe.source && 
+                        recipe.source !== 'user_created' && 
+                        recipe.source !== 'recommendation' &&
+                        recipe.source !== 'imported' &&
+                        (recipe.source.startsWith('http://') || recipe.source.startsWith('https://'));
+                      
+                      return hasValidSource ? (
+                        <Chip
+                          icon={<Link />}
+                          label="Source"
+                          size="small"
+                          clickable
+                          onClick={() => window.open(recipe.source, '_blank')}
+                          sx={{ 
+                            backgroundColor: '#2196F3' + '20',
+                            color: '#2196F3',
+                            '& .MuiChip-icon': {
+                              color: '#2196F3'
+                            },
+                            '&:hover': {
+                              backgroundColor: '#2196F3' + '40'
+                            }
+                          }}
+                        />
+                      ) : null;
+                    })()}
                   </Box>
 
                   {recipe.tags && recipe.tags.length > 0 && (
