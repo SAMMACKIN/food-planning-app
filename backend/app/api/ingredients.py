@@ -44,14 +44,57 @@ async def get_ingredients():
 
 
 @router.get("/search", response_model=List[IngredientResponse])
-async def search_ingredients(q: str = Query(..., description="Search query for ingredient name")):
-    """Search ingredients by name"""
+async def search_ingredients(q: str = Query(..., description="Search query for ingredient name or category")):
+    """Search ingredients by name or category"""
     try:
         with get_db_session() as session:
             from sqlalchemy.orm import joinedload
+            from sqlalchemy import or_
+            from ..models.ingredient import IngredientCategory
+            
+            # Enhanced search: ingredient name OR category name
+            # Also handle common search terms like "meat", "protein", etc.
+            search_term = q.lower().strip()
+            
+            # Map common search terms to multiple categories
+            category_mappings = {
+                "meat": ["Meat & Poultry"],
+                "protein": ["Meat & Poultry", "Fish & Seafood", "Legumes & Plant Proteins", "Eggs & Dairy Proteins"],
+                "proteins": ["Meat & Poultry", "Fish & Seafood", "Legumes & Plant Proteins", "Eggs & Dairy Proteins"],
+                "fish": ["Fish & Seafood"],
+                "seafood": ["Fish & Seafood"],
+                "dairy": ["Dairy", "Eggs & Dairy Proteins"],
+                "vegetables": ["Vegetables"],
+                "fruits": ["Fruits"],
+                "grains": ["Grains & Starches"],
+                "nuts": ["Nuts & Seeds"],
+                "seeds": ["Nuts & Seeds"],
+                "spices": ["Herbs & Spices"],
+                "herbs": ["Herbs & Spices"],
+                "oils": ["Oils & Condiments"],
+                "condiments": ["Oils & Condiments"]
+            }
+            
+            # Start with name-based search
+            query_conditions = [Ingredient.name.ilike(f'%{q}%')]
+            
+            # Add category-based search conditions
+            if search_term in category_mappings:
+                # Search across multiple related categories
+                category_names = category_mappings[search_term]
+                for cat_name in category_names:
+                    query_conditions.append(
+                        Ingredient.category.has(IngredientCategory.name.ilike(f'%{cat_name}%'))
+                    )
+            else:
+                # Direct category name search
+                query_conditions.append(
+                    Ingredient.category.has(IngredientCategory.name.ilike(f'%{q}%'))
+                )
+            
             ingredients = session.query(Ingredient).options(joinedload(Ingredient.category)).filter(
-                Ingredient.name.ilike(f'%{q}%')
-            ).limit(20).all()
+                or_(*query_conditions)
+            ).limit(50).all()  # Increased limit for category searches
             
             result = []
             for ingredient in ingredients:

@@ -16,7 +16,42 @@ def migrate_ingredient_categories():
     
     try:
         with get_db_session() as session:
-            # Check current state
+            # Step 0: Clean up any duplicate categories first
+            logger.info("🧹 Cleaning up duplicate categories...")
+            
+            # Find duplicate categories
+            from sqlalchemy import func
+            duplicates = session.query(
+                IngredientCategory.name,
+                func.count(IngredientCategory.id).label('count')
+            ).group_by(IngredientCategory.name).having(func.count(IngredientCategory.id) > 1).all()
+            
+            for dup_name, count in duplicates:
+                logger.info(f"Found {count} duplicates of category: {dup_name}")
+                dup_categories = session.query(IngredientCategory).filter(
+                    IngredientCategory.name == dup_name
+                ).all()
+                
+                # Keep the first one, merge ingredients to it, delete the rest
+                keep_category = dup_categories[0]
+                for dup_cat in dup_categories[1:]:
+                    # Move all ingredients from duplicate to the kept category
+                    ingredients_to_move = session.query(Ingredient).filter(
+                        Ingredient.category_id == dup_cat.id
+                    ).all()
+                    
+                    for ing in ingredients_to_move:
+                        ing.category_id = keep_category.id
+                        logger.info(f"  → Moved '{ing.name}' from duplicate {dup_name} to main category")
+                    
+                    # Delete the duplicate category
+                    session.delete(dup_cat)
+                    logger.info(f"  - Deleted duplicate category: {dup_name}")
+            
+            session.commit()
+            logger.info("✅ Duplicate cleanup complete")
+            
+            # Get fresh state after cleanup
             existing_categories = session.query(IngredientCategory).all()
             existing_cat_names = {cat.name for cat in existing_categories}
             existing_ingredients = session.query(Ingredient).all()
@@ -69,7 +104,7 @@ def migrate_ingredient_categories():
                 }
             }
             
-            # Step 1: Create new categories that don't exist
+            # Step 1: Create new categories that don't exist (avoiding duplicates)
             category_objects = {cat.name: cat for cat in existing_categories}
             new_categories_created = 0
             
