@@ -83,3 +83,31 @@ class BookFilters(BaseModel):
     genre: Optional[str] = None
     is_favorite: Optional[bool] = None
     search: Optional[str] = None  # Search in title, author, or description
+
+
+class BookDetailsRequest(BaseModel):
+    title: str = Field(..., max_length=500)
+    author: Optional[str] = Field(None, max_length=300)
+
+
+class BookDetailsConfidence(BaseModel):
+    publication_year: Optional[float] = Field(None, ge=0.0, le=1.0)
+    pages: Optional[float] = Field(None, ge=0.0, le=1.0)
+    genre: Optional[float] = Field(None, ge=0.0, le=1.0)
+    description: Optional[float] = Field(None, ge=0.0, le=1.0)
+    isbn: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class BookDetailsResponse(BaseModel):
+    title: str
+    author: str
+    publication_year: Optional[int] = None
+    pages: Optional[int] = None
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    isbn: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    google_books_id: Optional[str] = None
+    open_library_id: Optional[str] = None
+    confidence: Optional[BookDetailsConfidence] = None
+    sources: List[str] = []  # e.g., ["ai", "openlibrary", "google_books"]
