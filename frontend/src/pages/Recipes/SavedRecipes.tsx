@@ -39,16 +39,15 @@ import {
   AutoAwesome,
 } from '@mui/icons-material';
 import { useRecipes } from '../../hooks/useRecipes';
+import { useAuthStore } from '../../store/authStore';
+import { apiRequest } from '../../services/api';
 import { Recipe, RecipeRating } from '../../types';
 import RecipeInstructions from '../../components/Recipe/RecipeInstructions';
 import CreateRecipeForm from '../../components/Recipe/CreateRecipeForm';
 import RateRecipeDialog from '../../components/Recipe/RateRecipeDialog';
-import { useAuthStore } from '../../store/authStore';
-import { apiRequest } from '../../services/api';
-import ApiDebugInfo from '../../components/Debug/ApiDebugInfo';
 
 const SavedRecipes: React.FC = () => {
-  const [healthCheckStatus, setHealthCheckStatus] = useState<string | null>(null);
+  const { user } = useAuthStore();
   const {
     savedRecipes,
     loading,
@@ -74,6 +73,8 @@ const SavedRecipes: React.FC = () => {
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [recipeToRate, setRecipeToRate] = useState<Recipe | null>(null);
   const [existingRating, setExistingRating] = useState<RecipeRating | undefined>(undefined);
+  // Health check state
+  const [healthStatus, setHealthStatus] = useState<string | null>(null);
 
   const handleViewRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -168,24 +169,24 @@ const SavedRecipes: React.FC = () => {
     return false;
   };
 
-  // Add health check on component mount
-  useEffect(() => {
-    const checkRecipesHealth = async () => {
-      try {
-        console.log('🏥 Running recipes health check...');
-        const response = await apiRequest<any>('GET', '/recipes/debug/health');
-        console.log('✅ Health check response:', response);
-        setHealthCheckStatus(`Recipes system healthy - ${response.user_recipe_count} recipes found`);
-      } catch (error: any) {
-        console.error('❌ Health check failed:', error);
-        setHealthCheckStatus(`Health check failed: ${error.response?.status || 'Unknown error'}`);
-      }
-    };
-    
-    if (isAuthenticated) {
-      checkRecipesHealth();
+  const performHealthCheck = async () => {
+    try {
+      console.log('🏥 Running recipes health check...');
+      const health = await apiRequest<any>('GET', '/recipes/debug/health');
+      console.log('✅ Health check response:', health);
+      setHealthStatus(`✅ Healthy - ${health.user_recipe_count} recipes found`);
+    } catch (error: any) {
+      console.error('❌ Health check failed:', error);
+      setHealthStatus(`❌ Unhealthy - ${error.response?.status || 'Network Error'}`);
     }
-  }, [isAuthenticated]);
+  };
+
+  // Perform health check on mount
+  useEffect(() => {
+    if (user?.id) {
+      performHealthCheck();
+    }
+  }, [user?.id]);
 
   const filteredRecipes = savedRecipes.filter(recipe =>
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -237,13 +238,14 @@ const SavedRecipes: React.FC = () => {
           {error}
         </Alert>
       )}
-      
-      {healthCheckStatus && (
+
+      {healthStatus && (
         <Alert 
-          severity={healthCheckStatus.includes('healthy') ? 'success' : 'warning'} 
-          sx={{ mb: 2 }}
+          severity={healthStatus.includes('✅') ? 'success' : 'warning'} 
+          sx={{ mb: 2 }} 
+          onClose={() => setHealthStatus(null)}
         >
-          {healthCheckStatus}
+          {healthStatus}
         </Alert>
       )}
 
