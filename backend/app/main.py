@@ -51,6 +51,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Database migration failed: {e}")
     
+    # Add expanded ingredients list
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__ + "/../")))
+        from add_expanded_ingredients import add_expanded_ingredients
+        add_expanded_ingredients()
+    except Exception as e:
+        logger.warning(f"⚠️ Expanded ingredients migration failed: {e}")
+    
     logger.info("✅ Application startup complete")
     
     yield
