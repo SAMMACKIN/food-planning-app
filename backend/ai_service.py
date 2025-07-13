@@ -76,7 +76,7 @@ class AIService:
         pantry_items: List[Dict[str, Any]],
         preferences: Optional[Dict[str, Any]] = None,
         num_recommendations: int = 5,
-        provider: AIProvider = "all",  # Changed default to "all"
+        provider: AIProvider = "claude",  # Changed default to Claude for better reliability
         liked_recipes: Optional[List[Dict[str, Any]]] = None,
         disliked_recipes: Optional[List[Dict[str, Any]]] = None,
         recent_recipes: Optional[List[Dict[str, Any]]] = None
@@ -242,7 +242,12 @@ class AIService:
             
         except Exception as e:
             logger.error(f"Claude API error: {e}")
-            raise
+            logger.error(f"Error type: {type(e).__name__}")
+            if hasattr(e, 'response'):
+                logger.error(f"Claude API response: {e.response}")
+            if hasattr(e, 'status_code'):
+                logger.error(f"Claude API status code: {e.status_code}")
+            raise Exception(f"Claude API failed: {str(e)}")
 
     async def _get_groq_recommendations(
         self,
@@ -299,12 +304,12 @@ class AIService:
                 logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
                 logger.info(f"Prompt length: {len(prompt)} characters")
                 
-                # Try different model names in order of preference
+                # Try different model names in order of preference (updated for 2025)
                 model_candidates = [
-                    "llama-3.1-sonar-small-128k",
-                    "llama-3.1-sonar-large-128k", 
-                    "sonar-small-chat",
-                    "sonar-medium-chat"
+                    "llama-3.1-sonar-small-128k-online",
+                    "llama-3.1-sonar-large-128k-online", 
+                    "llama-3.1-sonar-huge-128k-online",
+                    "sonar"  # Fallback to basic sonar model
                 ]
                 
                 model_to_use = model_candidates[attempt % len(model_candidates)]
@@ -342,11 +347,14 @@ class AIService:
             except httpx.HTTPStatusError as e:
                 logger.error(f"Perplexity API HTTP error (attempt {attempt + 1}): {e.response.status_code}")
                 logger.error(f"Perplexity API response body: {e.response.text}")
+                logger.error(f"Failed model: {model_to_use}")
+                logger.error(f"Request URL: {e.request.url}")
+                logger.error(f"Request headers: {dict(e.request.headers)}")
                 
                 if attempt == max_attempts - 1:  # Last attempt
                     raise Exception(f"Perplexity API failed after {max_attempts} attempts. Last error: {e.response.status_code} - {e.response.text}")
                 else:
-                    logger.warning(f"Retrying Perplexity API call...")
+                    logger.warning(f"Retrying Perplexity API call with next model...")
                     
             except httpx.TimeoutException as e:
                 logger.error(f"Perplexity API timeout (attempt {attempt + 1}): {e}")
