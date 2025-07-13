@@ -266,10 +266,11 @@ SPECIFIC PREFERENCES:
 INSTRUCTIONS:
 1. Recommend books that align with their demonstrated preferences
 2. Learn from their positive/negative feedback patterns
-3. Avoid books they already own or have rejected
+3. CRITICAL: Do NOT recommend any books from the "BOOKS TO EXCLUDE" list above - they already own these
 4. Consider their reading level and genre preferences
 5. Provide variety while staying within their interests
 6. Include both popular and lesser-known gems
+7. Double-check each recommendation against the exclusion list
 
 For each recommendation, provide:
 - Title
@@ -343,17 +344,46 @@ Format your response as JSON:
         existing_books: List[str]
     ) -> List[BookRecommendation]:
         """
-        Remove books that user already has
+        Remove books that user already has - more aggressive filtering
         """
         filtered = []
+        existing_lower = [book.lower() for book in existing_books]
+        
         for rec in recommendations:
-            book_identifier = f"{rec.title} by {rec.author}".lower()
-            is_duplicate = any(
-                book_identifier in existing.lower() or existing.lower() in book_identifier
-                for existing in existing_books
-            )
+            rec_title_lower = rec.title.lower()
+            rec_author_lower = rec.author.lower()
+            book_identifier = f"{rec_title_lower} by {rec_author_lower}"
+            
+            # Check multiple matching patterns
+            is_duplicate = False
+            
+            for existing in existing_lower:
+                # Check exact match
+                if existing == book_identifier:
+                    is_duplicate = True
+                    break
+                
+                # Check if title and author match separately (handles different formatting)
+                if rec_title_lower in existing and rec_author_lower in existing:
+                    is_duplicate = True
+                    break
+                
+                # Check if existing contains the full identifier
+                if book_identifier in existing:
+                    is_duplicate = True
+                    break
+                
+                # Check if title matches exactly (sometimes author might be formatted differently)
+                existing_parts = existing.split(' by ')
+                if len(existing_parts) > 0 and existing_parts[0] == rec_title_lower:
+                    is_duplicate = True
+                    break
+            
             if not is_duplicate:
                 filtered.append(rec)
+            else:
+                print(f"Filtered out duplicate: {rec.title} by {rec.author}")
+                
         return filtered
     
     def _apply_user_filters(

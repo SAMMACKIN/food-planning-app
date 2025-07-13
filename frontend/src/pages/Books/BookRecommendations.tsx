@@ -91,8 +91,8 @@ const BookRecommendations: React.FC = () => {
   // Common genres for filtering
   const commonGenres = [
     'Fiction', 'Non-Fiction', 'Mystery', 'Romance', 'Science Fiction', 'Fantasy',
-    'Biography', 'History', 'Self-Help', 'Business', 'Psychology', 'Philosophy',
-    'Science', 'Technology', 'Health', 'Cooking', 'Travel', 'Art', 'Poetry'
+    'Historical Fiction', 'Biography', 'History', 'Self-Help', 'Business', 'Psychology', 
+    'Philosophy', 'Science', 'Technology', 'Health', 'Cooking', 'Travel', 'Art', 'Poetry'
   ];
 
   // Load recommendations on component mount
@@ -222,86 +222,125 @@ const BookRecommendations: React.FC = () => {
     const isProcessingFeedback = feedbackLoading?.startsWith(recommendation.title);
 
     return (
-      <Card key={`${recommendation.title}_${index}`} sx={{ height: 'fit-content' }}>
-        {/* Book cover and title area */}
-        <Box
-          sx={{
-            height: 120,
-            bgcolor: 'grey.100',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            backgroundImage: recommendation.cover_image_url ? `url(${recommendation.cover_image_url})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+      <Card 
+        key={`${recommendation.title}_${index}`} 
+        sx={{ 
+          height: 'fit-content',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: 3
+          }
+        }}
+      >
+        {/* Minimal view - just title */}
+        <CardContent 
+          sx={{ 
+            py: 1.5, 
+            px: 2,
+            cursor: 'pointer'
           }}
+          onClick={() => toggleExpanded(index)}
         >
-          {!recommendation.cover_image_url && <BookIcon sx={{ fontSize: 48, color: 'grey.500' }} />}
-          
-          {/* Confidence indicator */}
-          {recommendation.confidence_score && (
-            <Chip
-              size="small"
-              label={`${Math.round(recommendation.confidence_score * 100)}% match`}
-              sx={{ 
-                position: 'absolute', 
-                top: 8, 
-                right: 8,
-                bgcolor: 'rgba(255,255,255,0.9)',
-                color: recommendation.confidence_score > 0.8 ? 'success.main' : 
-                       recommendation.confidence_score > 0.6 ? 'warning.main' : 'error.main'
-              }}
-            />
-          )}
-        </Box>
-        
-        <CardContent sx={{ pb: 1 }}>
-          <Typography variant="h6" component="h3" noWrap title={recommendation.title}>
-            {recommendation.title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap title={recommendation.author}>
-            by {recommendation.author}
-          </Typography>
-          
-          {recommendation.genre && (
-            <Chip
-              label={recommendation.genre}
-              size="small"
-              sx={{ mt: 1, fontSize: '0.75rem' }}
-            />
-          )}
-          
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {recommendation.publication_year && (
-              <Chip size="small" label={recommendation.publication_year} variant="outlined" />
-            )}
-            {recommendation.pages && (
-              <Chip size="small" label={`${recommendation.pages} pages`} variant="outlined" />
-            )}
-          </Box>
-          
-          {/* Description */}
-          {recommendation.description && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography 
-              variant="body2" 
-              color="text.secondary" 
+              variant="body1" 
+              component="h3" 
               sx={{ 
-                mt: 1,
-                display: '-webkit-box',
-                WebkitLineClamp: isExpanded ? 'none' : 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                pr: 1,
+                flexGrow: 1
               }}
+              title={recommendation.title}
             >
-              {recommendation.description}
+              {recommendation.title}
             </Typography>
-          )}
-          
-          {/* AI Reasoning - Collapsible */}
-          {recommendation.reasoning && (
-            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-              <Box sx={{ mt: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+            <IconButton size="small" sx={{ ml: 1 }}>
+              {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </IconButton>
+          </Box>
+        </CardContent>
+        
+        {/* Expanded details */}
+        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+          <Divider />
+          <CardContent sx={{ pt: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              by {recommendation.author}
+            </Typography>
+            
+            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {recommendation.genre && (
+                <Chip
+                  label={recommendation.genre}
+                  size="small"
+                  sx={{ fontSize: '0.75rem' }}
+                />
+              )}
+              {recommendation.publication_year && (
+                <Chip size="small" label={recommendation.publication_year} variant="outlined" />
+              )}
+              {recommendation.pages && (
+                <Chip size="small" label={`${recommendation.pages} pages`} variant="outlined" />
+              )}
+              {recommendation.confidence_score && (
+                <Chip
+                  size="small"
+                  label={`${Math.round(recommendation.confidence_score * 100)}% match`}
+                  sx={{ 
+                    color: recommendation.confidence_score > 0.8 ? 'success.main' : 
+                           recommendation.confidence_score > 0.6 ? 'warning.main' : 'error.main'
+                  }}
+                  variant="outlined"
+                />
+              )}
+            </Box>
+            
+            {/* Cover image if available */}
+            {recommendation.cover_image_url && (
+              <Box 
+                sx={{
+                  mt: 2,
+                  mb: 2,
+                  height: 150,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                  borderRadius: 1,
+                  bgcolor: 'grey.100'
+                }}
+              >
+                <img 
+                  src={recommendation.cover_image_url} 
+                  alt={recommendation.title}
+                  style={{
+                    maxHeight: '100%',
+                    maxWidth: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+            )}
+            
+            {/* Description */}
+            {recommendation.description && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ mt: 2 }}
+              >
+                {recommendation.description}
+              </Typography>
+            )}
+            
+            {/* AI Reasoning */}
+            {recommendation.reasoning && (
+              <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <AIIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                   <Typography variant="caption" fontWeight="bold">
@@ -312,34 +351,21 @@ const BookRecommendations: React.FC = () => {
                   {recommendation.reasoning}
                 </Typography>
               </Box>
-            </Collapse>
-          )}
-        </CardContent>
-        
-        <CardActions sx={{ pt: 0, px: 2, pb: 2, flexDirection: 'column', gap: 1 }}>
-          {/* Expand/Collapse button */}
-          {(recommendation.description || recommendation.reasoning) && (
-            <Button
-              size="small"
-              onClick={() => toggleExpanded(index)}
-              startIcon={isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              sx={{ alignSelf: 'stretch' }}
-            >
-              {isExpanded ? 'Show Less' : 'Show More'}
-            </Button>
-          )}
+            )}
+          </CardContent>
           
-          <Divider sx={{ width: '100%' }} />
-          
-          {/* Feedback buttons */}
-          <Box sx={{ display: 'flex', gap: 1, width: '100%', flexWrap: 'wrap' }}>
+          <CardActions sx={{ px: 2, pb: 2, gap: 1 }}>
             <Button
               size="small"
               color="success"
+              variant="outlined"
               startIcon={<CheckIcon />}
-              onClick={() => handleFeedback(recommendation, 'read')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFeedback(recommendation, 'read');
+              }}
               disabled={isProcessingFeedback}
-              sx={{ flex: 1, minWidth: 'fit-content' }}
+              sx={{ flex: 1 }}
             >
               {feedbackLoading === `${recommendation.title}_read` ? <CircularProgress size={16} /> : 'Read'}
             </Button>
@@ -347,26 +373,34 @@ const BookRecommendations: React.FC = () => {
             <Button
               size="small"
               color="primary"
+              variant="contained"
               startIcon={<WantToReadIcon />}
-              onClick={() => handleFeedback(recommendation, 'want_to_read')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFeedback(recommendation, 'want_to_read');
+              }}
               disabled={isProcessingFeedback}
-              sx={{ flex: 1, minWidth: 'fit-content' }}
+              sx={{ flex: 1 }}
             >
-              {feedbackLoading === `${recommendation.title}_want_to_read` ? <CircularProgress size={16} /> : 'Want to Read'}
+              {feedbackLoading === `${recommendation.title}_want_to_read` ? <CircularProgress size={16} /> : 'Want'}
             </Button>
             
             <Button
               size="small"
               color="error"
+              variant="outlined"
               startIcon={<NotInterestedIcon />}
-              onClick={() => handleFeedback(recommendation, 'not_interested')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFeedback(recommendation, 'not_interested');
+              }}
               disabled={isProcessingFeedback}
-              sx={{ flex: 1, minWidth: 'fit-content' }}
+              sx={{ flex: 1 }}
             >
               {feedbackLoading === `${recommendation.title}_not_interested` ? <CircularProgress size={16} /> : 'Not Interested'}
             </Button>
-          </Box>
-        </CardActions>
+          </CardActions>
+        </Collapse>
       </Card>
     );
   };
@@ -448,18 +482,8 @@ const BookRecommendations: React.FC = () => {
 
       {/* Recommendations */}
       {!loading && recommendations.length > 0 && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {recommendations.map((recommendation, index) => (
-            <Box 
-              key={`${recommendation.title}_${index}`}
-              sx={{ 
-                flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', md: '1 1 calc(33.333% - 16px)' },
-                minWidth: 0
-              }}
-            >
-              {renderRecommendationCard(recommendation, index)}
-            </Box>
-          ))}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {recommendations.map((recommendation, index) => renderRecommendationCard(recommendation, index))}
         </Box>
       )}
 
