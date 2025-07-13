@@ -34,6 +34,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -100,6 +101,44 @@ const BooksManagement: React.FC = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Droppable column component
+  const DroppableColumn: React.FC<{
+    id: string;
+    title: string;
+    icon: React.ReactNode;
+    books: Book[];
+    children: React.ReactNode;
+  }> = ({ id, title, icon, books, children }) => {
+    const { isOver, setNodeRef } = useDroppable({
+      id,
+    });
+
+    return (
+      <Paper
+        ref={setNodeRef}
+        sx={{
+          flex: 1,
+          minWidth: 300,
+          p: 2,
+          minHeight: 400,
+          bgcolor: isOver ? 'action.hover' : 'background.paper',
+          border: isOver ? `2px dashed ${theme.palette.primary.main}` : '2px dashed transparent',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease',
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          {icon} {title}
+          <Chip size="small" label={books.length} />
+        </Typography>
+        <SortableContext items={books.map(b => b.id)} strategy={verticalListSortingStrategy}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {children}
+          </Box>
+        </SortableContext>
+      </Paper>
+    );
+  };
 
   // Tab definitions
   const tabs = [
@@ -262,7 +301,10 @@ const BooksManagement: React.FC = () => {
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: book.id });
+    } = useSortable({ 
+      id: book.id,
+      disabled: !isDragMode
+    });
 
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -274,29 +316,28 @@ const BooksManagement: React.FC = () => {
     const statusColor = bookHelpers.getStatusColor(book.reading_status);
     const estimatedTime = bookHelpers.getEstimatedReadingTime(book);
     
+    // Create drag handle for specific area only
+    const dragHandleProps = isDragMode ? { ...attributes, ...listeners } : {};
+    
     return (
       <Card 
         ref={setNodeRef}
         style={style}
-        {...attributes}
-        {...listeners}
         sx={{ 
           height: '100%', 
           display: 'flex', 
           flexDirection: 'column',
           transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-          cursor: isDragMode ? 'grab' : 'default',
+          cursor: 'default',
           '&:hover': {
             transform: isDragMode ? 'scale(1.02)' : 'translateY(-2px)',
             boxShadow: theme.shadows[4],
-          },
-          '&:active': {
-            cursor: isDragMode ? 'grabbing' : 'default',
           }
         }}
       >
         {/* Book cover placeholder or image */}
         <Box
+          {...dragHandleProps}
           sx={{
             height: 120,
             bgcolor: 'grey.100',
@@ -307,6 +348,10 @@ const BooksManagement: React.FC = () => {
             backgroundImage: book.cover_image_url ? `url(${book.cover_image_url})` : 'none',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+            cursor: isDragMode ? 'grab' : 'default',
+            '&:active': {
+              cursor: isDragMode ? 'grabbing' : 'default',
+            }
           }}
         >
           {!book.cover_image_url && <BookIcon sx={{ fontSize: 48, color: 'grey.500' }} />}
@@ -544,76 +589,40 @@ const BooksManagement: React.FC = () => {
                 // Kanban-style layout for drag mode
                 <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', minHeight: 400 }}>
                   {/* Want to Read Column */}
-                  <Paper
+                  <DroppableColumn
                     id="want_to_read"
-                    sx={{
-                      flex: 1,
-                      minWidth: 300,
-                      p: 2,
-                      minHeight: 400,
-                      bgcolor: 'background.paper',
-                    }}
+                    title="Want to Read"
+                    icon={<WantToReadIcon />}
+                    books={books.filter(b => b.reading_status === 'want_to_read')}
                   >
-                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <WantToReadIcon /> Want to Read
-                      <Chip size="small" label={books.filter(b => b.reading_status === 'want_to_read').length} />
-                    </Typography>
-                    <SortableContext items={books.filter(b => b.reading_status === 'want_to_read').map(b => b.id)} strategy={verticalListSortingStrategy}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {books.filter(b => b.reading_status === 'want_to_read').map(book => (
-                          <DraggableBookCard key={book.id} book={book} />
-                        ))}
-                      </Box>
-                    </SortableContext>
-                  </Paper>
+                    {books.filter(b => b.reading_status === 'want_to_read').map(book => (
+                      <DraggableBookCard key={book.id} book={book} />
+                    ))}
+                  </DroppableColumn>
 
                   {/* Currently Reading Column */}
-                  <Paper
+                  <DroppableColumn
                     id="reading"
-                    sx={{
-                      flex: 1,
-                      minWidth: 300,
-                      p: 2,
-                      minHeight: 400,
-                      bgcolor: 'background.paper',
-                    }}
+                    title="Currently Reading"
+                    icon={<ReadingIcon />}
+                    books={books.filter(b => b.reading_status === 'reading')}
                   >
-                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <ReadingIcon /> Currently Reading
-                      <Chip size="small" label={books.filter(b => b.reading_status === 'reading').length} />
-                    </Typography>
-                    <SortableContext items={books.filter(b => b.reading_status === 'reading').map(b => b.id)} strategy={verticalListSortingStrategy}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {books.filter(b => b.reading_status === 'reading').map(book => (
-                          <DraggableBookCard key={book.id} book={book} />
-                        ))}
-                      </Box>
-                    </SortableContext>
-                  </Paper>
+                    {books.filter(b => b.reading_status === 'reading').map(book => (
+                      <DraggableBookCard key={book.id} book={book} />
+                    ))}
+                  </DroppableColumn>
 
                   {/* Read Column */}
-                  <Paper
+                  <DroppableColumn
                     id="read"
-                    sx={{
-                      flex: 1,
-                      minWidth: 300,
-                      p: 2,
-                      minHeight: 400,
-                      bgcolor: 'background.paper',
-                    }}
+                    title="Read"
+                    icon={<CompletedIcon />}
+                    books={books.filter(b => b.reading_status === 'read')}
                   >
-                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CompletedIcon /> Read
-                      <Chip size="small" label={books.filter(b => b.reading_status === 'read').length} />
-                    </Typography>
-                    <SortableContext items={books.filter(b => b.reading_status === 'read').map(b => b.id)} strategy={verticalListSortingStrategy}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {books.filter(b => b.reading_status === 'read').map(book => (
-                          <DraggableBookCard key={book.id} book={book} />
-                        ))}
-                      </Box>
-                    </SortableContext>
-                  </Paper>
+                    {books.filter(b => b.reading_status === 'read').map(book => (
+                      <DraggableBookCard key={book.id} book={book} />
+                    ))}
+                  </DroppableColumn>
                 </Box>
               ) : (
                 // Normal grid layout
