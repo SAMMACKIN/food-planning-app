@@ -391,8 +391,12 @@ def rate_recipe(
 ):
     """Rate a recipe"""
     try:
+        logger.info(f"⭐ Attempting to rate recipe {recipe_id}")
+        logger.info(f"⭐ Rating data: {rating_data.dict()}")
+        
         user_uuid = uuid.UUID(current_user["id"])
         recipe_uuid = uuid.UUID(recipe_id)
+        logger.info(f"⭐ User UUID: {user_uuid}, Recipe UUID: {recipe_uuid}")
         
         # Verify recipe exists and belongs to user or is accessible
         recipe = db.query(RecipeV2).filter(RecipeV2.id == recipe_uuid).first()

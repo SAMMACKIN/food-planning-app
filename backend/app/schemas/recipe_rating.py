@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 
 
 class RecipeRatingCreate(BaseModel):
-    recipe_id: str
     rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5 stars")
     review_text: Optional[str] = None
     would_make_again: Optional[bool] = True
