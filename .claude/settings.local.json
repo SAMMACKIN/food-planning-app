@@ -15,7 +15,10 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(pkill:*)",
-      "WebFetch(domain:docs.perplexity.ai)"
+      "WebFetch(domain:docs.perplexity.ai)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }
