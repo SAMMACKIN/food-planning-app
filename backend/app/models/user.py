@@ -28,3 +28,8 @@ class User(Base):
     user_preferences = relationship("UserPreference", back_populates="user", cascade="all, delete-orphan")
     recommendation_history = relationship("RecommendationHistory", back_populates="user", cascade="all, delete-orphan")
     recipes_v2 = relationship("RecipeV2", back_populates="user", cascade="all, delete-orphan")
+    
+    # New content type relationships
+    books = relationship("Book", back_populates="user", cascade="all, delete-orphan")
+    tv_shows = relationship("TVShow", back_populates="user", cascade="all, delete-orphan")
+    movies = relationship("Movie", back_populates="user", cascade="all, delete-orphan")

@@ -6,6 +6,10 @@ from .planning import MealPlan, PlannedMeal, MealAttendance
 from .preferences import MealRating, UserPreference, RecommendationHistory
 from .recipe_v2 import RecipeV2
 from .recipe_rating import RecipeRating
+from .content import (
+    ContentType, Book, TVShow, Movie, 
+    ContentRating, EpisodeWatch, ContentShare
+)
 
 __all__ = [
     "User",
@@ -24,5 +28,13 @@ __all__ = [
     "UserPreference",
     "RecommendationHistory",
     "RecipeV2",
-    "RecipeRating"
+    "RecipeRating",
+    # New content models
+    "ContentType",
+    "Book",
+    "TVShow", 
+    "Movie",
+    "ContentRating",
+    "EpisodeWatch",
+    "ContentShare"
 ]
