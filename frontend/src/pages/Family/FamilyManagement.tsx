@@ -69,6 +69,7 @@ const FamilyManagement: React.FC = () => {
   });
 
   const fetchFamilyMembers = async () => {
+    console.log('👨‍👩‍👧‍👦 fetchFamilyMembers called - starting fetch...');
     try {
       setLoading(true);
       const members = await apiRequest<FamilyMember[]>('GET', '/family/members');
@@ -83,6 +84,7 @@ const FamilyManagement: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('👨‍👩‍👧‍👦 FamilyManagement mounted - fetching data...');
     fetchFamilyMembers();
   }, []);
 

@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { apiDebugger } from '../utils/debugApi';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 console.log('🔗 API Base URL:', API_BASE_URL);
@@ -62,6 +63,8 @@ export const apiRequest = async <T>(
   data?: any,
   config?: { signal?: AbortSignal }
 ): Promise<T> => {
+  const requestId = apiDebugger.startRequest(`${method} ${url}`);
+  
   try {
     const token = localStorage.getItem('access_token');
     console.log(`🚀 Making ${method} request to ${api.defaults.baseURL}${url}`, data);
@@ -75,11 +78,13 @@ export const apiRequest = async <T>(
       signal: config?.signal,
     });
     console.log('✅ API Response received:', response.data);
+    apiDebugger.endRequest(requestId, true);
     return response.data;
   } catch (error: any) {
     // Don't log abort errors as failures
     if (error.name === 'AbortError' || error.code === 'ERR_CANCELED' || error.message === 'canceled') {
       console.log('🛑 Request was cancelled');
+      apiDebugger.cancelRequest(requestId);
       throw error;
     }
     
@@ -90,6 +95,7 @@ export const apiRequest = async <T>(
       url: error.config?.url,
       method: error.config?.method
     });
+    apiDebugger.endRequest(requestId, false);
     throw error;
   }
 };

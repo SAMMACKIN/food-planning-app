@@ -78,6 +78,7 @@ const PantryManagement: React.FC = () => {
   };
 
   const fetchPantryItems = async (preserveScroll = false) => {
+    console.log('🍴 fetchPantryItems called - starting fetch...');
     try {
       setLoading(true);
       
@@ -115,6 +116,7 @@ const PantryManagement: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('🥘 PantryManagement mounted - fetching data...');
     fetchPantryItems();
     fetchIngredients();
     // eslint-disable-next-line react-hooks/exhaustive-deps

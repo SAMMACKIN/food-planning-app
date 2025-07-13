@@ -10,6 +10,7 @@ export const useRecipes = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchSavedRecipes = useCallback(async (search?: string, difficulty?: string, tags?: string) => {
+    console.log('📚 fetchSavedRecipes called - starting fetch...');
     try {
       setLoading(true);
       setError(null);
