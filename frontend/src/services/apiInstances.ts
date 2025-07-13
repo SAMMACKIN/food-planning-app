@@ -17,7 +17,7 @@ export const navigationApi = axios.create({
 // Standard instance for regular data fetching (pantry, family, recipes)
 export const dataApi = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
-  timeout: 30000, // 30 seconds
+  timeout: 60000, // 60 seconds - give more time for data requests
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,7 +26,7 @@ export const dataApi = axios.create({
 // Long-running instance for AI recommendations
 export const recommendationsApi = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
-  timeout: 120000, // 2 minutes - AI requests can take longer
+  timeout: 300000, // 5 minutes - AI requests can take very long
   headers: {
     'Content-Type': 'application/json',
   },
