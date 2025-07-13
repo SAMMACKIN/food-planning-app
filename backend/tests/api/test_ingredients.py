@@ -153,7 +153,7 @@ class TestIngredientsAPI:
                 assert 'unit' in ingredient
                 
                 # Data types
-                assert isinstance(ingredient['id'], int)
+                assert isinstance(ingredient['id'], str)  # UUID is returned as string
                 assert isinstance(ingredient['name'], str)
                 assert isinstance(ingredient['category'], str)
                 assert isinstance(ingredient['unit'], str)
