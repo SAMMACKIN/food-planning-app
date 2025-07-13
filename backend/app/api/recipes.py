@@ -129,11 +129,16 @@ def list_recipes(
     """Get all recipes for current user"""
     try:
         user_uuid = uuid.UUID(current_user["id"])
+        logger.info(f"📋 Fetching recipes for user: {user_uuid}")
         
         # Get recipes for user
         recipes = db.query(RecipeV2).filter(
             RecipeV2.user_id == user_uuid
         ).order_by(desc(RecipeV2.created_at)).all()
+        
+        logger.info(f"📋 Found {len(recipes)} recipes in database for user {user_uuid}")
+        if recipes:
+            logger.info(f"📋 Sample recipe IDs: {[str(r.id) for r in recipes[:3]]}")
         
         # Convert to response format
         response_recipes = []
@@ -180,12 +185,14 @@ def list_recipes(
                     created_at=recipe.created_at.isoformat(),
                     updated_at=recipe.updated_at.isoformat()
                 ))
+                logger.info(f"✅ Successfully processed recipe {recipe.id}: {recipe.name}")
             except Exception as recipe_error:
-                logger.error(f"Error processing recipe {recipe.id}: {recipe_error}")
+                logger.error(f"❌ Error processing recipe {recipe.id}: {recipe_error}")
+                logger.error(f"❌ Recipe data: name={getattr(recipe, 'name', 'N/A')}, ingredients_type={type(getattr(recipe, 'ingredients_needed', None))}")
                 # Skip malformed recipes rather than failing the whole request
                 continue
         
-        logger.info(f"📋 Listed {len(response_recipes)} recipes for user {user_uuid}")
+        logger.info(f"📋 Successfully processed {len(response_recipes)} out of {len(recipes)} recipes for user {user_uuid}")
         return response_recipes
         
     except Exception as e:

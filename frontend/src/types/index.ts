@@ -207,6 +207,7 @@ export interface Recipe {
   ai_generated: boolean;
   ai_provider?: string;
   source: string;
+  rating?: number; // Average rating from backend
   created_at: string;
   updated_at: string;
 }
