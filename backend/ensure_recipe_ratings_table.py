@@ -75,9 +75,16 @@ def ensure_recipe_ratings_table():
         # If foreign key constraint fails, create without constraints
         try:
             print("🔧 Trying to create table without foreign key constraints...")
+            # Drop the existing partial table first
+            with engine.connect() as conn:
+                conn.execute(text("DROP TABLE IF EXISTS recipe_ratings CASCADE"))
+                conn.commit()
+            
+            # Create new metadata and table without foreign keys
+            metadata_no_fk = MetaData()
             recipe_ratings_no_fk = Table(
                 'recipe_ratings',
-                metadata,
+                metadata_no_fk,
                 Column('id', UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
                 Column('recipe_id', UUID(as_uuid=True), nullable=False),
                 Column('user_id', UUID(as_uuid=True), nullable=False),
@@ -88,10 +95,7 @@ def ensure_recipe_ratings_table():
                 Column('created_at', DateTime(timezone=True), server_default=func.now()),
                 Column('updated_at', DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
             )
-            metadata.drop_all(engine, tables=[recipe_ratings])  # Clean up failed attempt
-            metadata = MetaData()  # Reset metadata
-            recipe_ratings_no_fk.tometadata(metadata)
-            metadata.create_all(engine)
+            metadata_no_fk.create_all(engine)
             print("✅ recipe_ratings table created successfully (without foreign key constraints)")
         except Exception as e2:
             print(f"❌ Failed to create table even without constraints: {e2}")
