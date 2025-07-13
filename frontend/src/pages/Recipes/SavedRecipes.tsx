@@ -60,7 +60,6 @@ const SavedRecipes: React.FC = () => {
     updateRecipeRating,
     clearError
   } = useRecipes();
-  const { user, isAuthenticated } = useAuthStore();
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -204,11 +203,6 @@ const SavedRecipes: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Debug info - remove after fixing the issue */}
-      {process.env.NODE_ENV === 'development' || window.location.hostname.includes('preview') ? (
-        <ApiDebugInfo />
-      ) : null}
-      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <MenuBook color="primary" />
