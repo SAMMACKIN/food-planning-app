@@ -9,11 +9,26 @@ from sqlalchemy import and_, or_
 from ..db.database import get_db
 from ..models import User, ContentShare, Book, TVShow, Movie, RecipeV2
 from ..models.content import ContentType
-from ..core.auth_service import get_current_user
+from ..core.auth_service import AuthService
 from ..schemas.sharing import (
     ContentShareCreate, ContentShareResponse, SharedContentResponse,
     UserProfileResponse, PublicUserProfile
 )
+
+
+def get_current_user_simple(authorization: str = Header(None)):
+    """Simple auth helper for sharing"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        token = authorization.split(" ")[1]
+        user = AuthService.verify_user_token(token)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return user
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 router = APIRouter()
 
@@ -21,7 +36,7 @@ router = APIRouter()
 @router.post("/share", response_model=ContentShareResponse)
 async def share_content(
     share_data: ContentShareCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_simple),
     db: Session = Depends(get_db)
 ):
     """Share content with another user"""
@@ -120,7 +135,7 @@ async def share_content(
 @router.get("/shared-with-me", response_model=List[SharedContentResponse])
 async def get_shared_content(
     content_type: Optional[ContentType] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_simple),
     db: Session = Depends(get_db)
 ):
     """Get content shared with the current user"""
@@ -187,7 +202,7 @@ async def get_shared_content(
 @router.get("/my-shares", response_model=List[ContentShareResponse])
 async def get_my_shares(
     content_type: Optional[ContentType] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_simple),
     db: Session = Depends(get_db)
 ):
     """Get content shared by the current user"""
@@ -228,7 +243,7 @@ async def get_my_shares(
 @router.delete("/revoke/{share_id}")
 async def revoke_share(
     share_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_simple),
     db: Session = Depends(get_db)
 ):
     """Revoke a content share"""
@@ -256,7 +271,7 @@ async def revoke_share(
 @router.post("/add-to-my-list")
 async def add_shared_content_to_my_list(
     share_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_simple),
     db: Session = Depends(get_db)
 ):
     """Add shared content to user's personal list"""
