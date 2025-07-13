@@ -261,8 +261,8 @@ class TestFamilyMemberManagement:
         response = client.put(f"/api/v1/family/members/{member_id}", 
                             json={"name": "Hacked Name"}, headers=headers2)
         
-        # API actually allows this update (security issue to note)
-        assert response.status_code == 200
+        # API should correctly deny this cross-user access
+        assert response.status_code == 403
         
     def test_delete_family_member_success(self, client):
         """Test successful family member deletion"""
@@ -344,8 +344,8 @@ class TestFamilyMemberManagement:
         # Try to delete user1's family member as user2
         response = client.delete(f"/api/v1/family/members/{member_id}", headers=headers2)
         
-        # API actually allows this deletion (security issue to note)
-        assert response.status_code == 200
+        # API should correctly deny this cross-user access
+        assert response.status_code == 403
 
 
 @pytest.mark.api

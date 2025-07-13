@@ -154,7 +154,7 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
     setError(null);
 
     try {
-      const response = await fetch('/api/v1/recipes/import-from-url', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/recipes/import-from-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,11 +164,24 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to import recipe');
+        let errorMessage = 'Failed to import recipe';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If error response isn't JSON, use status text
+          errorMessage = response.statusText || `HTTP ${response.status}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Server returned invalid response. Please try again.');
+      }
       const recipeData = result.recipe_data;
 
       // Populate form with imported data

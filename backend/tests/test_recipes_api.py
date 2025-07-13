@@ -44,8 +44,8 @@ def sample_recipe_data():
         "difficulty": "Medium",
         "servings": 4,
         "ingredients_needed": [
-            {"name": "Ingredient 1", "quantity": "2", "unit": "cups"},
-            {"name": "Ingredient 2", "quantity": "1", "unit": "tbsp"}
+            {"name": "Ingredient 1", "quantity": "2", "unit": "cups", "have_in_pantry": False},
+            {"name": "Ingredient 2", "quantity": "1", "unit": "tbsp", "have_in_pantry": False}
         ],
         "instructions": ["Step 1: Do this", "Step 2: Do that"],
         "tags": ["test", "recipe"],
@@ -59,12 +59,10 @@ def sample_recipe_data():
 class TestRecipesAPI:
     """Test recipes API endpoints"""
     
-    @patch('app.api.recipes.get_current_user_simple')
     @patch('app.api.recipes.get_db')
-    def test_list_recipes_success(self, mock_get_db, mock_get_user, auth_headers, mock_user):
+    def test_list_recipes_success(self, mock_get_db, mock_user):
         """Test successful listing of recipes"""
         # Setup mocks
-        mock_get_user.return_value = mock_user
         mock_db = MagicMock()
         mock_get_db.return_value = mock_db
         
@@ -80,6 +78,12 @@ class TestRecipesAPI:
                 servings=2,
                 ingredients_needed=[],
                 instructions=["Step 1"],
+                tags=[],
+                nutrition_notes="",
+                pantry_usage_score=0,
+                source="test",
+                ai_generated=False,
+                ai_provider=None,
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             ),
@@ -93,6 +97,12 @@ class TestRecipesAPI:
                 servings=6,
                 ingredients_needed=[],
                 instructions=["Step 1", "Step 2"],
+                tags=[],
+                nutrition_notes="",
+                pantry_usage_score=0,
+                source="test",
+                ai_generated=False,
+                ai_provider=None,
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )
@@ -100,15 +110,23 @@ class TestRecipesAPI:
         
         mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = mock_recipes
         
-        # Make request
-        response = client.get("/api/v1/recipes", headers=auth_headers)
+        # Override dependencies for this test
+        app.dependency_overrides[get_current_user_simple] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
         
-        # Assertions
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 2
-        assert data[0]["name"] == "Recipe 1"
-        assert data[1]["name"] == "Recipe 2"
+        try:
+            # Make request
+            response = client.get("/api/v1/recipes")
+            
+            # Assertions
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 2
+            assert data[0]["name"] == "Recipe 1"
+            assert data[1]["name"] == "Recipe 2"
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()
     
     @patch('app.api.recipes.get_current_user_simple')
     def test_list_recipes_unauthorized(self, mock_get_user):
@@ -118,33 +136,75 @@ class TestRecipesAPI:
         response = client.get("/api/v1/recipes")
         assert response.status_code == 401
     
-    @patch('app.api.recipes.get_current_user_simple')
     @patch('app.api.recipes.get_db')
-    def test_create_recipe_success(self, mock_get_db, mock_get_user, auth_headers, mock_user, sample_recipe_data):
+    def test_create_recipe_success(self, mock_get_db, mock_user, sample_recipe_data):
         """Test successful recipe creation"""
         # Setup mocks
-        mock_get_user.return_value = mock_user
         mock_db = MagicMock()
         mock_get_db.return_value = mock_db
         
-        # Make request
-        response = client.post("/api/v1/recipes", json=sample_recipe_data, headers=auth_headers)
+        # Create a mock recipe object to return
+        mock_recipe = RecipeV2(
+            id=uuid.uuid4(),
+            user_id=uuid.UUID(mock_user["id"]),
+            name=sample_recipe_data["name"],
+            description=sample_recipe_data["description"],
+            prep_time=sample_recipe_data["prep_time"],
+            difficulty=sample_recipe_data["difficulty"],
+            servings=sample_recipe_data["servings"],
+            ingredients_needed=sample_recipe_data["ingredients_needed"],
+            instructions=sample_recipe_data["instructions"],
+            tags=[],
+            nutrition_notes="",
+            pantry_usage_score=0,
+            source="test",
+            ai_generated=False,
+            ai_provider=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
         
-        # Assertions
-        assert response.status_code == 200
-        data = response.json()
-        assert data["name"] == sample_recipe_data["name"]
-        assert data["description"] == sample_recipe_data["description"]
-        assert data["user_id"] == mock_user["id"]
-        assert mock_db.add.called
+        # Mock database interactions
+        mock_db.add.return_value = None
+        mock_db.commit.return_value = None
+        mock_db.refresh.return_value = None
+        
+        # Override dependencies for this test
+        app.dependency_overrides[get_current_user_simple] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
+        
+        try:
+            # Mock the refresh to set the recipe properties
+            def mock_refresh(obj):
+                obj.id = mock_recipe.id
+                obj.created_at = mock_recipe.created_at
+                obj.updated_at = mock_recipe.updated_at
+            mock_db.refresh.side_effect = mock_refresh
+            
+            # Make request
+            response = client.post("/api/v1/recipes", json=sample_recipe_data)
+            
+            # Debug output if test fails
+            if response.status_code != 200:
+                print(f"Response status: {response.status_code}")
+                print(f"Response body: {response.text}")
+            
+            # Assertions
+            assert response.status_code == 200
+            data = response.json()
+            assert data["name"] == sample_recipe_data["name"]
+            assert data["description"] == sample_recipe_data["description"]
+            assert data["user_id"] == mock_user["id"]
+            assert mock_db.add.called
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()
         assert mock_db.commit.called
     
-    @patch('app.api.recipes.get_current_user_simple')
     @patch('app.api.recipes.get_db')
-    def test_rate_recipe_success(self, mock_get_db, mock_get_user, auth_headers, mock_user):
+    def test_rate_recipe_success(self, mock_get_db, mock_user):
         """Test successful recipe rating"""
         # Setup mocks
-        mock_get_user.return_value = mock_user
         mock_db = MagicMock()
         mock_get_db.return_value = mock_db
         
@@ -159,6 +219,12 @@ class TestRecipesAPI:
             servings=4,
             ingredients_needed=[],
             instructions=["Step 1"],
+            tags=[],
+            nutrition_notes="",
+            pantry_usage_score=0,
+            source="test",
+            ai_generated=False,
+            ai_provider=None,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -176,24 +242,50 @@ class TestRecipesAPI:
             "cooking_notes": "Added extra spice"
         }
         
-        # Make request
-        response = client.post(f"/api/v1/recipes/{recipe_id}/ratings", json=rating_data, headers=auth_headers)
+        # Create mock rating to return after save
+        mock_rating = RecipeRating(
+            id=uuid.uuid4(),
+            recipe_id=uuid.UUID(recipe_id),
+            user_id=uuid.UUID(mock_user["id"]),
+            rating=5,
+            review_text="Excellent recipe!",
+            would_make_again=True,
+            cooking_notes="Added extra spice",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
         
-        # Assertions
-        assert response.status_code == 200
-        data = response.json()
-        assert data["rating"] == 5
-        assert data["review_text"] == "Excellent recipe!"
-        assert data["would_make_again"] is True
-        assert mock_db.add.called
-        assert mock_db.commit.called
+        # Mock the refresh to set the rating properties
+        def mock_refresh(obj):
+            obj.id = mock_rating.id
+            obj.created_at = mock_rating.created_at
+            obj.updated_at = mock_rating.updated_at
+        mock_db.refresh.side_effect = mock_refresh
+        
+        # Override dependencies for this test
+        app.dependency_overrides[get_current_user_simple] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
+        
+        try:
+            # Make request
+            response = client.post(f"/api/v1/recipes/{recipe_id}/ratings", json=rating_data)
+            
+            # Assertions
+            assert response.status_code == 200
+            data = response.json()
+            assert data["rating"] == 5
+            assert data["review_text"] == "Excellent recipe!"
+            assert data["would_make_again"] is True
+            assert mock_db.add.called
+            assert mock_db.commit.called
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()
     
-    @patch('app.api.recipes.get_current_user_simple')
     @patch('app.api.recipes.get_db')
-    def test_rate_recipe_already_rated(self, mock_get_db, mock_get_user, auth_headers, mock_user):
+    def test_rate_recipe_already_rated(self, mock_get_db, mock_user):
         """Test rating a recipe that user already rated"""
         # Setup mocks
-        mock_get_user.return_value = mock_user
         mock_db = MagicMock()
         mock_get_db.return_value = mock_db
         
@@ -208,6 +300,12 @@ class TestRecipesAPI:
             servings=4,
             ingredients_needed=[],
             instructions=["Step 1"],
+            tags=[],
+            nutrition_notes="",
+            pantry_usage_score=0,
+            source="test",
+            ai_generated=False,
+            ai_provider=None,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -230,33 +328,47 @@ class TestRecipesAPI:
             "would_make_again": True
         }
         
-        # Make request
-        response = client.post(f"/api/v1/recipes/{recipe_id}/ratings", json=rating_data, headers=auth_headers)
+        # Override dependencies for this test
+        app.dependency_overrides[get_current_user_simple] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
         
-        # Assertions
-        assert response.status_code == 400
-        assert "already rated" in response.json()["detail"]
+        try:
+            # Make request
+            response = client.post(f"/api/v1/recipes/{recipe_id}/ratings", json=rating_data)
+            
+            # Assertions
+            assert response.status_code == 400
+            assert "already rated" in response.json()["detail"]
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()
     
-    @patch('app.api.recipes.get_current_user_simple')
     @patch('app.api.recipes.get_db')
-    def test_health_check_success(self, mock_get_db, mock_get_user, auth_headers, mock_user):
+    def test_health_check_success(self, mock_get_db, mock_user):
         """Test recipes health check endpoint"""
         # Setup mocks
-        mock_get_user.return_value = mock_user
         mock_db = MagicMock()
         mock_get_db.return_value = mock_db
         
         # Mock recipe count
         mock_db.query.return_value.filter.return_value.count.return_value = 5
         
-        # Make request
-        response = client.get("/api/v1/recipes/debug/health", headers=auth_headers)
+        # Override dependencies for this test
+        app.dependency_overrides[get_current_user_simple] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
         
-        # Assertions
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "healthy"
-        assert data["service"] == "recipes_v2"
-        assert data["user_id"] == mock_user["id"]
-        assert data["user_recipe_count"] == 5
-        assert data["database_connected"] is True
+        try:
+            # Make request
+            response = client.get("/api/v1/recipes/debug/health")
+            
+            # Assertions
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "healthy"
+            assert data["service"] == "recipes_v2"
+            assert data["user_id"] == mock_user["id"]
+            assert data["user_recipe_count"] == 5
+            assert data["database_connected"] is True
+        finally:
+            # Clean up override
+            app.dependency_overrides.clear()

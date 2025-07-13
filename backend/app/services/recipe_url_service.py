@@ -11,7 +11,10 @@ from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 import asyncio
 
-from ..ai_service import ai_service
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from ai_service import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,30 +52,49 @@ class RecipeURLService:
             
             # Validate URL
             if not self._is_valid_url(url):
+                logger.error(f"❌ Invalid URL format: {url}")
                 raise ValueError("Invalid URL provided")
             
             # Fetch webpage content
+            logger.info(f"📡 Fetching webpage content...")
             html_content = await self._fetch_webpage(url)
             if not html_content:
+                logger.error("❌ Failed to fetch webpage content")
                 return None
             
+            logger.info(f"✅ Fetched {len(html_content)} characters of HTML content")
+            
             # Parse HTML
+            logger.info("🔍 Parsing HTML content...")
             soup = BeautifulSoup(html_content, 'html.parser')
             
             # Try structured data extraction first
+            logger.info("🎯 Looking for structured recipe data...")
             structured_data = self._extract_structured_data(soup)
             if structured_data:
                 logger.info("✅ Found structured recipe data (JSON-LD or microdata)")
                 recipe_data = await self._process_structured_data(structured_data, url)
                 if recipe_data:
+                    logger.info(f"✅ Successfully processed structured data: {recipe_data.get('name', 'Unknown')}")
                     return recipe_data
+                else:
+                    logger.warning("⚠️ Structured data found but processing failed")
+            else:
+                logger.info("❌ No structured recipe data found")
             
             # Fallback to AI-powered extraction
             logger.info("🤖 Using AI to extract recipe from HTML content")
-            return await self._ai_extract_recipe(soup, url)
+            result = await self._ai_extract_recipe(soup, url)
+            if result:
+                logger.info(f"✅ AI extraction successful: {result.get('name', 'Unknown')}")
+            else:
+                logger.warning("❌ AI extraction failed or returned no data")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Recipe extraction failed for {url}: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return None
 
     def _is_valid_url(self, url: str) -> bool:

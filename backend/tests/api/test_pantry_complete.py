@@ -284,7 +284,7 @@ class TestPantryManagement:
         response = client.delete(f"/api/v1/pantry/{test_ingredient_id}", headers=headers)
         
         assert response.status_code == 200
-        assert "deleted successfully" in response.json()["message"]
+        assert "removed successfully" in response.json()["message"]
         
         # Verify item is gone
         get_response = client.get("/api/v1/pantry", headers=headers)

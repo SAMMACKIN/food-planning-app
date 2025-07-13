@@ -27,9 +27,9 @@ class TestRecommendationsAPI:
         assert response.status_code == 200
         
         data = response.json()
-        assert "claude_available" in data
+        assert "available_providers" in data
         assert "message" in data
-        assert isinstance(data["claude_available"], bool)
+        assert isinstance(data["available_providers"], list)
     
     def test_recommendations_test_endpoint(self, client):
         """Test the AI test endpoint"""

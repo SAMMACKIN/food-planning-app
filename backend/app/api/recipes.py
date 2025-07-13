@@ -591,19 +591,31 @@ async def import_recipe_from_url(
 ):
     """Import a recipe from a URL using AI extraction"""
     try:
-        from ..services.recipe_url_service import recipe_url_service
-        
         url = url_data.get("url")
         if not url:
+            logger.error("❌ No URL provided in request")
             raise HTTPException(status_code=400, detail="URL is required")
         
-        logger.info(f"🌐 Importing recipe from URL: {url}")
+        logger.info(f"🌐 Starting recipe import from URL: {url}")
+        
+        try:
+            from ..services.recipe_url_service import recipe_url_service
+            logger.info("✅ Successfully imported recipe_url_service")
+        except ImportError as import_err:
+            logger.error(f"❌ Failed to import recipe_url_service: {import_err}")
+            raise HTTPException(status_code=500, detail="Recipe import service not available")
         
         # Extract recipe data from URL using AI
-        recipe_data = await recipe_url_service.extract_recipe_from_url(url)
+        try:
+            recipe_data = await recipe_url_service.extract_recipe_from_url(url)
+            logger.info(f"🤖 Recipe extraction completed. Success: {recipe_data is not None}")
+        except Exception as extraction_err:
+            logger.error(f"❌ Recipe extraction failed: {extraction_err}")
+            raise HTTPException(status_code=500, detail=f"Recipe extraction failed: {str(extraction_err)}")
         
         if not recipe_data:
-            raise HTTPException(status_code=400, detail="Could not extract recipe from this URL")
+            logger.warning(f"⚠️ No recipe data extracted from URL: {url}")
+            raise HTTPException(status_code=400, detail="Could not extract recipe from this URL. The page may not contain a valid recipe or may be unsupported.")
         
         logger.info(f"✅ Successfully extracted recipe: {recipe_data.get('name', 'Unknown')}")
         
@@ -616,5 +628,8 @@ async def import_recipe_from_url(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Import recipe from URL error: {e}")
+        logger.error(f"❌ Unexpected error in import_recipe_from_url: {e}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to import recipe: {str(e)}")
