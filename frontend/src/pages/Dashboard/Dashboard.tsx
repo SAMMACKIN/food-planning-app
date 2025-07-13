@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -13,6 +12,7 @@ import {
   Avatar,
   Divider,
 } from '@mui/material';
+import { Grid2 as Grid } from '@mui/material';
 import {
   FamilyRestroom,
   Kitchen,
@@ -117,7 +117,7 @@ const Dashboard: React.FC = () => {
       {/* Main Cards */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
         {dashboardCards.map((card, index) => (
-          <Grid item xs={12} sm={6} md={6} lg={3} key={card.title}>
+          <Grid xs={12} sm={6} md={6} lg={3} key={card.title}>
             <Card 
               sx={{ 
                 height: '100%',
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <Grid container spacing={2}>
             {quickActions.map((action) => (
-              <Grid item key={action.label}>
+              <Grid key={action.label}>
                 <Button
                   variant={action.variant}
                   color={action.color}

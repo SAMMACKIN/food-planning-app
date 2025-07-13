@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CardActions,
-  Grid,
   Chip,
   IconButton,
   Alert,
@@ -23,6 +22,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import { Grid2 as Grid } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -183,7 +183,6 @@ const BooksManagement: React.FC = () => {
     const estimatedTime = bookHelpers.getEstimatedReadingTime(book);
     
     return (
-      <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
         <Card 
           sx={{ 
             height: '100%', 
@@ -313,7 +312,6 @@ const BooksManagement: React.FC = () => {
             )}
           </CardActions>
         </Card>
-      </Grid>
     );
   };
 
@@ -429,7 +427,11 @@ const BooksManagement: React.FC = () => {
             </Box>
           ) : (
             <Grid container spacing={3}>
-              {books.map(renderBookCard)}
+              {books.map((book) => (
+                <Grid xs={12} sm={6} md={4} lg={3} key={book.id}>
+                  {renderBookCard(book)}
+                </Grid>
+              ))}
             </Grid>
           )}
           
