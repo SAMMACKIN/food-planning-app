@@ -287,7 +287,7 @@ class AIService:
         recent_recipes: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Get recommendations from Perplexity with retry logic"""
-        max_attempts = 2  # Reduced from 3 to avoid long delays
+        max_attempts = 4  # Try different models
         
         for attempt in range(max_attempts):
             try:
@@ -299,8 +299,19 @@ class AIService:
                 logger.info(f"Using API key: {self.perplexity_key[:10]}... (length: {len(self.perplexity_key)})")
                 logger.info(f"Prompt length: {len(prompt)} characters")
                 
+                # Try different model names in order of preference
+                model_candidates = [
+                    "llama-3.1-sonar-small-128k",
+                    "llama-3.1-sonar-large-128k", 
+                    "sonar-small-chat",
+                    "sonar-medium-chat"
+                ]
+                
+                model_to_use = model_candidates[attempt % len(model_candidates)]
+                logger.info(f"Trying model: {model_to_use}")
+                
                 request_data = {
-                    "model": "llama-3.1-sonar-small-128k-chat",
+                    "model": model_to_use,
                     "messages": [
                         {"role": "user", "content": prompt}
                     ],

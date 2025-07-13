@@ -50,7 +50,7 @@ The app supports multiple AI providers for meal recommendations. Add at least on
 ### Perplexity AI (Recommended)
 - Get your API key from: https://www.perplexity.ai/settings/api
 - Add to .env: `PERPLEXITY_API_KEY=your_key_here`
-- Model used: llama-3.1-sonar-small-128k-chat
+- Models: Tries multiple models automatically (llama-3.1-sonar-small-128k, sonar-small-chat, etc.)
 
 ### Claude AI 
 - Get your API key from: https://console.anthropic.com/
