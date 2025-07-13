@@ -102,15 +102,18 @@ export const useRecommendationsCache = () => {
       }
     }
 
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      console.log('🛑 Cancelling previous request');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Create new abort controller for this request
+    const currentAbortController = new AbortController();
+    abortControllerRef.current = currentAbortController;
+    
     try {
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
-      // Create new abort controller for this request
-      abortControllerRef.current = new AbortController();
-      
       // Use background loading if requested or if we already have recommendations
       const shouldUseBackground = useBackground || (recommendations.length > 0);
       
@@ -130,10 +133,17 @@ export const useRecommendationsCache = () => {
       };
       
       console.log(`🤖 Fetching AI recommendations from ${selectedProvider}...`);
-      const recs = await apiRequest<MealRecommendation[]>('POST', '/recommendations', requestWithTimestamp);
       
-      // Check if request was aborted
-      if (abortControllerRef.current?.signal.aborted) {
+      // Pass the abort signal to the API request
+      const recs = await apiRequest<MealRecommendation[]>(
+        'POST', 
+        '/recommendations', 
+        requestWithTimestamp,
+        { signal: currentAbortController.signal }
+      );
+      
+      // Check if this specific request was aborted
+      if (currentAbortController.signal.aborted) {
         console.log('🛑 Request was aborted');
         return;
       }
@@ -151,18 +161,24 @@ export const useRecommendationsCache = () => {
         setBackgroundLoadCompleted(true);
       }
     } catch (error: any) {
-      // Don't set error if request was aborted
-      if (abortControllerRef.current?.signal.aborted) {
-        console.log('🛑 Request aborted, ignoring error');
+      // Check if error is due to abort
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED' || currentAbortController.signal.aborted) {
+        console.log('🛑 Request aborted, not setting error state');
         return;
       }
+      
       setError(`Failed to get meal recommendations from ${selectedProvider}`);
       console.error('Error fetching recommendations:', error);
     } finally {
-      // Only set loading to false if request wasn't aborted
-      if (!abortControllerRef.current?.signal.aborted) {
+      // Only update loading states if this request wasn't aborted
+      if (!currentAbortController.signal.aborted && abortControllerRef.current === currentAbortController) {
         setLoading(false);
         setBackgroundLoading(false);
+      }
+      
+      // Clear the ref if this was the current controller
+      if (abortControllerRef.current === currentAbortController) {
+        abortControllerRef.current = null;
       }
     }
   }, [selectedProvider, generateRequestKey, loadFromCache, saveToCache, recommendations.length]);
@@ -188,9 +204,11 @@ export const useRecommendationsCache = () => {
   const resetState = useCallback(() => {
     // Abort any ongoing request
     if (abortControllerRef.current) {
+      console.log('🛑 Aborting ongoing recommendation request');
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
-    // Reset all states
+    // Reset all states immediately
     setLoading(false);
     setBackgroundLoading(false);
     setBackgroundLoadCompleted(false);
@@ -224,10 +242,13 @@ export const useRecommendationsCache = () => {
       if (abortControllerRef.current) {
         console.log('🧹 Cleaning up: aborting ongoing recommendations request');
         abortControllerRef.current.abort();
-        setLoading(false);
-        setBackgroundLoading(false);
-        setBackgroundLoadCompleted(false);
+        abortControllerRef.current = null;
       }
+      // Force reset all loading states on unmount
+      setLoading(false);
+      setBackgroundLoading(false);
+      setBackgroundLoadCompleted(false);
+      setError(null);
     };
   }, []);
 

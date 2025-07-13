@@ -24,6 +24,13 @@ api.interceptors.request.use((config) => {
   } else {
     console.log('⚠️ No access token found for API request:', config.url);
   }
+  
+  // Add a reasonable timeout for all requests (30 seconds)
+  // This prevents requests from hanging indefinitely
+  if (!config.timeout) {
+    config.timeout = 30000; // 30 seconds
+  }
+  
   return config;
 });
 
@@ -52,7 +59,8 @@ api.interceptors.response.use(
 export const apiRequest = async <T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data?: any
+  data?: any,
+  config?: { signal?: AbortSignal }
 ): Promise<T> => {
   try {
     const token = localStorage.getItem('access_token');
@@ -64,10 +72,17 @@ export const apiRequest = async <T>(
       method,
       url,
       data,
+      signal: config?.signal,
     });
     console.log('✅ API Response received:', response.data);
     return response.data;
   } catch (error: any) {
+    // Don't log abort errors as failures
+    if (error.name === 'AbortError' || error.code === 'ERR_CANCELED' || error.message === 'canceled') {
+      console.log('🛑 Request was cancelled');
+      throw error;
+    }
+    
     console.error('❌ API Error details:', {
       status: error.response?.status,
       data: error.response?.data,
