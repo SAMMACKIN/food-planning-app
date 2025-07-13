@@ -448,13 +448,19 @@ const BookRecommendations: React.FC = () => {
 
       {/* Recommendations */}
       {!loading && recommendations.length > 0 && (
-        <Grid container spacing={3}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {recommendations.map((recommendation, index) => (
-            <Grid item xs={12} sm={6} md={4} key={`${recommendation.title}_${index}`}>
+            <Box 
+              key={`${recommendation.title}_${index}`}
+              sx={{ 
+                flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', md: '1 1 calc(33.333% - 16px)' },
+                minWidth: 0
+              }}
+            >
               {renderRecommendationCard(recommendation, index)}
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {/* Empty State */}
@@ -495,7 +501,7 @@ const BookRecommendations: React.FC = () => {
               select
               SelectProps={{ multiple: true }}
               value={preferredGenres}
-              onChange={(e) => setPreferredGenres(e.target.value as string[])}
+              onChange={(e) => setPreferredGenres(Array.isArray(e.target.value) ? e.target.value : [e.target.value])}
               fullWidth
               helperText="Select genres you'd like to see more of"
             >
@@ -511,7 +517,7 @@ const BookRecommendations: React.FC = () => {
               select
               SelectProps={{ multiple: true }}
               value={excludeGenres}
-              onChange={(e) => setExcludeGenres(e.target.value as string[])}
+              onChange={(e) => setExcludeGenres(Array.isArray(e.target.value) ? e.target.value : [e.target.value])}
               fullWidth
               helperText="Select genres you want to avoid"
             >
