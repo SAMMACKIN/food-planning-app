@@ -333,7 +333,7 @@ async def get_all_pantry_items(authorization: str = Header(None)):
                     'user_id': str(item[0]),
                     'ingredient_id': str(item[1]),
                     'quantity': item[2],
-                    'expiration_date': item[3].isoformat() if item[3] else None,
+                    'expiration_date': item[3].strftime('%Y-%m-%d') if item[3] else None,
                     'updated_at': item[4].isoformat() if item[4] else None,
                     'ingredient_name': item[5],
                     'ingredient_category': item[6],

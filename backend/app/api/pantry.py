@@ -84,7 +84,7 @@ async def get_pantry_items(current_user: dict = Depends(get_current_user_depende
                 user_id=str(item.user_id),
                 ingredient_id=str(item.ingredient_id),
                 quantity=item.quantity,
-                expiration_date=item.expiration_date.isoformat() if item.expiration_date else None,
+                expiration_date=item.expiration_date.strftime('%Y-%m-%d') if item.expiration_date else None,
                 updated_at=item.updated_at.isoformat() if item.updated_at else None,
                 ingredient=IngredientResponse(
                     id=str(item.ingredient.id),
@@ -151,7 +151,7 @@ async def add_pantry_item(
             user_id=str(pantry_item.user_id),
             ingredient_id=str(pantry_item.ingredient_id),
             quantity=pantry_item.quantity,
-            expiration_date=pantry_item.expiration_date.isoformat() if pantry_item.expiration_date else None,
+            expiration_date=pantry_item.expiration_date.strftime('%Y-%m-%d') if pantry_item.expiration_date else None,
             updated_at=pantry_item.updated_at.isoformat() if pantry_item.updated_at else None,
             ingredient=IngredientResponse(
                 id=str(ingredient.id),
@@ -204,7 +204,7 @@ async def update_pantry_item(
             user_id=str(pantry_item.user_id),
             ingredient_id=str(pantry_item.ingredient_id),
             quantity=pantry_item.quantity,
-            expiration_date=pantry_item.expiration_date.isoformat() if pantry_item.expiration_date else None,
+            expiration_date=pantry_item.expiration_date.strftime('%Y-%m-%d') if pantry_item.expiration_date else None,
             updated_at=pantry_item.updated_at.isoformat() if pantry_item.updated_at else None,
             ingredient=IngredientResponse(
                 id=str(ingredient.id),

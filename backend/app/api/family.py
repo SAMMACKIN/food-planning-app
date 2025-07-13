@@ -60,8 +60,13 @@ def get_current_user(authorization: str = None):
 
 
 @router.get("/members", response_model=List[FamilyMemberResponse])
-async def get_family_members(current_user: dict = Depends(get_current_user_dependency)):
+async def get_family_members(authorization: str = Header(None)):
     """Get family members for the authenticated user"""
+    # Allow unauthenticated access - return empty list
+    current_user = get_current_user(authorization)
+    if not current_user:
+        return []
+    
     with get_db_session() as session:
         if current_user.get("is_admin", False):
             # Admin can see all family members

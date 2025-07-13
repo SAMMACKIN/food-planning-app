@@ -111,6 +111,7 @@ class RecipeV2Response(BaseModel):
     source: str
     ai_generated: bool
     ai_provider: Optional[str] = None
+    rating: Optional[float] = None  # Average rating
     created_at: str
     updated_at: str
 

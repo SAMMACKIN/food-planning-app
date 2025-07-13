@@ -19,6 +19,15 @@ router = APIRouter(tags=["recipes"])
 logger = logging.getLogger(__name__)
 
 
+def calculate_average_rating(db: Session, recipe_id: uuid.UUID) -> float:
+    """Calculate average rating for a recipe"""
+    ratings = db.query(RecipeRating).filter(RecipeRating.recipe_id == recipe_id).all()
+    if not ratings:
+        return None
+    total = sum(r.rating for r in ratings)
+    return round(total / len(ratings), 1)
+
+
 def get_current_user_simple(authorization: str = Header(None)):
     """Simple auth helper"""
     if not authorization or not authorization.startswith("Bearer "):
@@ -101,6 +110,7 @@ def save_recipe(
             source=recipe.source,
             ai_generated=recipe.ai_generated,
             ai_provider=recipe.ai_provider,
+            rating=calculate_average_rating(db, recipe.id),
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
@@ -145,6 +155,7 @@ def list_recipes(
                 source=recipe.source,
                 ai_generated=recipe.ai_generated,
                 ai_provider=recipe.ai_provider,
+                rating=calculate_average_rating(db, recipe.id),
                 created_at=recipe.created_at.isoformat(),
                 updated_at=recipe.updated_at.isoformat()
             ))
@@ -195,6 +206,7 @@ def get_recipe(
             source=recipe.source,
             ai_generated=recipe.ai_generated,
             ai_provider=recipe.ai_provider,
+            rating=calculate_average_rating(db, recipe.id),
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
@@ -301,6 +313,7 @@ def update_recipe(
             source=recipe.source,
             ai_generated=recipe.ai_generated,
             ai_provider=recipe.ai_provider,
+            rating=calculate_average_rating(db, recipe.id),
             created_at=recipe.created_at.isoformat(),
             updated_at=recipe.updated_at.isoformat()
         )
