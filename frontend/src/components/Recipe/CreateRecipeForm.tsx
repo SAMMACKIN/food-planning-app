@@ -168,8 +168,6 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       ai_generated: false,
       source: importedSourceUrl || initialData?.source || 'user_created'
     };
-    
-    console.log('💾 Saving recipe with source:', recipeData.source);
 
     const success = await onSave(recipeData);
     
@@ -235,9 +233,8 @@ const CreateRecipeForm: React.FC<CreateRecipeFormProps> = ({ open, onClose, onSa
       setInstructions(recipeData.instructions || ['']);
       setTags(recipeData.tags || []);
       
-      // IMPORTANT: Preserve the source URL
+      // Preserve the source URL from imported recipe
       setImportedSourceUrl(recipeData.source || importUrl.trim());
-      console.log('🔗 Imported source URL preserved:', recipeData.source || importUrl.trim());
 
       setImportMode(false);
       setImportUrl('');

@@ -353,58 +353,29 @@ const SavedRecipes: React.FC = () => {
                         }}
                       />
                     )}
-                    {(() => {
-                      // Debug: log recipe info for debugging
-                      console.log('Recipe:', recipe.name);
-                      console.log('- Source:', recipe.source, 'Type:', typeof recipe.source);
-                      console.log('- Tags:', recipe.tags);
-                      console.log('- AI Generated:', recipe.ai_generated);
-                      
-                      // Show source chip if source exists and is a valid URL
-                      const hasValidSource = recipe.source && 
-                        recipe.source !== 'user_created' && 
-                        recipe.source !== 'recommendation' &&
-                        recipe.source !== 'imported' &&
-                        (recipe.source.startsWith('http://') || recipe.source.startsWith('https://'));
-                      
-                      console.log('- Has valid source:', hasValidSource);
-                      
-                      // TEMP: Force show link for any imported recipe to test component
-                      const shouldShowLink = hasValidSource || (recipe.tags && recipe.tags.includes('imported'));
-                      
-                      // Use actual URL if available, otherwise use a placeholder
-                      const linkUrl = hasValidSource ? recipe.source : 'https://example.com';
-                      const linkLabel = hasValidSource ? 'View Original' : 'Imported Recipe';
-                      
-                      console.log('- Should show link:', shouldShowLink);
-                      
-                      return shouldShowLink ? (
-                        <Chip
-                          icon={<Link />}
-                          label={linkLabel}
-                          size="small"
-                          clickable
-                          onClick={() => {
-                            console.log('Link clicked, URL:', linkUrl);
-                            if (hasValidSource) {
-                              window.open(linkUrl, '_blank');
-                            } else {
-                              alert(`Recipe source: ${recipe.source || 'No source URL available'}`);
-                            }
-                          }}
-                          sx={{ 
-                            backgroundColor: hasValidSource ? '#2196F3' + '20' : '#FF9800' + '20',
-                            color: hasValidSource ? '#2196F3' : '#FF9800',
-                            '& .MuiChip-icon': {
-                              color: hasValidSource ? '#2196F3' : '#FF9800'
-                            },
-                            '&:hover': {
-                              backgroundColor: hasValidSource ? '#2196F3' + '40' : '#FF9800' + '40'
-                            }
-                          }}
-                        />
-                      ) : null;
-                    })()}
+                    {recipe.source && 
+                      recipe.source !== 'user_created' && 
+                      recipe.source !== 'recommendation' &&
+                      recipe.source !== 'imported' &&
+                      (recipe.source.startsWith('http://') || recipe.source.startsWith('https://')) && (
+                      <Chip
+                        icon={<Link />}
+                        label="View Original"
+                        size="small"
+                        clickable
+                        onClick={() => window.open(recipe.source, '_blank')}
+                        sx={{ 
+                          backgroundColor: '#2196F3' + '20',
+                          color: '#2196F3',
+                          '& .MuiChip-icon': {
+                            color: '#2196F3'
+                          },
+                          '&:hover': {
+                            backgroundColor: '#2196F3' + '40'
+                          }
+                        }}
+                      />
+                    )}
                   </Box>
 
                   {recipe.tags && recipe.tags.length > 0 && (

@@ -461,7 +461,6 @@ class RecipeURLService:
         """Validate and clean recipe data to match the expected schema"""
         try:
             logger.info("🧹 Validating and cleaning recipe data...")
-            logger.info(f"🔗 Input source: {recipe_data.get('source')}")
             
             # Ensure all required fields exist with proper types
             cleaned = {
@@ -488,7 +487,6 @@ class RecipeURLService:
                 return None
             
             logger.info(f"✅ Recipe data cleaned successfully: {cleaned['name']}")
-            logger.info(f"🔗 Final source: {cleaned['source']}")
             logger.info(f"📋 Final data: ingredients={len(cleaned['ingredients_needed'])}, instructions={len(cleaned['instructions'])}")
             
             return cleaned
