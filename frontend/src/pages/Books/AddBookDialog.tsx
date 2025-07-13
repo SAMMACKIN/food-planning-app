@@ -204,7 +204,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
     }
   };
 
-  const getAutoFilledFieldProps = (fieldName: string) => ({
+  const getAutoFilledFieldProps = (fieldName: string, originalHelperText?: string) => ({
     sx: autoFilledFields.has(fieldName) ? {
       '& .MuiOutlinedInput-root': {
         backgroundColor: 'success.light',
@@ -218,7 +218,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
     } : undefined,
     helperText: autoFilledFields.has(fieldName) 
       ? '✨ Auto-filled by AI' 
-      : undefined,
+      : originalHelperText,
     FormHelperTextProps: autoFilledFields.has(fieldName) ? {
       sx: { color: 'success.main' }
     } : undefined,
@@ -320,7 +320,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                   label="Author *"
                   fullWidth
                   error={!!errors.author}
-                  helperText={errors.author?.message}
+                  {...getAutoFilledFieldProps('author', errors.author?.message)}
                 />
                 
                 {/* Auto-fill Button */}
@@ -361,7 +361,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                           {...params}
                           label="Genre"
                           error={!!errors.genre}
-                          helperText={errors.genre?.message}
+                          {...getAutoFilledFieldProps('genre', errors.genre?.message)}
                         />
                       )}
                       onChange={(_, value) => field.onChange(value || '')}
@@ -377,9 +377,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                   multiline
                   rows={3}
                   error={!!errors.description}
-                  helperText={errors.description?.message || getAutoFilledFieldProps('description').helperText}
-                  FormHelperTextProps={getAutoFilledFieldProps('description').FormHelperTextProps}
-                  sx={getAutoFilledFieldProps('description').sx}
+                  {...getAutoFilledFieldProps('description', errors.description?.message)}
                 />
               </Box>
             </Box>
@@ -397,7 +395,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                     label="ISBN"
                     fullWidth
                     error={!!errors.isbn}
-                    helperText={errors.isbn?.message}
+                    {...getAutoFilledFieldProps('isbn', errors.isbn?.message)}
                   />
                   
                   <TextField
@@ -408,7 +406,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                     type="number"
                     fullWidth
                     error={!!errors.pages}
-                    helperText={errors.pages?.message}
+                    {...getAutoFilledFieldProps('pages', errors.pages?.message)}
                     inputProps={{ min: 1, max: 10000 }}
                   />
                   
@@ -420,19 +418,53 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                     type="number"
                     fullWidth
                     error={!!errors.publication_year}
-                    helperText={errors.publication_year?.message}
+                    {...getAutoFilledFieldProps('publication_year', errors.publication_year?.message)}
                     inputProps={{ min: 1, max: new Date().getFullYear() + 1 }}
                   />
                 </Box>
                 
-                <TextField
-                  {...register('cover_image_url')}
-                  label="Cover Image URL"
-                  fullWidth
-                  error={!!errors.cover_image_url}
-                  helperText={errors.cover_image_url?.message}
-                  placeholder="https://example.com/book-cover.jpg"
-                />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <TextField
+                    {...register('cover_image_url')}
+                    label="Cover Image URL"
+                    fullWidth
+                    error={!!errors.cover_image_url}
+                    {...getAutoFilledFieldProps('cover_image_url', errors.cover_image_url?.message)}
+                    placeholder="https://example.com/book-cover.jpg"
+                  />
+                  
+                  {/* Cover Image Preview */}
+                  {watch('cover_image_url') && (
+                    <Box
+                      sx={{
+                        minWidth: 80,
+                        height: 120,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'grey.50'
+                      }}
+                    >
+                      <img
+                        src={watch('cover_image_url')}
+                        alt="Book cover preview"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '📖';
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Box>
               </Box>
             </Box>
 
