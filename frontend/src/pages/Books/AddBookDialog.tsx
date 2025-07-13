@@ -158,22 +158,22 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
         newAutoFilledFields.add('pages');
       }
       
-      if (bookDetails.genre && !watch('genre').trim()) {
+      if (bookDetails.genre && !(watch('genre') || '').trim()) {
         setValue('genre', bookDetails.genre);
         newAutoFilledFields.add('genre');
       }
       
-      if (bookDetails.description && !watch('description').trim()) {
+      if (bookDetails.description && !(watch('description') || '').trim()) {
         setValue('description', bookDetails.description);
         newAutoFilledFields.add('description');
       }
       
-      if (bookDetails.isbn && !watch('isbn').trim()) {
+      if (bookDetails.isbn && !(watch('isbn') || '').trim()) {
         setValue('isbn', bookDetails.isbn);
         newAutoFilledFields.add('isbn');
       }
       
-      if (bookDetails.cover_image_url && !watch('cover_image_url').trim()) {
+      if (bookDetails.cover_image_url && !(watch('cover_image_url') || '').trim()) {
         setValue('cover_image_url', bookDetails.cover_image_url);
         newAutoFilledFields.add('cover_image_url');
       }
@@ -215,7 +215,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
       '& .MuiInputLabel-root': {
         color: 'success.main',
       },
-    } : {},
+    } : undefined,
     helperText: autoFilledFields.has(fieldName) 
       ? '✨ Auto-filled by AI' 
       : undefined,
