@@ -22,6 +22,15 @@ import {
   useTheme,
   useMediaQuery,
   Paper,
+  Pagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   DndContext,
@@ -60,6 +69,9 @@ import {
   CheckCircle as CompletedIcon,
   BookmarkBorder as WantToReadIcon,
   MoreVert as MoreVertIcon,
+  ViewModule as GridViewIcon,
+  ViewList as TableViewIcon,
+  DragIndicator as DragIcon,
 } from '@mui/icons-material';
 import { Book, ReadingStatus, BookFilters } from '../../types';
 import { booksApi, bookHelpers } from '../../services/booksApi';
@@ -78,6 +90,7 @@ const BooksManagement: React.FC = () => {
   const [totalBooks, setTotalBooks] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   
   // Filter and search state
   const [selectedTab, setSelectedTab] = useState<number>(0);
@@ -85,6 +98,7 @@ const BooksManagement: React.FC = () => {
   const [sortBy, setSortBy] = useState<'title' | 'author' | 'updated_at' | 'created_at' | 'progress'>('updated_at');
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [isDragMode, setIsDragMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -158,7 +172,7 @@ const BooksManagement: React.FC = () => {
       
       const params = {
         page: currentPage,
-        page_size: 20,
+        page_size: pageSize,
         ...(tabs[selectedTab].status && { reading_status: tabs[selectedTab].status }),
         ...(searchTerm && { search: searchTerm }),
       };
@@ -182,7 +196,17 @@ const BooksManagement: React.FC = () => {
   // Effects
   useEffect(() => {
     loadBooks();
-  }, [selectedTab, searchTerm, currentPage, sortBy]);
+  }, [selectedTab, searchTerm, currentPage, sortBy, viewMode, pageSize]);
+  
+  // Update page size when view mode changes
+  useEffect(() => {
+    if (viewMode === 'table') {
+      setPageSize(50);
+    } else {
+      setPageSize(20);
+    }
+    setCurrentPage(1); // Reset to first page when changing view
+  }, [viewMode]);
 
   // Event handlers
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -474,6 +498,104 @@ const BooksManagement: React.FC = () => {
     return <DraggableBookCard key={book.id} book={book} />;
   };
 
+  // Render table view
+  const renderTableView = () => {
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Cover</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Author</TableCell>
+              <TableCell>Genre</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Pages</TableCell>
+              <TableCell>Year</TableCell>
+              <TableCell align="center">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {books.map((book) => (
+              <TableRow key={book.id} hover>
+                <TableCell sx={{ width: 60 }}>
+                  {book.cover_image_url ? (
+                    <img
+                      src={book.cover_image_url}
+                      alt={book.title}
+                      style={{
+                        width: 40,
+                        height: 60,
+                        objectFit: 'cover',
+                        borderRadius: 4,
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 60,
+                        bgcolor: 'grey.200',
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <BookIcon sx={{ color: 'grey.500' }} />
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                    {book.title}
+                  </Typography>
+                  {book.is_favorite && (
+                    <StarIcon sx={{ fontSize: 16, color: 'warning.main', ml: 0.5 }} />
+                  )}
+                </TableCell>
+                <TableCell>{book.author}</TableCell>
+                <TableCell>{book.genre || '-'}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={bookHelpers.getReadingStatusLabel(book.reading_status)}
+                    color={bookHelpers.getReadingStatusColor(book.reading_status)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{book.pages || '-'}</TableCell>
+                <TableCell>{book.publication_year || '-'}</TableCell>
+                <TableCell align="center">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleEditBook(book)}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleToggleFavorite(book)}
+                  >
+                    {book.is_favorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      setBookMenuAnchorEl(e.currentTarget);
+                      setMenuBook(book);
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
   return (
     <Box sx={{ width: '100%', minHeight: '100vh' }}>
       {/* Header */}
@@ -509,15 +631,31 @@ const BooksManagement: React.FC = () => {
       {/* Controls */}
       <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-          <Button
-            variant={isDragMode ? 'contained' : 'outlined'}
-            onClick={() => setIsDragMode(!isDragMode)}
-            sx={{ textTransform: 'none' }}
-          >
-            {isDragMode ? '📚 Drag Mode: ON' : '🖱️ Enable Drag Mode'}
-          </Button>
+          {viewMode === 'grid' && (
+            <Button
+              variant={isDragMode ? 'contained' : 'outlined'}
+              onClick={() => setIsDragMode(!isDragMode)}
+              sx={{ textTransform: 'none' }}
+            >
+              {isDragMode ? '📚 Drag Mode: ON' : '🖱️ Enable Drag Mode'}
+            </Button>
+          )}
           
           <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(e, newMode) => newMode && setViewMode(newMode)}
+              size="small"
+            >
+              <ToggleButton value="grid">
+                <GridViewIcon fontSize="small" />
+              </ToggleButton>
+              <ToggleButton value="table">
+                <TableViewIcon fontSize="small" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+            
             <IconButton
               onClick={(e) => setFilterAnchorEl(e.currentTarget)}
               color={filterAnchorEl ? 'primary' : 'default'}
@@ -586,7 +724,11 @@ const BooksManagement: React.FC = () => {
                 Add Your First Book
               </Button>
             </Box>
+          ) : viewMode === 'table' ? (
+            // Table view
+            renderTableView()
           ) : (
+            // Grid view with drag and drop
             <DndContext
               sensors={sensors}
               collisionDetection={closestCorners}
@@ -648,12 +790,41 @@ const BooksManagement: React.FC = () => {
             </DndContext>
           )}
           
-          {/* Stats */}
-          {totalBooks > 0 && (
-            <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" align="center">
-                Showing {books.length} of {totalBooks} books
-              </Typography>
+          {/* Pagination */}
+          {(totalPages > 1 || totalBooks > 0) && (
+            <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              {totalPages > 1 && (
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={(event, page) => setCurrentPage(page)}
+                  color="primary"
+                  size={isMobile ? 'small' : 'medium'}
+                  showFirstButton
+                  showLastButton
+                />
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Page {currentPage} of {totalPages} • Showing {books.length} of {totalBooks} books
+                </Typography>
+                {viewMode === 'table' && (
+                  <TextField
+                    select
+                    size="small"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    sx={{ width: 100 }}
+                  >
+                    <MenuItem value={20}>20 per page</MenuItem>
+                    <MenuItem value={50}>50 per page</MenuItem>
+                    <MenuItem value={100}>100 per page</MenuItem>
+                  </TextField>
+                )}
+              </Box>
             </Box>
           )}
         </>
