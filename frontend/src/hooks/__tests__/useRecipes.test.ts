@@ -424,7 +424,7 @@ describe('useRecipes', () => {
     });
 
     test('should handle rating creation errors', async () => {
-      const error = { response: { status: 400, data: { detail: 'User has already rated this recipe' } } };
+      const error = { response: { status: 400, data: { detail: 'User has already rated this recipe' } }, message: 'Request failed' };
       mockApiRequest.mockRejectedValue(error);
       const { result } = renderHook(() => useRecipes());
 
@@ -515,22 +515,31 @@ describe('useRecipes', () => {
     });
 
     test('should add recommendation to meal plan', async () => {
+      // Ensure localStorage has token
+      localStorageMock.getItem.mockReturnValue('mock-token');
+      
       mockApiRequest
         .mockResolvedValueOnce(mockRecipe) // saveRecommendationAsRecipe call
         .mockResolvedValueOnce(undefined); // addRecipeToMealPlan call
       const { result } = renderHook(() => useRecipes());
 
       let success = false;
+      let error: string | null = null;
       await act(async () => {
         success = await result.current.addRecommendationToMealPlan(mockRecommendation, '2024-01-15', 'lunch');
+        error = result.current.error;
       });
+
+      console.log('Test debug - success:', success);
+      console.log('Test debug - error:', error);
+      console.log('Test debug - API calls:', mockApiRequest.mock.calls.length);
 
       expect(success).toBe(true);
       expect(mockApiRequest).toHaveBeenCalledTimes(2);
     });
 
     test('should handle meal plan errors', async () => {
-      const error = { response: { status: 400 } };
+      const error = { response: { status: 400 }, message: 'Request failed' };
       mockApiRequest.mockRejectedValue(error);
       const { result } = renderHook(() => useRecipes());
 

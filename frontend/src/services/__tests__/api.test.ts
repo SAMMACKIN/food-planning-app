@@ -5,7 +5,7 @@ import { apiDebugger } from '../../utils/debugApi';
 // Mock apiDebugger
 jest.mock('../../utils/debugApi', () => ({
   apiDebugger: {
-    startRequest: jest.fn().mockReturnValue('mock-request-id'),
+    startRequest: jest.fn(() => 'mock-request-id'),
     endRequest: jest.fn(),
     cancelRequest: jest.fn(),
   },
@@ -69,6 +69,9 @@ describe('API Service', () => {
     localStorageMock.getItem.mockReturnValue(null);
     consoleMock.log.mockClear();
     consoleMock.error.mockClear();
+    
+    // Reset the API debugger mock
+    mockApiDebugger.startRequest.mockReturnValue('mock-request-id');
   });
 
   afterAll(() => {

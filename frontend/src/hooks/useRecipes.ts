@@ -57,7 +57,7 @@ export const useRecipes = () => {
         errorMessage = 'Recipes endpoint not found. This might be a deployment issue.';
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error. Please try again later.';
-      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      } else if (error.code === 'ECONNREFUSED' || (error.message && error.message.includes('Network Error'))) {
         errorMessage = 'Cannot connect to server. Please check your connection.';
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
@@ -90,7 +90,10 @@ export const useRecipes = () => {
       console.log('✅ Recipe saved successfully:', savedRecipe);
       
       // Add to local state
-      setSavedRecipes(prev => [savedRecipe, ...prev]);
+      setSavedRecipes(prev => {
+        const currentRecipes = Array.isArray(prev) ? prev : [];
+        return [savedRecipe, ...currentRecipes];
+      });
       
       return savedRecipe;
     } catch (error: any) {
@@ -114,7 +117,7 @@ export const useRecipes = () => {
         errorMessage = 'Invalid recipe data. Please check all fields.';
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error. Please try again later.';
-      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      } else if (error.code === 'ECONNREFUSED' || (error.message && error.message.includes('Network Error'))) {
         errorMessage = 'Cannot connect to server. Please check if the backend is running.';
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
@@ -163,7 +166,10 @@ export const useRecipes = () => {
       await apiRequest('DELETE', `/recipes/${recipeId}`);
       
       // Remove from local state
-      setSavedRecipes(prev => prev.filter(recipe => recipe.id !== recipeId));
+      setSavedRecipes(prev => {
+        const currentRecipes = Array.isArray(prev) ? prev : [];
+        return currentRecipes.filter(recipe => recipe.id !== recipeId);
+      });
       
       return true;
     } catch (error: any) {
@@ -182,9 +188,12 @@ export const useRecipes = () => {
       console.log('✅ Recipe updated successfully:', updatedRecipe);
       
       // Update local state
-      setSavedRecipes(prev => prev.map(recipe => 
-        recipe.id === recipeId ? updatedRecipe : recipe
-      ));
+      setSavedRecipes(prev => {
+        const currentRecipes = Array.isArray(prev) ? prev : [];
+        return currentRecipes.map(recipe => 
+          recipe.id === recipeId ? updatedRecipe : recipe
+        );
+      });
       
       return updatedRecipe;
     } catch (error: any) {
@@ -328,7 +337,7 @@ export const useRecipes = () => {
         errorMessage = 'Invalid meal plan data or slot already occupied.';
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error. Please try again later.';
-      } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      } else if (error.code === 'ECONNREFUSED' || (error.message && error.message.includes('Network Error'))) {
         errorMessage = 'Cannot connect to server. Please check if the backend is running.';
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
