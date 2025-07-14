@@ -175,6 +175,15 @@ def create_app() -> FastAPI:
             router_status["books"] = f"❌ Failed: {e}"
             logger.error(f"❌ Books router error: {e}")
         
+        try:
+            from .api import movies
+            app.include_router(movies.router, prefix="/api/v1/movies", tags=["movies"])
+            router_status["movies"] = "✅ Success"
+            logger.info(f"🎬 Movies router registered at: /api/v1/movies")
+        except Exception as e:
+            router_status["movies"] = f"❌ Failed: {e}"
+            logger.error(f"❌ Movies router error: {e}")
+        
         # Migration endpoints for database schema updates
         try:
             from .api import migrate

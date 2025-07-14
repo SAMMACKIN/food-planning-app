@@ -389,3 +389,79 @@ export interface BookFilters {
   is_favorite?: boolean;
   search?: string;
 }
+
+// Movies and Content Types
+export type ViewingStatus = 'want_to_watch' | 'watched';
+
+export interface Movie {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  genre?: string;
+  director?: string;
+  release_year?: number;
+  runtime?: number; // minutes
+  poster_image_url?: string;
+  tmdb_id?: string;
+  imdb_id?: string;
+  omdb_id?: string;
+  viewing_status: ViewingStatus;
+  date_watched?: string;
+  user_notes?: string;
+  is_favorite: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MovieCreate {
+  title: string;
+  description?: string;
+  genre?: string;
+  director?: string;
+  release_year?: number;
+  runtime?: number;
+  poster_image_url?: string;
+  tmdb_id?: string;
+  imdb_id?: string;
+  omdb_id?: string;
+  viewing_status?: ViewingStatus;
+  date_watched?: string;
+  user_notes?: string;
+  is_favorite?: boolean;
+  source?: string;
+}
+
+export interface MovieUpdate {
+  title?: string;
+  description?: string;
+  genre?: string;
+  director?: string;
+  release_year?: number;
+  runtime?: number;
+  poster_image_url?: string;
+  tmdb_id?: string;
+  imdb_id?: string;
+  omdb_id?: string;
+  viewing_status?: ViewingStatus;
+  date_watched?: string;
+  user_notes?: string;
+  is_favorite?: boolean;
+  source?: string;
+}
+
+export interface MovieListResponse {
+  movies: Movie[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface MovieFilters {
+  viewing_status?: ViewingStatus;
+  genre?: string;
+  is_favorite?: boolean;
+  search?: string;
+}
