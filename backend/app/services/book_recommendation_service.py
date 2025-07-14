@@ -99,9 +99,14 @@ class BookRecommendationService:
             print(f"❌ Error details: {str(e)}")
             import traceback
             traceback.print_exc()
-            # Return fallback recommendations
-            print("⚠️ Returning fallback recommendations due to AI error")
-            return await self._get_fallback_recommendations(request, session_id)
+            
+            # Return empty recommendations with error message
+            return BookRecommendationResponse(
+                recommendations=[],
+                session_id=session_id,
+                context_summary=f"Unable to generate recommendations: {str(e)}",
+                total_recommendations=0
+            )
     
     async def process_feedback(
         self,
@@ -467,45 +472,6 @@ Format your response as JSON:
         
         return ". ".join(summary_parts) + "."
     
-    async def _get_fallback_recommendations(
-        self, 
-        request: BookRecommendationRequest, 
-        session_id: str
-    ) -> BookRecommendationResponse:
-        """
-        Provide fallback recommendations when AI fails
-        """
-        fallback_books = [
-            {
-                "title": "The Seven Husbands of Evelyn Hugo",
-                "author": "Taylor Jenkins Reid",
-                "genre": "Contemporary Fiction",
-                "description": "A reclusive Hollywood icon finally tells her story to a young journalist.",
-                "reasoning": "Popular contemporary fiction with broad appeal",
-                "publication_year": 2017,
-                "pages": 400,
-                "confidence_score": 0.7
-            },
-            {
-                "title": "Educated",
-                "author": "Tara Westover",
-                "genre": "Memoir",
-                "description": "A memoir about education, family, and the struggle for self-invention.",
-                "reasoning": "Critically acclaimed memoir with universal themes",
-                "publication_year": 2018,
-                "pages": 334,
-                "confidence_score": 0.8
-            }
-        ]
-        
-        recommendations = [BookRecommendation(**book) for book in fallback_books[:request.max_recommendations]]
-        
-        return BookRecommendationResponse(
-            recommendations=recommendations,
-            session_id=session_id,
-            context_summary="General popular recommendations",
-            total_recommendations=len(recommendations)
-        )
     
     def _book_to_dict(self, book: Book) -> Dict[str, Any]:
         """

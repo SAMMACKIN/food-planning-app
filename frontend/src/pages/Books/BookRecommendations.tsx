@@ -76,6 +76,7 @@ const BookRecommendations: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState<string | null>(null);
+  const [totalBooks, setTotalBooks] = useState<number>(0);
   
   // Settings
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -98,7 +99,25 @@ const BookRecommendations: React.FC = () => {
   // Load recommendations on component mount
   useEffect(() => {
     loadRecommendations();
+    fetchBookCount();
   }, []);
+
+  const fetchBookCount = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books?page_size=1`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTotalBooks(data.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching book count:', error);
+    }
+  };
 
   const loadRecommendations = async () => {
     try {
@@ -502,11 +521,22 @@ const BookRecommendations: React.FC = () => {
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <AIIcon sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No recommendations available
+            Unable to Generate Recommendations
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Add some books to your collection first, and we'll generate personalized recommendations for you!
+            {contextSummary && contextSummary.includes('Unable to generate') 
+              ? contextSummary 
+              : 'The AI service is currently unavailable. Please check that AI providers are configured.'}
           </Typography>
+          {totalBooks === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              You also need to add some books to your collection first.
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              You have {totalBooks} books in your collection. Once the AI service is working, we'll use these to generate personalized recommendations.
+            </Typography>
+          )}
           <Button
             variant="contained"
             onClick={handleRegenerateRecommendations}

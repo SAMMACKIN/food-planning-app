@@ -696,3 +696,59 @@ async def import_goodreads_library(
     except Exception as e:
         logger.error(f"❌ Goodreads import error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import Goodreads library: {str(e)}")
+
+
+@router.get("/recommendations/test-ai")
+async def test_ai_providers(
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """
+    Test AI provider availability and configuration
+    """
+    from ..services.book_recommendation_service import book_recommendation_service
+    
+    result = {
+        "ai_service_available": book_recommendation_service.ai is not None,
+        "providers": {}
+    }
+    
+    if book_recommendation_service.ai:
+        ai = book_recommendation_service.ai
+        
+        # Check Groq
+        if hasattr(ai, 'groq_client'):
+            result["providers"]["groq"] = {
+                "available": ai.groq_client is not None,
+                "status": "configured" if ai.groq_client else "not configured"
+            }
+        
+        # Check Claude
+        if hasattr(ai, 'claude_client'):
+            result["providers"]["claude"] = {
+                "available": ai.claude_client is not None,
+                "status": "configured" if ai.claude_client else "not configured"
+            }
+        
+        # Check Perplexity
+        if hasattr(ai, 'perplexity_api_key'):
+            result["providers"]["perplexity"] = {
+                "available": ai.perplexity_api_key is not None,
+                "status": "configured" if ai.perplexity_api_key else "not configured"
+            }
+    
+    # Test a simple AI call
+    try:
+        test_prompt = "Say 'Hello World' in JSON format with a key called 'message'"
+        response = await book_recommendation_service.ai.get_ai_response(test_prompt)
+        result["test_response"] = {
+            "success": True,
+            "response_length": len(response),
+            "response_preview": response[:100]
+        }
+    except Exception as e:
+        result["test_response"] = {
+            "success": False,
+            "error": str(e)
+        }
+    
+    return result
