@@ -558,8 +558,8 @@ const BooksManagement: React.FC = () => {
                 <TableCell>{book.genre || '-'}</TableCell>
                 <TableCell>
                   <Chip
-                    label={bookHelpers.getReadingStatusLabel(book.reading_status)}
-                    color={bookHelpers.getReadingStatusColor(book.reading_status)}
+                    label={bookHelpers.getStatusDisplayText(book.reading_status)}
+                    color={bookHelpers.getStatusColor(book.reading_status)}
                     size="small"
                   />
                 </TableCell>
