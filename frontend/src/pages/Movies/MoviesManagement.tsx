@@ -200,7 +200,7 @@ const MoviesManagement: React.FC = () => {
 
   // Render functions
   const renderMovieCard = (movie: Movie) => (
-    <Grid item xs={12} sm={6} md={4} lg={3} key={movie.id}>
+    <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={movie.id}>
       <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {movie.poster_image_url && (
           <CardMedia
@@ -405,13 +405,13 @@ const MoviesManagement: React.FC = () => {
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Favorites</InputLabel>
           <Select
-            value={favoriteFilter}
+            value={favoriteFilter === '' ? '' : String(favoriteFilter)}
             label="Favorites"
-            onChange={(e) => setFavoriteFilter(e.target.value as boolean | '')}
+            onChange={(e) => setFavoriteFilter(e.target.value === '' ? '' : e.target.value === 'true')}
           >
             <MenuItem value="">All</MenuItem>
-            <MenuItem value={true}>Favorites</MenuItem>
-            <MenuItem value={false}>Not Favorites</MenuItem>
+            <MenuItem value="true">Favorites</MenuItem>
+            <MenuItem value="false">Not Favorites</MenuItem>
           </Select>
         </FormControl>
         <Button
