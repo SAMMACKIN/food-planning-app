@@ -59,6 +59,7 @@ import { Movie, MovieCreate, MovieUpdate, ViewingStatus } from '../../types';
 import { moviesApi, movieHelpers } from '../../services/moviesApi';
 import AddMovieDialog from './AddMovieDialog';
 import EditMovieDialog from './EditMovieDialog';
+import NetflixImportDialog from './NetflixImportDialog';
 
 type ViewMode = 'grid' | 'table';
 
@@ -84,6 +85,7 @@ const MoviesManagement: React.FC = () => {
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   
   // Menu state
@@ -368,6 +370,12 @@ const MoviesManagement: React.FC = () => {
           >
             Add Movie
           </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setImportDialogOpen(true)}
+          >
+            Import from Netflix
+          </Button>
         </Box>
       </Box>
 
@@ -572,6 +580,16 @@ const MoviesManagement: React.FC = () => {
         }}
         onSave={handleUpdateMovie}
         movie={selectedMovie}
+      />
+
+      {/* Netflix Import Dialog */}
+      <NetflixImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImportComplete={() => {
+          setImportDialogOpen(false);
+          loadMovies();
+        }}
       />
     </Box>
   );

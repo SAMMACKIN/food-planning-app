@@ -15,6 +15,7 @@ from ..schemas.movies import (
     MovieCreate, MovieUpdate, MovieResponse, MovieListResponse, MovieFilters, ViewingStatus,
     MovieDetailsRequest, MovieDetailsResponse
 )
+from ..services.netflix_import_service import netflix_import_service
 from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["movies"])
@@ -447,3 +448,64 @@ async def fetch_movie_details(
     except Exception as e:
         logger.error(f"❌ Fetch movie details error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch movie details: {str(e)}")
+
+
+@router.post("/import/netflix")
+async def import_netflix_history(
+    file: UploadFile = File(...),
+    import_movies: bool = Query(True, description="Import movies from Netflix history"),
+    import_tv_shows: bool = Query(True, description="Import TV shows from Netflix history"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """
+    Import viewing history from Netflix CSV export
+    
+    To get your Netflix viewing history:
+    1. Go to Netflix.com and sign in
+    2. Click on your profile icon → Account
+    3. Under "Profile & Parental Controls", select your profile
+    4. Click "Viewing activity"
+    5. Click "Download all" at the bottom of the page
+    6. Upload the downloaded CSV file here
+    
+    The CSV should have columns: Title, Date
+    """
+    try:
+        logger.info(f"📺 Netflix import started for user: {current_user['id']}")
+        
+        # Check file type
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="Please upload a CSV file")
+        
+        # Read file content
+        content = await file.read()
+        try:
+            csv_content = content.decode('utf-8-sig')  # Handle BOM if present
+        except UnicodeDecodeError:
+            try:
+                csv_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                csv_content = content.decode('latin-1')
+        
+        # Import using service
+        result = await netflix_import_service.import_viewing_history(
+            user_id=current_user["id"],
+            csv_content=csv_content,
+            db=db,
+            import_movies=import_movies,
+            import_tv_shows=import_tv_shows
+        )
+        
+        if result['success']:
+            logger.info(f"✅ Netflix import completed: {result['movies_imported']} movies, {result['tv_shows_imported']} TV shows imported")
+        else:
+            logger.error(f"❌ Netflix import failed: {result['message']}")
+            
+        return JSONResponse(content=result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Netflix import error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import Netflix history: {str(e)}")
