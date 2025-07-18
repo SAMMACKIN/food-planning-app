@@ -67,8 +67,7 @@ const Layout: React.FC = () => {
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
     'Food & Recipes': true, // Food section expanded by default
     'Books': false,
-    'TV Shows': false,
-    'Movies': false,
+    'TV & Movies': false,
     'Other': false
   });
   
@@ -89,10 +88,9 @@ const Layout: React.FC = () => {
     // Books section
     if (location.pathname.includes('/books/recommendations')) return 7;
     if (location.pathname.includes('/books')) return 6;
-    // TV Shows section
+    // TV & Movies section
     if (location.pathname.includes('/tv-shows')) return 8;
-    // Movies section
-    if (location.pathname.includes('/movies')) return 9;
+    if (location.pathname.includes('/movies')) return 8;
     // Other sections
     if (location.pathname.includes('/user-guide')) return 10;
     if (location.pathname.includes('/changes')) return 11;
@@ -109,10 +107,8 @@ const Layout: React.FC = () => {
         location.pathname.includes('/meal-planning')) return 1;
     // Books section
     if (location.pathname.includes('/books')) return 2;
-    // TV Shows section
-    if (location.pathname.includes('/tv-shows')) return 3;
-    // Movies section
-    if (location.pathname.includes('/movies')) return 4;
+    // TV & Movies section
+    if (location.pathname.includes('/tv-shows') || location.pathname.includes('/movies')) return 3;
     return 0; // dashboard
   };
 
@@ -144,17 +140,11 @@ const Layout: React.FC = () => {
       ]
     },
     {
-      title: 'TV Shows',
+      title: 'TV & Movies',
       icon: <TVIcon />,
       items: [
-        { label: 'My Shows', icon: <TVIcon />, path: '/tv-shows' }
-      ]
-    },
-    {
-      title: 'Movies',
-      icon: <MovieIcon />,
-      items: [
-        { label: 'My Movies', icon: <MovieIcon />, path: '/movies' }
+        { label: 'My Collection', icon: <MovieIcon />, path: '/movies' },
+        { label: 'Recommendations', icon: <RecommendationsIcon />, path: '/movies/recommendations' }
       ]
     },
     {
@@ -175,8 +165,7 @@ const Layout: React.FC = () => {
     { label: 'Home', icon: <HomeIcon />, path: '/dashboard' },
     { label: 'Food', icon: <FoodIcon />, path: '/recipes' }, // Default to recipes as main food page
     { label: 'Books', icon: <BooksIcon />, path: '/books' },
-    { label: 'TV Shows', icon: <TVIcon />, path: '/tv-shows' },
-    { label: 'Movies', icon: <MovieIcon />, path: '/movies' }
+    { label: 'TV & Movies', icon: <TVIcon />, path: '/movies' }
   ];
 
   // Secondary items for drawer (non-primary content)

@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SavedRecipes from '../SavedRecipes';
 import { useRecipes } from '../../../hooks/useRecipes';
@@ -14,19 +13,28 @@ jest.mock('../../../services/api');
 
 // Mock recipe components
 jest.mock('../../../components/Recipe/RecipeInstructions', () => {
-  return function MockRecipeInstructions({ recipe }: { recipe: any }) {
-    return <div data-testid="recipe-instructions">{recipe.name} Instructions</div>;
+  return function MockRecipeInstructions({ instructions, prepTime }: { instructions: string[]; prepTime: number }) {
+    return (
+      <div data-testid="recipe-instructions">
+        <div>Prep time: {prepTime} minutes</div>
+        {instructions.map((instruction, index) => (
+          <div key={index}>{instruction}</div>
+        ))}
+      </div>
+    );
   };
 });
 
 jest.mock('../../../components/Recipe/CreateRecipeForm', () => {
-  return function MockCreateRecipeForm({ onSave, onCancel, editRecipe }: any) {
+  return function MockCreateRecipeForm({ open, onClose, onSave, initialData, isEdit }: any) {
+    if (!open) return null;
     return (
       <div data-testid="create-recipe-form">
-        <button onClick={() => onSave({ name: editRecipe?.name || 'New Recipe' })}>
+        <div>{isEdit ? 'Edit Recipe' : 'Create Recipe'}</div>
+        <button onClick={() => onSave({ name: initialData?.name || 'New Recipe' })}>
           Save Recipe
         </button>
-        <button onClick={onCancel}>Cancel</button>
+        <button onClick={onClose}>Cancel</button>
       </div>
     );
   };
@@ -139,57 +147,70 @@ describe('SavedRecipes', () => {
       loading: false,
       error: null,
     });
-    // Mock the health check API call
-    mockApiRequest.mockResolvedValue({ user_recipe_count: 2, status: 'healthy' });
+    // Mock the health check API call to resolve immediately
+    mockApiRequest.mockImplementation((method, endpoint) => {
+      if (endpoint === '/recipes/debug/health') {
+        return Promise.resolve({ user_recipe_count: 2, status: 'healthy' });
+      }
+      return Promise.resolve({});
+    });
   });
 
-  const renderSavedRecipes = () => {
-    return render(<SavedRecipes />);
+  const renderSavedRecipes = async () => {
+    let result;
+    await act(async () => {
+      result = render(<SavedRecipes />);
+    });
+    // Wait for the health check to complete
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith('GET', '/recipes/debug/health');
+    });
+    return result!;
   };
 
   describe('Component Rendering', () => {
-    test('should render saved recipes page', () => {
-      renderSavedRecipes();
+    test('should render saved recipes page', async () => {
+      await renderSavedRecipes();
 
       expect(screen.getByText('Saved Recipes')).toBeInTheDocument();
       expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument();
       expect(screen.getByText('Chicken Salad')).toBeInTheDocument();
     });
 
-    test('should display loading state', () => {
+    test('should display loading state', async () => {
       mockUseRecipes.mockReturnValue({
         ...mockRecipeHooks,
         loading: true,
         savedRecipes: [],
       });
 
-      renderSavedRecipes();
+      await renderSavedRecipes();
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    test('should display error state', () => {
+    test('should display error state', async () => {
       mockUseRecipes.mockReturnValue({
         ...mockRecipeHooks,
         error: 'Failed to load recipes',
         savedRecipes: [],
       });
 
-      renderSavedRecipes();
+      await renderSavedRecipes();
       expect(screen.getByText('Failed to load recipes')).toBeInTheDocument();
     });
 
-    test('should display empty state when no recipes', () => {
+    test('should display empty state when no recipes', async () => {
       mockUseRecipes.mockReturnValue({
         ...mockRecipeHooks,
         savedRecipes: [],
       });
 
-      renderSavedRecipes();
+      await renderSavedRecipes();
       expect(screen.getByText("You haven't saved any recipes yet. Go to Recommendations to find and save some recipes!")).toBeInTheDocument();
     });
 
-    test('should display recipe cards with correct information', () => {
-      renderSavedRecipes();
+    test('should display recipe cards with correct information', async () => {
+      await renderSavedRecipes();
 
       // Check Pasta Carbonara card
       const pastaCard = screen.getByText('Pasta Carbonara').closest('[class*="MuiCard"]');
@@ -203,28 +224,31 @@ describe('SavedRecipes', () => {
     });
 
     test('should display health status', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       await waitFor(() => {
         expect(screen.getByText(/✅ Healthy - 2 recipes found/)).toBeInTheDocument();
-      }, { timeout: 2000 });
+      });
     });
   });
 
   describe('Recipe Actions', () => {
     test('should open recipe details dialog when View is clicked', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       const viewButtons = screen.getAllByText('View Recipe');
       fireEvent.click(viewButtons[0]);
 
       await waitFor(() => {
         expect(screen.getByTestId('recipe-instructions')).toBeInTheDocument();
+        // Verify the RecipeInstructions component receives correct props
+        expect(screen.getByText('Prep time: 30 minutes')).toBeInTheDocument();
+        expect(screen.getByText('Cook pasta')).toBeInTheDocument();
       });
     });
 
     test('should open menu when more options button is clicked', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       const moreButtons = screen.getAllByRole('button', { name: '' });
       const moreButton = moreButtons.find(button => 
@@ -242,7 +266,7 @@ describe('SavedRecipes', () => {
 
     test('should delete recipe when delete is confirmed', async () => {
       mockRecipeHooks.deleteRecipe.mockResolvedValue(true);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -260,7 +284,7 @@ describe('SavedRecipes', () => {
     });
 
     test('should open edit dialog when Edit Recipe is clicked', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -274,12 +298,15 @@ describe('SavedRecipes', () => {
         fireEvent.click(screen.getByText('Edit Recipe'));
       });
 
-      expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
+        expect(screen.getByText('Edit Recipe')).toBeInTheDocument();
+      });
     });
 
     test('should open rating dialog when Rate Recipe is clicked', async () => {
       mockRecipeHooks.getRecipeRatings.mockResolvedValue([]);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -301,49 +328,60 @@ describe('SavedRecipes', () => {
 
   describe('Search and Filtering', () => {
     test('should search recipes by name', async () => {
-      const user = userEvent.setup();
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       const searchInput = screen.getByLabelText('Search recipes');
-      await user.type(searchInput, 'pasta');
+      fireEvent.change(searchInput, { target: { value: 'pasta' } });
 
       // Trigger search
       fireEvent.click(screen.getByText('Search'));
 
-      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('pasta', '', undefined);
+      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('pasta', '');
     });
 
     test('should filter recipes by difficulty', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
-      // Open difficulty filter
-      const difficultySelect = screen.getByLabelText('Difficulty');
+      // Find the select element by its role
+      const difficultySelect = screen.getByRole('combobox');
       fireEvent.mouseDown(difficultySelect);
 
-      // Select easy
-      const listbox = within(document.body).getByRole('listbox');
-      fireEvent.click(within(listbox).getByText('easy'));
+      // Wait for listbox to appear
+      await waitFor(() => {
+        const listbox = screen.getByRole('listbox');
+        expect(listbox).toBeInTheDocument();
+      });
 
-      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('', 'easy', undefined);
+      // Select Easy option
+      const listbox = screen.getByRole('listbox');
+      const easyOption = within(listbox).getByText('Easy');
+      fireEvent.click(easyOption);
+
+      // The filter triggers immediately on selection
+      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('', 'Easy');
     });
 
-    test('should clear error when clear error button is clicked', () => {
+    test('should clear error when clear error button is clicked', async () => {
       mockUseRecipes.mockReturnValue({
         ...mockRecipeHooks,
         error: 'Some error',
       });
 
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
-      const alert = screen.getByRole('alert');
-      const closeButton = within(alert).getByRole('button');
+      // Find the error alert specifically by looking for the error text
+      const errorAlert = screen.getByText('Some error').closest('[role="alert"]');
+      expect(errorAlert).toBeInTheDocument();
+      
+      // Find the close button within the error alert
+      const closeButton = within(errorAlert!).getByRole('button', { name: /close/i });
       fireEvent.click(closeButton);
 
       expect(mockRecipeHooks.clearError).toHaveBeenCalled();
     });
 
-    test('should refresh recipes when refresh button is clicked', () => {
-      renderSavedRecipes();
+    test('should refresh recipes when refresh button is clicked', async () => {
+      await renderSavedRecipes();
 
       const refreshButton = screen.getByRole('button', { name: /refresh/i });
       fireEvent.click(refreshButton);
@@ -353,21 +391,33 @@ describe('SavedRecipes', () => {
   });
 
   describe('Recipe Creation', () => {
-    test('should open create recipe dialog when Create Recipe button is clicked', () => {
-      renderSavedRecipes();
+    test('should open create recipe dialog when Create Recipe button is clicked', async () => {
+      await renderSavedRecipes();
 
-      const createButton = screen.getByText('Create Recipe');
+      // Find the Create Recipe button (not the dialog title)
+      const createButtons = screen.getAllByText('Create Recipe');
+      const createButton = createButtons[0]; // The button in the header
       fireEvent.click(createButton);
 
-      expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
+        // Check for the presence of the form, not the duplicate text
+        expect(screen.getByText('Save Recipe')).toBeInTheDocument();
+      });
     });
 
     test('should save new recipe when form is submitted', async () => {
       mockRecipeHooks.saveRecipe.mockResolvedValue(mockRecipes[0]);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open create dialog
-      fireEvent.click(screen.getByText('Create Recipe'));
+      const createButton = screen.getByText('Create Recipe');
+      fireEvent.click(createButton);
+
+      // Wait for form to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
+      });
 
       // Submit form
       const saveButton = screen.getByText('Save Recipe');
@@ -380,7 +430,7 @@ describe('SavedRecipes', () => {
 
     test('should update existing recipe when edit form is submitted', async () => {
       mockRecipeHooks.updateRecipe.mockResolvedValue(mockRecipes[0]);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu and edit
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -391,6 +441,11 @@ describe('SavedRecipes', () => {
 
       await waitFor(() => {
         fireEvent.click(screen.getByText('Edit Recipe'));
+      });
+
+      // Wait for form to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('create-recipe-form')).toBeInTheDocument();
       });
 
       // Submit form
@@ -407,7 +462,7 @@ describe('SavedRecipes', () => {
     test('should create new rating when submitted', async () => {
       mockRecipeHooks.getRecipeRatings.mockResolvedValue([]);
       mockRecipeHooks.createRecipeRating.mockResolvedValue(mockRating);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu and rate
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -435,7 +490,7 @@ describe('SavedRecipes', () => {
     test('should update existing rating when user has already rated', async () => {
       mockRecipeHooks.getRecipeRatings.mockResolvedValue([mockRating]);
       mockRecipeHooks.updateRecipeRating.mockResolvedValue(mockRating);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu and rate
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -461,16 +516,16 @@ describe('SavedRecipes', () => {
   describe('Error Handling', () => {
     test('should handle API errors gracefully', async () => {
       mockApiRequest.mockRejectedValue(new Error('Network error'));
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       await waitFor(() => {
         expect(screen.getByText(/❌ Unhealthy - Network Error/)).toBeInTheDocument();
-      }, { timeout: 2000 });
+      });
     });
 
     test('should handle recipe deletion errors', async () => {
       mockRecipeHooks.deleteRecipe.mockResolvedValue(false);
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Try to delete a recipe
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -488,15 +543,15 @@ describe('SavedRecipes', () => {
   });
 
   describe('Responsive Design', () => {
-    test('should render grid layout properly', () => {
-      renderSavedRecipes();
+    test('should render grid layout properly', async () => {
+      await renderSavedRecipes();
 
       // Check for the grid container by its class or structure
       const gridElements = document.querySelectorAll('[class*="Grid"]');
       expect(gridElements.length).toBeGreaterThan(0);
     });
 
-    test('should handle mobile view', () => {
+    test('should handle mobile view', async () => {
       // Mock mobile viewport
       Object.defineProperty(window, 'innerWidth', {
         writable: true,
@@ -505,7 +560,7 @@ describe('SavedRecipes', () => {
       });
       window.dispatchEvent(new Event('resize'));
 
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Component should still render without errors
       expect(screen.getByText('Saved Recipes')).toBeInTheDocument();
@@ -514,22 +569,27 @@ describe('SavedRecipes', () => {
 
   describe('Dialog Management', () => {
     test('should close recipe details dialog when backdrop is clicked', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open dialog
-      const viewButton = screen.getByText('View Recipe');
+      const viewButton = screen.getAllByText('View Recipe')[0];
       fireEvent.click(viewButton);
 
       await waitFor(() => {
         expect(screen.getByTestId('recipe-instructions')).toBeInTheDocument();
       });
 
-      // Close dialog by clicking the close button would be here
-      // but since we're using a mock component, we can't test this easily
+      // Since we're testing the real Dialog component, find and click the close button
+      const closeButton = screen.getByText('Close');
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('recipe-instructions')).not.toBeInTheDocument();
+      });
     });
 
     test('should close menus when clicking away', async () => {
-      renderSavedRecipes();
+      await renderSavedRecipes();
 
       // Open menu
       const moreButtons = screen.getAllByRole('button', { name: '' });
@@ -542,8 +602,14 @@ describe('SavedRecipes', () => {
         expect(screen.getByText('Edit Recipe')).toBeInTheDocument();
       });
 
-      // Click away to close menu
-      fireEvent.click(document.body);
+      // Find and click the MUI backdrop to close menu
+      const backdrop = document.querySelector('.MuiBackdrop-root');
+      if (backdrop) {
+        fireEvent.click(backdrop);
+      } else {
+        // Fallback: press Escape key to close menu
+        fireEvent.keyDown(document.body, { key: 'Escape', code: 'Escape' });
+      }
 
       await waitFor(() => {
         expect(screen.queryByText('Edit Recipe')).not.toBeInTheDocument();

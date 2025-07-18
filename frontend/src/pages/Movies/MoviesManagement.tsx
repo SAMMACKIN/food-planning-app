@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -48,11 +49,13 @@ import {
   ViewList as TableViewIcon,
   ViewModule as GridViewIcon,
   Movie as MovieIcon,
+  Tv as TvIcon,
   Star as StarIcon,
   AccessTime as RuntimeIcon,
   CalendarToday as YearIcon,
   Person as DirectorIcon,
   Category as GenreIcon,
+  AutoAwesome as RecommendationsIcon,
 } from '@mui/icons-material';
 
 import { Movie, MovieCreate, MovieUpdate, ViewingStatus } from '../../types';
@@ -64,6 +67,8 @@ import NetflixImportDialog from './NetflixImportDialog';
 type ViewMode = 'grid' | 'table';
 
 const MoviesManagement: React.FC = () => {
+  const navigate = useNavigate();
+  
   // State for movies data
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,6 +86,7 @@ const MoviesManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ViewingStatus | ''>('');
   const [genreFilter, setGenreFilter] = useState('');
   const [favoriteFilter, setFavoriteFilter] = useState<boolean | ''>('');
+  const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'movie' | 'tv'>('all');
   
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -107,9 +113,18 @@ const MoviesManagement: React.FC = () => {
         search: searchTerm || undefined,
       });
       
-      setMovies(response.movies);
-      setTotal(response.total);
-      setTotalPages(response.total_pages);
+      // Filter by content type on frontend
+      let filteredMovies = response.movies;
+      if (contentTypeFilter !== 'all') {
+        filteredMovies = response.movies.filter(movie => {
+          const isTvShow = movie.genre === 'TV Series' || movie.source === 'netflix_import' && movie.title.includes(': Season');
+          return contentTypeFilter === 'tv' ? isTvShow : !isTvShow;
+        });
+      }
+      
+      setMovies(filteredMovies);
+      setTotal(filteredMovies.length);
+      setTotalPages(Math.ceil(filteredMovies.length / pageSize));
     } catch (err: any) {
       setError(err.message || 'Failed to load movies');
     } finally {
@@ -120,7 +135,7 @@ const MoviesManagement: React.FC = () => {
   // Effects
   useEffect(() => {
     loadMovies();
-  }, [page, pageSize, statusFilter, genreFilter, favoriteFilter]);
+  }, [page, pageSize, statusFilter, genreFilter, favoriteFilter, contentTypeFilter]);
 
   // Handlers
   const handleSearch = () => {
@@ -258,6 +273,15 @@ const MoviesManagement: React.FC = () => {
             {movie.genre && (
               <Chip size="small" label={movie.genre} variant="outlined" />
             )}
+            {(movie.genre === 'TV Series' || (movie.source === 'netflix_import' && movie.title.includes(': Season'))) && (
+              <Chip
+                label="TV"
+                icon={<TvIcon sx={{ fontSize: '0.875rem' }} />}
+                size="small"
+                color="secondary"
+                variant="filled"
+              />
+            )}
           </Box>
           
           {movie.description && (
@@ -283,6 +307,7 @@ const MoviesManagement: React.FC = () => {
           <TableRow>
             <TableCell>Poster</TableCell>
             <TableCell>Title</TableCell>
+            <TableCell>Type</TableCell>
             <TableCell>Director</TableCell>
             <TableCell>Genre</TableCell>
             <TableCell>Status</TableCell>
@@ -308,6 +333,23 @@ const MoviesManagement: React.FC = () => {
                 )}
               </TableCell>
               <TableCell>{movie.title}</TableCell>
+              <TableCell>
+                {(movie.genre === 'TV Series' || (movie.source === 'netflix_import' && movie.title.includes(': Season'))) ? (
+                  <Chip
+                    label="TV Show"
+                    icon={<TvIcon sx={{ fontSize: '0.875rem' }} />}
+                    size="small"
+                    color="secondary"
+                  />
+                ) : (
+                  <Chip
+                    label="Movie"
+                    icon={<MovieIcon sx={{ fontSize: '0.875rem' }} />}
+                    size="small"
+                    color="primary"
+                  />
+                )}
+              </TableCell>
               <TableCell>{movie.director || '-'}</TableCell>
               <TableCell>{movie.genre || '-'}</TableCell>
               <TableCell>
@@ -346,8 +388,8 @@ const MoviesManagement: React.FC = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <MovieIcon color="primary" />
-          Movies Collection
+          <TvIcon color="primary" />
+          TV & Movies
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <ToggleButtonGroup
@@ -368,7 +410,7 @@ const MoviesManagement: React.FC = () => {
             startIcon={<AddIcon />}
             onClick={() => setAddDialogOpen(true)}
           >
-            Add Movie
+            Add
           </Button>
           <Button
             variant="outlined"
@@ -376,11 +418,38 @@ const MoviesManagement: React.FC = () => {
           >
             Import from Netflix
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={<RecommendationsIcon />}
+            onClick={() => navigate('/movies/recommendations')}
+          >
+            Get Recommendations
+          </Button>
         </Box>
       </Box>
 
       {/* Filters */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Type</InputLabel>
+          <Select
+            value={contentTypeFilter}
+            label="Type"
+            onChange={(e) => setContentTypeFilter(e.target.value as 'all' | 'movie' | 'tv')}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="movie">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <MovieIcon fontSize="small" /> Movies
+              </Box>
+            </MenuItem>
+            <MenuItem value="tv">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <TvIcon fontSize="small" /> TV Shows
+              </Box>
+            </MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           label="Search movies"
           variant="outlined"
@@ -486,19 +555,19 @@ const MoviesManagement: React.FC = () => {
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <MovieIcon sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                No movies found
+                No {contentTypeFilter === 'tv' ? 'TV shows' : contentTypeFilter === 'movie' ? 'movies' : 'content'} found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {searchTerm || statusFilter || genreFilter || favoriteFilter !== ''
+                {searchTerm || statusFilter || genreFilter || favoriteFilter !== '' || contentTypeFilter !== 'all'
                   ? 'Try adjusting your filters or search term.'
-                  : 'Add your first movie to get started!'}
+                  : 'Add your first movie or TV show to get started!'}
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setAddDialogOpen(true)}
               >
-                Add Movie
+                Add {contentTypeFilter === 'tv' ? 'TV Show' : 'Movie'}
               </Button>
             </Box>
           )}

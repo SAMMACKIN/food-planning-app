@@ -16,6 +16,7 @@ from ..schemas.movies import (
     MovieDetailsRequest, MovieDetailsResponse
 )
 from ..services.netflix_import_service import netflix_import_service
+from ..services.movie_recommendation_service import movie_recommendation_service
 from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["movies"])
@@ -509,3 +510,43 @@ async def import_netflix_history(
     except Exception as e:
         logger.error(f"❌ Netflix import error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import Netflix history: {str(e)}")
+
+
+@router.get("/recommendations")
+async def get_movie_recommendations(
+    content_type: Optional[str] = Query(None, description="Filter by content type: 'movie' or 'tv'"),
+    genre: Optional[str] = Query(None, description="Filter by specific genre"),
+    limit: int = Query(10, ge=1, le=20, description="Number of recommendations"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """
+    Get AI-powered movie and TV show recommendations based on viewing history
+    
+    The recommendations consider:
+    - Your watched movies and TV shows
+    - Your ratings (highly rated content influences recommendations)
+    - Your favorite genres and directors
+    - Content you want to watch (to avoid duplicates)
+    """
+    try:
+        logger.info(f"🎬 Getting {content_type or 'movie/TV'} recommendations for user: {current_user['id']}")
+        
+        result = await movie_recommendation_service.get_recommendations(
+            user_id=current_user["id"],
+            db=db,
+            content_type=content_type,
+            genre_filter=genre,
+            limit=limit
+        )
+        
+        if result['success']:
+            logger.info(f"✅ Generated {len(result['recommendations'])} recommendations using {result.get('provider')}")
+        else:
+            logger.error(f"❌ Failed to generate recommendations: {result.get('error')}")
+            
+        return JSONResponse(content=result)
+        
+    except Exception as e:
+        logger.error(f"❌ Get recommendations error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recommendations: {str(e)}")

@@ -23,7 +23,8 @@
       "Bash(npm ls:*)",
       "Bash(cd:*)",
       "Bash(npm test:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(CI=true npm test -- --testPathPattern=\"SavedRecipes.test\" --no-coverage --silent)"
     ],
     "deny": []
   }

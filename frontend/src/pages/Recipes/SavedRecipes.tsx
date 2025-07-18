@@ -276,7 +276,10 @@ const SavedRecipes: React.FC = () => {
           <Select
             value={difficultyFilter}
             label="Difficulty"
-            onChange={(e) => setDifficultyFilter(e.target.value)}
+            onChange={(e) => {
+              setDifficultyFilter(e.target.value);
+              fetchSavedRecipes(searchTerm, e.target.value);
+            }}
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="Easy">Easy</MenuItem>

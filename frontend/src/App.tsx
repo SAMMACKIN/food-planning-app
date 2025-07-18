@@ -25,6 +25,7 @@ const BooksManagement = lazy(() => import('./pages/Books/BooksManagement'));
 const BookRecommendations = lazy(() => import('./pages/Books/BookRecommendations'));
 const TVShowsManagement = lazy(() => import('./pages/TVShows/TVShowsManagement'));
 const MoviesManagement = lazy(() => import('./pages/Movies/MoviesManagement'));
+const MovieRecommendations = lazy(() => import('./pages/Movies/MovieRecommendations'));
 
 
 
@@ -115,6 +116,13 @@ function App() {
               <RouteErrorBoundary>
                 <Suspense fallback={<LoadingSpinner />}>
                   <MoviesManagement />
+                </Suspense>
+              </RouteErrorBoundary>
+            } />
+            <Route path="movies/recommendations" element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MovieRecommendations />
                 </Suspense>
               </RouteErrorBoundary>
             } />
