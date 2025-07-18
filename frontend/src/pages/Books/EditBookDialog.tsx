@@ -25,6 +25,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Book, BookUpdate, ReadingStatus } from '../../types';
 import { booksApi, bookHelpers } from '../../services/booksApi';
+import StarRating from '../../components/Recipe/StarRating';
 
 const bookUpdateSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
@@ -71,6 +72,7 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [autoFillLoading, setAutoFillLoading] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [bookRating, setBookRating] = useState<number>(0);
 
   const {
     control,
@@ -115,12 +117,28 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
         user_notes: book.user_notes || '',
       });
       setError(null);
+      
+      // Load existing rating
+      loadBookRating();
     }
   }, [book, reset]);
+  
+  const loadBookRating = async () => {
+    if (!book) return;
+    
+    try {
+      const ratingData = await booksApi.getBookRating(book.id);
+      setBookRating(ratingData.rating || 0);
+    } catch (error) {
+      // If no rating exists, that's fine
+      setBookRating(0);
+    }
+  };
 
   const handleClose = () => {
     setError(null);
     setAutoFilledFields(new Set());
+    setBookRating(0);
     onClose();
   };
 
@@ -623,6 +641,27 @@ const EditBookDialog: React.FC<EditBookDialogProps> = ({
                     </Box>
                   )}
                 />
+                
+                {/* Rating */}
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Your Rating
+                  </Typography>
+                  <StarRating
+                    rating={bookRating}
+                    onRatingChange={async (newRating) => {
+                      try {
+                        await booksApi.rateBook(book.id, newRating);
+                        setBookRating(newRating);
+                      } catch (error) {
+                        console.error('Error saving rating:', error);
+                        setError('Failed to save rating. Please try again.');
+                      }
+                    }}
+                    size="medium"
+                    showZero={true}
+                  />
+                </Box>
               </Box>
             </Box>
           </Box>

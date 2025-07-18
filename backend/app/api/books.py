@@ -698,6 +698,95 @@ async def import_goodreads_library(
         raise HTTPException(status_code=500, detail=f"Failed to import Goodreads library: {str(e)}")
 
 
+@router.post("/{book_id}/rating")
+def rate_book(
+    book_id: str,
+    rating: int = Query(..., ge=1, le=5),
+    review_text: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Rate a book (1-5 stars)"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        book_uuid = uuid.UUID(book_id)
+        
+        # Verify book belongs to user
+        book = db.query(Book).filter(
+            Book.id == book_uuid,
+            Book.user_id == user_uuid
+        ).first()
+        
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        # Check if user already rated this book
+        from ..models.content import ContentRating, ContentType
+        existing_rating = db.query(ContentRating).filter(
+            ContentRating.user_id == user_uuid,
+            ContentRating.book_id == book_uuid
+        ).first()
+        
+        if existing_rating:
+            # Update existing rating
+            existing_rating.rating = rating
+            existing_rating.review_text = review_text
+        else:
+            # Create new rating
+            new_rating = ContentRating(
+                user_id=user_uuid,
+                book_id=book_uuid,
+                content_type=ContentType.BOOK,
+                rating=rating,
+                review_text=review_text
+            )
+            db.add(new_rating)
+        
+        db.commit()
+        
+        logger.info(f"⭐ Book rated: {book.title} - {rating} stars")
+        return {"message": "Rating saved successfully", "rating": rating}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Rate book error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to rate book: {str(e)}")
+
+
+@router.get("/{book_id}/rating")
+def get_book_rating(
+    book_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Get user's rating for a book"""
+    try:
+        user_uuid = uuid.UUID(current_user["id"])
+        book_uuid = uuid.UUID(book_id)
+        
+        from ..models.content import ContentRating
+        rating = db.query(ContentRating).filter(
+            ContentRating.user_id == user_uuid,
+            ContentRating.book_id == book_uuid
+        ).first()
+        
+        if not rating:
+            return {"rating": None, "review_text": None}
+        
+        return {
+            "rating": rating.rating,
+            "review_text": rating.review_text,
+            "created_at": rating.created_at,
+            "updated_at": rating.updated_at
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Get book rating error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get book rating: {str(e)}")
+
+
 @router.get("/recommendations/test-ai")
 async def test_ai_providers(
     current_user: dict = Depends(get_current_user_simple)

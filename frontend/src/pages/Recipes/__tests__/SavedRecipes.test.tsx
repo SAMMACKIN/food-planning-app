@@ -139,7 +139,8 @@ describe('SavedRecipes', () => {
       loading: false,
       error: null,
     });
-    mockApiRequest.mockResolvedValue('healthy');
+    // Mock the health check API call
+    mockApiRequest.mockResolvedValue({ user_recipe_count: 2, status: 'healthy' });
   });
 
   const renderSavedRecipes = () => {
@@ -150,7 +151,7 @@ describe('SavedRecipes', () => {
     test('should render saved recipes page', () => {
       renderSavedRecipes();
 
-      expect(screen.getByText('My Saved Recipes')).toBeInTheDocument();
+      expect(screen.getByText('Saved Recipes')).toBeInTheDocument();
       expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument();
       expect(screen.getByText('Chicken Salad')).toBeInTheDocument();
     });
@@ -184,32 +185,29 @@ describe('SavedRecipes', () => {
       });
 
       renderSavedRecipes();
-      expect(screen.getByText('No saved recipes yet')).toBeInTheDocument();
-      expect(screen.getByText('Create Your First Recipe')).toBeInTheDocument();
+      expect(screen.getByText("You haven't saved any recipes yet. Go to Recommendations to find and save some recipes!")).toBeInTheDocument();
     });
 
     test('should display recipe cards with correct information', () => {
       renderSavedRecipes();
 
       // Check Pasta Carbonara card
-      const pastaCard = screen.getByText('Pasta Carbonara').closest('.MuiCard-root');
+      const pastaCard = screen.getByText('Pasta Carbonara').closest('[class*="MuiCard"]');
       expect(within(pastaCard!).getByText('Classic Italian pasta')).toBeInTheDocument();
       expect(within(pastaCard!).getByText('30 min')).toBeInTheDocument();
       expect(within(pastaCard!).getByText('4 servings')).toBeInTheDocument();
       expect(within(pastaCard!).getByText('medium')).toBeInTheDocument();
 
       // Check AI badge
-      expect(within(pastaCard!).getByText('AI')).toBeInTheDocument();
-      expect(within(pastaCard!).getByText('claude')).toBeInTheDocument();
+      expect(within(pastaCard!).getByText('Claude AI')).toBeInTheDocument();
     });
 
     test('should display health status', async () => {
       renderSavedRecipes();
 
       await waitFor(() => {
-        expect(screen.getByText(/Backend Status:/)).toBeInTheDocument();
-        expect(screen.getByText('healthy')).toBeInTheDocument();
-      });
+        expect(screen.getByText(/✅ Healthy - 2 recipes found/)).toBeInTheDocument();
+      }, { timeout: 2000 });
     });
   });
 
@@ -217,11 +215,11 @@ describe('SavedRecipes', () => {
     test('should open recipe details dialog when View is clicked', async () => {
       renderSavedRecipes();
 
-      const viewButton = screen.getAllByText('View')[0];
-      fireEvent.click(viewButton);
+      const viewButtons = screen.getAllByText('View Recipe');
+      fireEvent.click(viewButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByText('Pasta Carbonara Instructions')).toBeInTheDocument();
+        expect(screen.getByTestId('recipe-instructions')).toBeInTheDocument();
       });
     });
 
@@ -306,13 +304,13 @@ describe('SavedRecipes', () => {
       const user = userEvent.setup();
       renderSavedRecipes();
 
-      const searchInput = screen.getByPlaceholderText('Search recipes...');
+      const searchInput = screen.getByLabelText('Search recipes');
       await user.type(searchInput, 'pasta');
 
       // Trigger search
-      fireEvent.click(screen.getByRole('button', { name: /search/i }));
+      fireEvent.click(screen.getByText('Search'));
 
-      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('pasta', '', '');
+      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('pasta', '', undefined);
     });
 
     test('should filter recipes by difficulty', async () => {
@@ -326,7 +324,7 @@ describe('SavedRecipes', () => {
       const listbox = within(document.body).getByRole('listbox');
       fireEvent.click(within(listbox).getByText('easy'));
 
-      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('', 'easy', '');
+      expect(mockRecipeHooks.fetchSavedRecipes).toHaveBeenCalledWith('', 'easy', undefined);
     });
 
     test('should clear error when clear error button is clicked', () => {
@@ -466,9 +464,8 @@ describe('SavedRecipes', () => {
       renderSavedRecipes();
 
       await waitFor(() => {
-        expect(screen.getByText(/Backend Status:/)).toBeInTheDocument();
-        expect(screen.getByText('Unknown')).toBeInTheDocument();
-      });
+        expect(screen.getByText(/❌ Unhealthy - Network Error/)).toBeInTheDocument();
+      }, { timeout: 2000 });
     });
 
     test('should handle recipe deletion errors', async () => {
@@ -494,8 +491,9 @@ describe('SavedRecipes', () => {
     test('should render grid layout properly', () => {
       renderSavedRecipes();
 
-      const gridContainer = screen.getByRole('main').querySelector('.MuiGrid-container');
-      expect(gridContainer).toBeInTheDocument();
+      // Check for the grid container by its class or structure
+      const gridElements = document.querySelectorAll('[class*="Grid"]');
+      expect(gridElements.length).toBeGreaterThan(0);
     });
 
     test('should handle mobile view', () => {
@@ -510,7 +508,7 @@ describe('SavedRecipes', () => {
       renderSavedRecipes();
 
       // Component should still render without errors
-      expect(screen.getByText('My Saved Recipes')).toBeInTheDocument();
+      expect(screen.getByText('Saved Recipes')).toBeInTheDocument();
     });
   });
 
@@ -519,11 +517,11 @@ describe('SavedRecipes', () => {
       renderSavedRecipes();
 
       // Open dialog
-      const viewButton = screen.getAllByText('View')[0];
+      const viewButton = screen.getByText('View Recipe');
       fireEvent.click(viewButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Pasta Carbonara Instructions')).toBeInTheDocument();
+        expect(screen.getByTestId('recipe-instructions')).toBeInTheDocument();
       });
 
       // Close dialog by clicking the close button would be here

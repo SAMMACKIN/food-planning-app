@@ -5,12 +5,9 @@ Tests the exact operations users perform before hitting recommendations/recipes
 import pytest
 import json
 from fastapi.testclient import TestClient
-from app.main import app
-
-client = TestClient(app)
 
 @pytest.fixture
-def test_user_token():
+def test_user_token(client):
     """Create a test user and return auth token"""
     import uuid
     user_data = {
@@ -33,7 +30,7 @@ def auth_headers(test_user_token):
 class TestFamilyManagement:
     """Test family member CRUD operations that happen before recommendations"""
     
-    def test_add_family_member_with_complex_data(self, auth_headers):
+    def test_add_family_member_with_complex_data(self, client, auth_headers):
         """Test adding family member with dietary restrictions and preferences"""
         family_data = {
             "name": "Alice Johnson",
@@ -64,7 +61,7 @@ class TestFamilyManagement:
         return family_response["id"]
     
     
-    def test_get_family_members(self, auth_headers):
+    def test_get_family_members(self, client, auth_headers):
         """Test retrieving family members list"""
         # Add a family member first
         family_data = {
@@ -98,7 +95,7 @@ class TestFamilyManagement:
         assert found_member["dietary_restrictions"] == ["vegetarian"]
     
     
-    def test_family_member_data_types(self, auth_headers):
+    def test_family_member_data_types(self, client, auth_headers):
         """Test different data types in family member fields"""
         test_cases = [
             {
@@ -130,7 +127,7 @@ class TestFamilyManagement:
         
         for case in test_cases:
             print(f"\n👨‍👩‍👧‍👦 Testing case: {case['name']}")
-            response = client.post("/api/v1/family", json=case, headers=auth_headers)
+            response = client.post("/api/v1/family/members", json=case, headers=auth_headers)
             print(f"👨‍👩‍👧‍👦 Response: {response.status_code} - {response.text}")
             assert response.status_code == 200
             
@@ -143,7 +140,7 @@ class TestFamilyManagement:
 class TestPantryManagement:
     """Test pantry item operations that happen before recommendations"""
     
-    def test_add_pantry_items_batch(self, auth_headers, test_ingredient_ids):
+    def test_add_pantry_items_batch(self, client, auth_headers, test_ingredient_ids):
         """Test adding multiple pantry items like a real user would"""
         pantry_items = [
             {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-31"},
@@ -184,7 +181,7 @@ class TestPantryManagement:
         print(f"✅ All pantry items verified successfully")
     
     
-    def test_pantry_item_updates(self, auth_headers, test_ingredient_ids):
+    def test_pantry_item_updates(self, client, auth_headers, test_ingredient_ids):
         """Test updating pantry item quantities"""
         # Add initial item
         chicken_id = test_ingredient_ids['chicken_breast']
@@ -213,7 +210,7 @@ class TestPantryManagement:
         assert chicken_item["quantity"] == 2.5
     
     
-    def test_pantry_expiration_dates(self, auth_headers, test_ingredient_ids):
+    def test_pantry_expiration_dates(self, client, auth_headers, test_ingredient_ids):
         """Test pantry items with various expiration date formats"""
         items_with_dates = [
             {"ingredient_id": test_ingredient_ids['chicken_breast'], "quantity": 2.0, "expiration_date": "2024-12-25"},
@@ -247,7 +244,7 @@ class TestPantryManagement:
 class TestFamilyPantryIntegration:
     """Test interactions between family and pantry data"""
     
-    def test_workflow_family_then_pantry(self, auth_headers, test_ingredient_ids):
+    def test_workflow_family_then_pantry(self, client, auth_headers, test_ingredient_ids):
         """Test the exact workflow: add family member, then add pantry items"""
         
         # Step 1: Add family member with dietary restrictions
@@ -285,9 +282,11 @@ class TestFamilyPantryIntegration:
         print(f"🔄 Step 3: Verifying data existence...")
         
         # Check family
-        response = client.get(f"/api/v1/family/members/{family_id}", headers=auth_headers)
+        response = client.get("/api/v1/family/members", headers=auth_headers)
         assert response.status_code == 200
-        family = response.json()
+        family_members = response.json()
+        assert len(family_members) >= 1
+        family = next(m for m in family_members if m["id"] == family_id)
         assert family["dietary_restrictions"] == ["gluten-free"]
         
         # Check pantry
@@ -301,11 +300,11 @@ class TestFamilyPantryIntegration:
         return family_id, [item["ingredient_id"] for item in gluten_free_items]
     
     
-    def test_data_ready_for_recommendations(self, auth_headers, test_ingredient_ids):
+    def test_data_ready_for_recommendations(self, client, auth_headers, test_ingredient_ids):
         """Test that data is in the correct format for recommendations endpoint"""
         
         # Add family and pantry data
-        family_id, ingredient_ids = self.test_workflow_family_then_pantry(auth_headers, test_ingredient_ids)
+        family_id, ingredient_ids = self.test_workflow_family_then_pantry(client, auth_headers, test_ingredient_ids)
         
         # Test recommendations status (should work)
         print(f"\n🤖 Testing recommendations readiness...")

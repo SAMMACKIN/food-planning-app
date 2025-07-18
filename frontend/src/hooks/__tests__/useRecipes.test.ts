@@ -518,24 +518,36 @@ describe('useRecipes', () => {
       // Ensure localStorage has token
       localStorageMock.getItem.mockReturnValue('mock-token');
       
-      mockApiRequest
-        .mockResolvedValueOnce(mockRecipe) // saveRecommendationAsRecipe call
-        .mockResolvedValueOnce(undefined); // addRecipeToMealPlan call
+      // Clear any existing state by mocking empty recipes initially
+      mockApiRequest.mockResolvedValueOnce([]); // Initial fetch returns empty
+      
       const { result } = renderHook(() => useRecipes());
+      
+      // Wait for initial fetch to complete
+      await waitFor(() => {
+        expect(result.current.savedRecipes).toEqual([]);
+      });
+      
+      // Now mock the meal plan workflow
+      mockApiRequest
+        .mockResolvedValueOnce(mockRecipe) // saveRecommendationAsRecipe -> saveRecipe call
+        .mockResolvedValueOnce(undefined); // addRecipeToMealPlan call
 
       let success = false;
-      let error: string | null = null;
       await act(async () => {
         success = await result.current.addRecommendationToMealPlan(mockRecommendation, '2024-01-15', 'lunch');
-        error = result.current.error;
       });
 
-      console.log('Test debug - success:', success);
-      console.log('Test debug - error:', error);
-      console.log('Test debug - API calls:', mockApiRequest.mock.calls.length);
-
       expect(success).toBe(true);
-      expect(mockApiRequest).toHaveBeenCalledTimes(2);
+      // Should have 3 total calls: 1 initial fetch + 2 for meal plan workflow
+      expect(mockApiRequest).toHaveBeenCalledTimes(3);
+      
+      // Check the specific API calls (after initial fetch)
+      expect(mockApiRequest).toHaveBeenNthCalledWith(2, 'POST', '/recipes', expect.objectContaining({
+        name: mockRecommendation.name,
+        source: 'recommendation'
+      }));
+      expect(mockApiRequest).toHaveBeenNthCalledWith(3, 'POST', `/recipes/${mockRecipe.id}/add-to-meal-plan?meal_date=2024-01-15&meal_type=lunch`);
     });
 
     test('should handle meal plan errors', async () => {

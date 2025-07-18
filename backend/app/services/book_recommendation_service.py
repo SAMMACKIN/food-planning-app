@@ -197,16 +197,48 @@ class BookRecommendationService:
         # Get user's books
         books = db.query(Book).filter(Book.user_id == user_id).all()
         
+        # Get user's ratings
+        from ..models.content import ContentRating
+        ratings = db.query(ContentRating).filter(
+            ContentRating.user_id == user_id,
+            ContentRating.book_id.isnot(None)
+        ).all()
+        
+        # Create rating lookup
+        rating_lookup = {str(rating.book_id): rating.rating for rating in ratings}
+        
         # Get feedback history
         feedback_history = db.query(BookRecommendationFeedback).filter(
             BookRecommendationFeedback.user_id == user_id
         ).order_by(desc(BookRecommendationFeedback.created_at)).limit(50).all()
         
-        # Categorize books
-        read_books = [self._book_to_dict(book) for book in books if book.reading_status == "read"]
-        reading_books = [self._book_to_dict(book) for book in books if book.reading_status == "reading"]
-        want_to_read_books = [self._book_to_dict(book) for book in books if book.reading_status == "want_to_read"]
-        favorite_books = [self._book_to_dict(book) for book in books if book.is_favorite]
+        # Categorize books with ratings
+        read_books = []
+        reading_books = []
+        want_to_read_books = []
+        favorite_books = []
+        highly_rated_books = []
+        poorly_rated_books = []
+        
+        for book in books:
+            book_dict = self._book_to_dict(book)
+            book_dict['rating'] = rating_lookup.get(str(book.id))
+            
+            if book.reading_status == "read":
+                read_books.append(book_dict)
+                # Track highly rated and poorly rated books
+                if book_dict['rating']:
+                    if book_dict['rating'] >= 4:
+                        highly_rated_books.append(book_dict)
+                    elif book_dict['rating'] <= 2:
+                        poorly_rated_books.append(book_dict)
+            elif book.reading_status == "reading":
+                reading_books.append(book_dict)
+            elif book.reading_status == "want_to_read":
+                want_to_read_books.append(book_dict)
+                
+            if book.is_favorite:
+                favorite_books.append(book_dict)
         
         # Analyze genres
         all_genres = [book.genre for book in books if book.genre]
@@ -243,12 +275,15 @@ class BookRecommendationService:
             "reading_books": reading_books,
             "want_to_read_books": want_to_read_books,
             "favorite_books": favorite_books,
+            "highly_rated_books": highly_rated_books,
+            "poorly_rated_books": poorly_rated_books,
             "preferred_genres": preferred_genres,
             "genre_distribution": genre_counts,
             "feedback_patterns": feedback_patterns,
             "existing_books": [f"{book.title} by {book.author}" for book in books],
             "reading_level": self._estimate_reading_level(books),
-            "recent_activity": self._get_recent_activity(books, feedback_history)
+            "recent_activity": self._get_recent_activity(books, feedback_history),
+            "average_rating": self._calculate_average_rating(rating_lookup)
         }
     
     def _create_recommendation_prompt(
@@ -272,11 +307,22 @@ USER READING PROFILE:
 PREFERRED GENRES (in order of preference):
 {chr(10).join([f"- {genre}" for genre in context['preferred_genres'][:5]])}
 
+HIGHLY RATED BOOKS (4-5 stars):
+{chr(10).join([f"- {book['title']} by {book['author']} ({book['rating']}⭐)" for book in context['highly_rated_books'][:10]])}
+
+POORLY RATED BOOKS (1-2 stars - AVOID similar):
+{chr(10).join([f"- {book['title']} by {book['author']} ({book['rating']}⭐)" for book in context['poorly_rated_books'][:5]])}
+
 FAVORITE BOOKS:
-{chr(10).join([f"- {book['title']} by {book['author']}" for book in context['favorite_books'][:5]])}
+{chr(10).join([f"- {book['title']} by {book['author']}{f' ({book["rating"]}⭐)' if book.get('rating') else ''}" for book in context['favorite_books'][:5]])}
 
 RECENTLY READ BOOKS:
-{chr(10).join([f"- {book['title']} by {book['author']} ({book.get('genre', 'Unknown genre')})" for book in context['read_books'][-5:]])}
+{chr(10).join([f"- {book['title']} by {book['author']} ({book.get('genre', 'Unknown genre')}){f' - {book["rating"]}⭐' if book.get('rating') else ''}" for book in context['read_books'][-5:]])}
+
+USER RATING PROFILE:
+- Average rating: {context.get('average_rating', 'N/A')}
+- Tends to rate highly: {len(context['highly_rated_books'])} books rated 4-5 stars
+- Tends to rate poorly: {len(context['poorly_rated_books'])} books rated 1-2 stars
 
 RECENT POSITIVE FEEDBACK (books they wanted to read):
 {chr(10).join([f"- {item['title']} by {item['author']}" for item in context['feedback_patterns']['recent_positive'][-5:]])}
@@ -296,10 +342,13 @@ INSTRUCTIONS:
 1. Recommend books that align with their demonstrated preferences
 2. Learn from their positive/negative feedback patterns
 3. CRITICAL: Do NOT recommend any books from the "BOOKS TO EXCLUDE" list above - they already own these
-4. Consider their reading level and genre preferences
-5. Provide variety while staying within their interests
-6. Include both popular and lesser-known gems
-7. Double-check each recommendation against the exclusion list
+4. STRONGLY prioritize recommending books similar to their HIGHLY RATED books (4-5 stars)
+5. AVOID recommending books similar to their POORLY RATED books (1-2 stars)
+6. Consider their reading level and genre preferences
+7. Provide variety while staying within their interests
+8. Include both popular and lesser-known gems
+9. Double-check each recommendation against the exclusion list
+10. Weight recommendations towards books similar to those rated 4-5 stars
 
 For each recommendation, provide:
 - Title
@@ -523,6 +572,16 @@ Format your response as JSON:
             "feedback_given_recently": len(recent_feedback),
             "active_reader": len(recent_books) > 2 or len(recent_feedback) > 5
         }
+    
+    def _calculate_average_rating(self, rating_lookup: Dict[str, int]) -> float:
+        """
+        Calculate average rating from rating lookup
+        """
+        if not rating_lookup:
+            return 0.0
+        
+        ratings = list(rating_lookup.values())
+        return round(sum(ratings) / len(ratings), 1)
 
 
 # Create singleton instance

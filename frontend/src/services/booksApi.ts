@@ -67,6 +67,29 @@ export const booksApi = {
     table_accessible: boolean;
   }> => {
     return apiRequest('GET', '/books/debug/health', null, { requestType: 'data' });
+  },
+
+  // Rate a book
+  rateBook: async (bookId: string, rating: number, reviewText?: string): Promise<{
+    message: string;
+    rating: number;
+  }> => {
+    const params = new URLSearchParams();
+    params.append('rating', rating.toString());
+    if (reviewText) {
+      params.append('review_text', reviewText);
+    }
+    return apiRequest('POST', `/books/${bookId}/rating?${params.toString()}`, null, { requestType: 'data' });
+  },
+
+  // Get book rating
+  getBookRating: async (bookId: string): Promise<{
+    rating: number | null;
+    review_text: string | null;
+    created_at?: string;
+    updated_at?: string;
+  }> => {
+    return apiRequest('GET', `/books/${bookId}/rating`, null, { requestType: 'data' });
   }
 };
 

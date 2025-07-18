@@ -78,6 +78,7 @@ import { booksApi, bookHelpers } from '../../services/booksApi';
 import AddBookDialog from './AddBookDialog';
 import EditBookDialog from './EditBookDialog';
 import GoodreadsImportDialog from './GoodreadsImportDialog';
+import StarRating from '../../components/Recipe/StarRating';
 
 const BooksManagement: React.FC = () => {
   const theme = useTheme();
@@ -91,6 +92,7 @@ const BooksManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [bookRatings, setBookRatings] = useState<Record<string, number>>({});
   
   // Filter and search state
   const [selectedTab, setSelectedTab] = useState<number>(0);
@@ -185,6 +187,22 @@ const BooksManagement: React.FC = () => {
       setBooks(sortedBooks);
       setTotalBooks(response.total);
       setTotalPages(response.total_pages);
+      
+      // Load ratings for all books
+      const ratings: Record<string, number> = {};
+      await Promise.all(
+        sortedBooks.map(async (book) => {
+          try {
+            const ratingData = await booksApi.getBookRating(book.id);
+            if (ratingData.rating !== null) {
+              ratings[book.id] = ratingData.rating;
+            }
+          } catch (error) {
+            // Ignore errors for individual rating fetches
+          }
+        })
+      );
+      setBookRatings(ratings);
     } catch (error: any) {
       console.error('Error loading books:', error);
       setError('Failed to load books. Please try again.');
@@ -271,6 +289,16 @@ const BooksManagement: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating progress:', error);
       setError('Failed to update reading progress. Please try again.');
+    }
+  };
+
+  const handleRateBook = async (book: Book, rating: number) => {
+    try {
+      await booksApi.rateBook(book.id, rating);
+      setBookRatings(prev => ({ ...prev, [book.id]: rating }));
+    } catch (error: any) {
+      console.error('Error rating book:', error);
+      setError('Failed to rate book. Please try again.');
     }
   };
 
@@ -434,6 +462,16 @@ const BooksManagement: React.FC = () => {
             )}
           </Box>
           
+          {/* Rating */}
+          <Box sx={{ mt: 1 }}>
+            <StarRating
+              rating={bookRatings[book.id] || 0}
+              onRatingChange={(rating) => handleRateBook(book, rating)}
+              size="small"
+              showZero={true}
+            />
+          </Box>
+          
           {/* Reading progress */}
           {book.reading_status === 'reading' && book.pages && (
             <Box sx={{ mt: 1 }}>
@@ -510,6 +548,7 @@ const BooksManagement: React.FC = () => {
               <TableCell>Author</TableCell>
               <TableCell>Genre</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Rating</TableCell>
               <TableCell>Pages</TableCell>
               <TableCell>Year</TableCell>
               <TableCell align="center">Actions</TableCell>
@@ -561,6 +600,14 @@ const BooksManagement: React.FC = () => {
                     label={bookHelpers.getStatusDisplayText(book.reading_status)}
                     color={bookHelpers.getStatusColor(book.reading_status)}
                     size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  <StarRating
+                    rating={bookRatings[book.id] || 0}
+                    onRatingChange={(rating) => handleRateBook(book, rating)}
+                    size="small"
+                    showZero={true}
                   />
                 </TableCell>
                 <TableCell>{book.pages || '-'}</TableCell>

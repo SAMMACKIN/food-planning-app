@@ -5,12 +5,9 @@ Tests the exact sequence that users follow which breaks in preview
 import pytest
 import json
 from fastapi.testclient import TestClient
-from app.main import app
-
-client = TestClient(app)
 
 @pytest.fixture
-def test_user_token():
+def test_user_token(client):
     """Create a test user and return auth token"""
     import uuid
     # Register a new user with unique email
@@ -36,7 +33,7 @@ def auth_headers(test_user_token):
 class TestCompleteUserWorkflow:
     """Test the complete user workflow that breaks in preview"""
     
-    def test_complete_workflow_family_to_recommendations(self, auth_headers, test_ingredient_ids):
+    def test_complete_workflow_family_to_recommendations(self, client, auth_headers, test_ingredient_ids):
         """Test: Register → Add Family → Add Pantry → Get Recommendations"""
         
         print("\n🧪 TESTING COMPLETE WORKFLOW")
@@ -170,7 +167,7 @@ class TestCompleteUserWorkflow:
         print("🎉 WORKFLOW TEST COMPLETED")
     
     
-    def test_llm_connection_endpoints(self, auth_headers):
+    def test_llm_connection_endpoints(self, client, auth_headers):
         """Test LLM connection and AI provider functionality"""
         
         print("\n🤖 TESTING LLM CONNECTION")
@@ -197,7 +194,7 @@ class TestCompleteUserWorkflow:
             print(f"🔧 {provider} status: {test_result.get('status', 'UNKNOWN')}")
     
     
-    def test_database_schema_validation(self, auth_headers):
+    def test_database_schema_validation(self, client, auth_headers):
         """Verify database schema matches expectations"""
         
         print("\n🗄️ TESTING DATABASE SCHEMA")
@@ -258,7 +255,7 @@ class TestCompleteUserWorkflow:
         print("🗄️ Database schema validation completed")
 
 
-    def test_data_consistency_after_operations(self, auth_headers, test_ingredient_ids):
+    def test_data_consistency_after_operations(self, client, auth_headers, test_ingredient_ids):
         """Test that data remains consistent after family→pantry→recommendations workflow"""
         
         print("\n🔍 TESTING DATA CONSISTENCY")
@@ -275,22 +272,24 @@ class TestCompleteUserWorkflow:
             }
         }
         
-        response = client.post("/api/v1/family", json=family_data, headers=auth_headers)
+        response = client.post("/api/v1/family/members", json=family_data, headers=auth_headers)
         assert response.status_code == 200
         family_id = response.json()["id"]
         
         # Verify the data was stored correctly
-        response = client.get(f"/api/v1/family/{family_id}", headers=auth_headers)
+        response = client.get("/api/v1/family/members", headers=auth_headers)
         assert response.status_code == 200
-        stored_family = response.json()
+        family_members = response.json()
+        assert len(family_members) >= 1
+        family_member = next(m for m in family_members if m["id"] == family_id)
         
         print(f"🔍 Original dietary restrictions: {family_data['dietary_restrictions']}")
-        print(f"🔍 Stored dietary restrictions: {stored_family['dietary_restrictions']}")
+        print(f"🔍 Stored dietary restrictions: {family_member['dietary_restrictions']}")
         print(f"🔍 Original preferences: {family_data['preferences']}")
-        print(f"🔍 Stored preferences: {stored_family['preferences']}")
+        print(f"🔍 Stored preferences: {family_member['preferences']}")
         
-        assert stored_family["dietary_restrictions"] == family_data["dietary_restrictions"]
-        assert stored_family["preferences"] == family_data["preferences"]
+        assert family_member["dietary_restrictions"] == family_data["dietary_restrictions"]
+        assert family_member["preferences"] == family_data["preferences"]
         
         # Test pantry data consistency
         chicken_id = test_ingredient_ids['chicken_breast']

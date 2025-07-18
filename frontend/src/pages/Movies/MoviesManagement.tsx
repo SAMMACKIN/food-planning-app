@@ -57,6 +57,8 @@ import {
 
 import { Movie, MovieCreate, MovieUpdate, ViewingStatus } from '../../types';
 import { moviesApi, movieHelpers } from '../../services/moviesApi';
+import AddMovieDialog from './AddMovieDialog';
+import EditMovieDialog from './EditMovieDialog';
 
 type ViewMode = 'grid' | 'table';
 
@@ -554,26 +556,23 @@ const MoviesManagement: React.FC = () => {
         )}
       </Menu>
 
-      {/* Add/Edit Movie Dialog - Placeholder for now */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Movie</DialogTitle>
-        <DialogContent>
-          <Typography>Movie creation form will be implemented next</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Add Movie Dialog */}
+      <AddMovieDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSave={handleAddMovie}
+      />
 
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Movie</DialogTitle>
-        <DialogContent>
-          <Typography>Movie editing form will be implemented next</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Edit Movie Dialog */}
+      <EditMovieDialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedMovie(null);
+        }}
+        onSave={handleUpdateMovie}
+        movie={selectedMovie}
+      />
     </Box>
   );
 };

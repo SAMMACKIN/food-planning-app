@@ -135,6 +135,21 @@ class GoodreadsImportService:
                         description=f"Publisher: {book_data['publisher']}" if book_data.get('publisher') else None
                     )
                     
+                    db.add(book)
+                    db.flush()  # Get the book ID before committing
+                    
+                    # Add rating if available
+                    if book_data.get('my_rating'):
+                        from ..models.content import ContentRating, ContentType
+                        rating = ContentRating(
+                            user_id=user_id,
+                            book_id=book.id,
+                            content_type=ContentType.BOOK,
+                            rating=book_data['my_rating'],
+                            review_text=book_data.get('my_review')
+                        )
+                        db.add(rating)
+                    
                     # Add genre from bookshelves if available
                     if book_data['bookshelves']:
                         # Try to extract a genre from bookshelves
@@ -171,7 +186,6 @@ class GoodreadsImportService:
                                 book.genre = genre_mappings[shelf]
                                 break
                     
-                    db.add(book)
                     imported += 1
                     
                 except Exception as e:

@@ -351,17 +351,16 @@ class TestRecipesHealthCheck:
         health_data = response.json()
         
         assert "status" in health_data
-        assert "database" in health_data
-        assert "tables" in health_data
+        assert "database_connected" in health_data
+        assert "table_accessible" in health_data
         
-        print(f"🔍 Database status: {health_data['database']}")
+        print(f"🔍 Database connected: {health_data['database_connected']}")
         print(f"🔍 Overall status: {health_data['status']}")
         
-        # Check table status
-        for table_name, table_info in health_data["tables"].items():
-            print(f"🔍 Table {table_name}: exists={table_info.get('exists', False)}, count={table_info.get('count', 0)}")
-            if not table_info.get('exists', False):
-                print(f"❌ Missing table: {table_name}")
+        # Check basic status
+        assert health_data["status"] == "healthy"
+        assert health_data["database_connected"] == True
+        assert health_data["table_accessible"] == True
 
 
 class TestEndToEndRecipeWorkflow:

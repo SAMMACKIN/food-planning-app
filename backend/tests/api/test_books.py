@@ -79,24 +79,22 @@ class TestBooksAPI:
         assert data["page_size"] == 20
         assert data["total_pages"] == 0
     
-    def test_list_books_with_data(self, client: TestClient, auth_headers: dict, test_db: Session):
+    def test_list_books_with_data(self, client: TestClient, auth_headers: dict):
         """Test listing books with pagination"""
-        # Create test books directly in database
-        user_id = uuid.uuid4()  # This should match the test user
-        
-        books = [
-            Book(
-                user_id=user_id,
-                title=f"Test Book {i}",
-                author=f"Author {i}",
-                reading_status=ReadingStatus.WANT_TO_READ if i % 2 == 0 else ReadingStatus.READING
+        # Create test books using the API to ensure proper database interaction
+        for i in range(5):
+            book_data = {
+                "title": f"Test Book {i}",
+                "author": f"Author {i}",
+                "reading_status": "want_to_read" if i % 2 == 0 else "reading"
+            }
+            
+            response = client.post(
+                "/api/v1/books",
+                json=book_data,
+                headers=auth_headers
             )
-            for i in range(5)
-        ]
-        
-        for book in books:
-            test_db.add(book)
-        test_db.commit()
+            assert response.status_code == 200
         
         # Test basic list
         response = client.get(

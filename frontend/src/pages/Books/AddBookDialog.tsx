@@ -25,6 +25,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { BookCreate, ReadingStatus } from '../../types';
 import { booksApi } from '../../services/booksApi';
+import StarRating from '../../components/Recipe/StarRating';
 
 const bookSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
@@ -69,6 +70,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [autoFillLoading, setAutoFillLoading] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [bookRating, setBookRating] = useState<number>(0);
 
   const {
     control,
@@ -112,6 +114,7 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
     reset();
     setError(null);
     setAutoFilledFields(new Set());
+    setBookRating(0);
     onClose();
   };
 
@@ -245,7 +248,18 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
         is_favorite: data.is_favorite || false,
       };
 
-      await booksApi.createBook(bookData);
+      const newBook = await booksApi.createBook(bookData);
+      
+      // Save rating if one was set
+      if (bookRating > 0) {
+        try {
+          await booksApi.rateBook(newBook.id, bookRating);
+        } catch (error) {
+          console.error('Error saving rating:', error);
+          // Don't fail the whole operation if rating fails
+        }
+      }
+      
       onBookAdded();
       handleClose();
     } catch (error: any) {
@@ -529,6 +543,21 @@ const AddBookDialog: React.FC<AddBookDialogProps> = ({
                     </Box>
                   )}
                 />
+                
+                {/* Rating */}
+                {readingStatus === 'read' && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Your Rating
+                    </Typography>
+                    <StarRating
+                      rating={bookRating}
+                      onRatingChange={setBookRating}
+                      size="medium"
+                      showZero={true}
+                    />
+                  </Box>
+                )}
               </Box>
             </Box>
           </Box>
