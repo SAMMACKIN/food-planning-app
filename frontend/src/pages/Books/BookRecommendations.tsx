@@ -36,6 +36,7 @@ import {
   Settings as SettingsIcon,
   TipsAndUpdates as TipsIcon,
 } from '@mui/icons-material';
+import { apiRequest } from '../../services/api';
 
 interface BookRecommendation {
   title: string;
@@ -98,22 +99,25 @@ const BookRecommendations: React.FC = () => {
 
   // Load recommendations on component mount
   useEffect(() => {
+    testAIProviders();
     loadRecommendations();
     fetchBookCount();
   }, []);
 
+  const testAIProviders = async () => {
+    try {
+      console.log('🔍 Testing AI provider availability...');
+      const testResult = await apiRequest<any>('GET', '/books/recommendations/test-ai');
+      console.log('🤖 AI Provider Status:', testResult);
+    } catch (error) {
+      console.error('❌ Error testing AI providers:', error);
+    }
+  };
+
   const fetchBookCount = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books?page_size=1`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setTotalBooks(data.total || 0);
-      }
+      const data = await apiRequest<any>('GET', '/books?page_size=1');
+      setTotalBooks(data.total || 0);
     } catch (error) {
       console.error('Error fetching book count:', error);
     }
@@ -133,27 +137,14 @@ const BookRecommendations: React.FC = () => {
       };
       
       console.log('📋 Request params:', request);
-      const url = `${process.env.REACT_APP_API_URL}/api/v1/books/recommendations`;
-      console.log('🔗 Making request to:', url);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify(request)
-      });
-
-      console.log('📡 Response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('❌ Error response:', errorData);
-        throw new Error(errorData?.detail || `HTTP ${response.status}`);
-      }
-
-      const data: RecommendationsResponse = await response.json();
+      
+      const data = await apiRequest<RecommendationsResponse>(
+        'POST',
+        '/books/recommendations',
+        request,
+        { requestType: 'recommendations' }
+      );
+      
       console.log('✅ Recommendations received:', data);
       
       setRecommendations(data.recommendations);
@@ -162,7 +153,13 @@ const BookRecommendations: React.FC = () => {
       
     } catch (error: any) {
       console.error('❌ Error loading recommendations:', error);
-      setError(error.message || 'Failed to load recommendations');
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to load recommendations';
+      setError(errorMessage);
+      
+      // Check if it's an AI service error
+      if (errorMessage.includes('AI service') || errorMessage.includes('provider')) {
+        setError('AI recommendation service is temporarily unavailable. Please check that AI provider API keys are configured.');
+      }
     } finally {
       setLoading(false);
     }
@@ -179,20 +176,11 @@ const BookRecommendations: React.FC = () => {
         feedback_type: feedbackType
       };
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/books/recommendations/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify(feedbackRequest)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await apiRequest<any>(
+        'POST',
+        '/books/recommendations/feedback',
+        feedbackRequest
+      );
       
       // Show success message
       let message = '';

@@ -253,14 +253,24 @@
 2. **🟡 Medium**: Shopping list, Enhanced AI features
 3. **🟢 Low**: Analytics, Polish features
 
-## Next Immediate Steps
+## Next Immediate Steps (Updated Development Plan)
 
-1. **Implement recipe rating system for RecipeV2** - Restore rating functionality with new architecture
-2. **Implement Google OAuth** - Improve user onboarding experience
-3. **Optimize remaining mobile pages** - Complete mobile-first transformation
-4. **Add shopping list feature** - High-value user feature
+### 🔥 Currently Executing:
+1. **TASK_012: TV Shows Episode Tracking** - Enhance TV & Movies page with episode management (IN PROGRESS)
+
+### 📋 Next Priority Queue:
+2. **TASK_013: Movie/TV AI Recommendations** - Complete AI recommendation service integration
+3. **TASK_014: Recipe Rating System V2** - Restore rating functionality with new architecture  
+4. **TASK_015: OAuth Authentication** - Implement Google/GitHub/Microsoft social login
+5. **TASK_016: Shopping List Generation** - Auto-generate lists from meal plans
+
+### 🎯 Quick Wins Available:
+- TV show episode tracking (framework exists)
+- Movie AI recommendations (service partially implemented)
+- Recipe ratings (clean implementation opportunity)
 
 ---
 
-*Last Updated: $(date '+%Y-%m-%d %H:%M:%S')*
-*Total Tasks: 80+ across 20 categories*
+*Last Updated: 2025-07-29*
+*Total Tasks: 85+ across 21 categories*
+*New Task Files: TASK_012 through TASK_016 added*

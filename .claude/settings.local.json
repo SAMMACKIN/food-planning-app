@@ -24,7 +24,12 @@
       "Bash(cd:*)",
       "Bash(npm test:*)",
       "Bash(npx tsc:*)",
-      "Bash(CI=true npm test -- --testPathPattern=\"SavedRecipes.test\" --no-coverage --silent)"
+      "Bash(CI=true npm test -- --testPathPattern=\"SavedRecipes.test\" --no-coverage --silent)",
+      "Bash(CI=true npm test -- --passWithNoTests)",
+      "Bash(npx react-scripts:*)",
+      "Bash(/usr/bin/python3 -m pytest -v)",
+      "Bash(chmod:*)",
+      "Bash(/Users/sammackin/Desktop/Claude Code Apps/Health App/food-planning-app/commit.sh)"
     ],
     "deny": []
   }

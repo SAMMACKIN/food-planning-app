@@ -10,8 +10,29 @@ from sqlalchemy import desc, and_, or_
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from ai_service import ai_service
+
+# Import AI service with proper path handling
+try:
+    # First try: relative import from backend root
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ai_service_path = os.path.join(backend_dir, 'ai_service.py')
+    
+    if os.path.exists(ai_service_path):
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+        from ai_service import ai_service
+        print("✅ Successfully imported AI service from backend root")
+    else:
+        raise ImportError("ai_service.py not found in backend root")
+        
+except ImportError as e:
+    print(f"❌ Failed to import AI service: {e}")
+    # Create a minimal fallback
+    class MinimalAIService:
+        async def get_ai_response(self, prompt: str) -> str:
+            return '''{"recommendations": []}'''
+    
+    ai_service = MinimalAIService()
 
 from ..models.content import Book, BookRecommendationFeedback
 from ..schemas.books import (

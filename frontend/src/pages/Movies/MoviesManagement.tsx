@@ -19,6 +19,7 @@ import {
   TextField,
   FormControl,
   InputLabel,
+  InputAdornment,
   Select,
   Alert,
   CircularProgress,
@@ -85,7 +86,7 @@ const MoviesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ViewingStatus | ''>('');
   const [genreFilter, setGenreFilter] = useState('');
-  const [favoriteFilter, setFavoriteFilter] = useState<boolean | ''>('');
+  const [favoriteFilter, setFavoriteFilter] = useState<string>('');
   const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'movie' | 'tv'>('all');
   
   // Dialog state
@@ -109,7 +110,7 @@ const MoviesManagement: React.FC = () => {
         page_size: pageSize,
         viewing_status: statusFilter || undefined,
         genre: genreFilter || undefined,
-        is_favorite: favoriteFilter !== '' ? favoriteFilter : undefined,
+        is_favorite: favoriteFilter === 'true' ? true : favoriteFilter === 'false' ? false : undefined,
         search: searchTerm || undefined,
       });
       
@@ -117,7 +118,7 @@ const MoviesManagement: React.FC = () => {
       let filteredMovies = response.movies;
       if (contentTypeFilter !== 'all') {
         filteredMovies = response.movies.filter(movie => {
-          const isTvShow = movie.genre === 'TV Series' || movie.source === 'netflix_import' && movie.title.includes(': Season');
+          const isTvShow = movie.genre === 'TV Series' || (movie.source === 'netflix_import' && movie.title.includes(': Season'));
           return contentTypeFilter === 'tv' ? isTvShow : !isTvShow;
         });
       }
@@ -438,16 +439,8 @@ const MoviesManagement: React.FC = () => {
             onChange={(e) => setContentTypeFilter(e.target.value as 'all' | 'movie' | 'tv')}
           >
             <MenuItem value="all">All</MenuItem>
-            <MenuItem value="movie">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <MovieIcon fontSize="small" /> Movies
-              </Box>
-            </MenuItem>
-            <MenuItem value="tv">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <TvIcon fontSize="small" /> TV Shows
-              </Box>
-            </MenuItem>
+            <MenuItem value="movie">Movies</MenuItem>
+            <MenuItem value="tv">TV Shows</MenuItem>
           </Select>
         </FormControl>
         <TextField
@@ -457,7 +450,11 @@ const MoviesManagement: React.FC = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
-            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            )
           }}
           sx={{ minWidth: 200 }}
         />
@@ -484,9 +481,9 @@ const MoviesManagement: React.FC = () => {
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Favorites</InputLabel>
           <Select
-            value={favoriteFilter === '' ? '' : String(favoriteFilter)}
+            value={favoriteFilter}
             label="Favorites"
-            onChange={(e) => setFavoriteFilter(e.target.value === '' ? '' : e.target.value === 'true')}
+            onChange={(e) => setFavoriteFilter(e.target.value)}
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="true">Favorites</MenuItem>
@@ -537,7 +534,7 @@ const MoviesManagement: React.FC = () => {
           <Box sx={{ mb: 3 }}>
             <Typography variant="body2" color="text.secondary">
               Showing {movies.length} of {total} movies
-              {(statusFilter || genreFilter || favoriteFilter !== '' || searchTerm) && ' (filtered)'}
+              {(statusFilter || genreFilter || favoriteFilter || searchTerm) && ' (filtered)'}
             </Typography>
           </Box>
 
@@ -558,7 +555,7 @@ const MoviesManagement: React.FC = () => {
                 No {contentTypeFilter === 'tv' ? 'TV shows' : contentTypeFilter === 'movie' ? 'movies' : 'content'} found
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {searchTerm || statusFilter || genreFilter || favoriteFilter !== '' || contentTypeFilter !== 'all'
+                {searchTerm || statusFilter || genreFilter || favoriteFilter || contentTypeFilter !== 'all'
                   ? 'Try adjusting your filters or search term.'
                   : 'Add your first movie or TV show to get started!'}
               </Typography>

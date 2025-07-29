@@ -465,3 +465,104 @@ export interface MovieFilters {
   is_favorite?: boolean;
   search?: string;
 }
+
+// TV Shows Types
+export interface EpisodeWatch {
+  id: string;
+  tv_show_id: string;
+  season_number: number;
+  episode_number: number;
+  episode_title?: string;
+  watched: boolean;
+  watch_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TVShow {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  genre?: string;
+  network?: string;
+  total_seasons?: number;
+  total_episodes?: number;
+  status?: string; // ended, returning, canceled, running
+  first_air_date?: string;
+  last_air_date?: string;
+  poster_image_url?: string;
+  tmdb_id?: string;
+  tvmaze_id?: string;
+  imdb_id?: string;
+  viewing_status: 'want_to_watch' | 'watching' | 'completed' | 'dropped';
+  current_season: number;
+  current_episode: number;
+  episodes_watched: number;
+  date_started?: string;
+  date_finished?: string;
+  user_notes?: string;
+  is_favorite: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+  progress_percentage?: number;
+  watched_episodes?: EpisodeWatch[];
+}
+
+export interface TVShowCreate {
+  title: string;
+  description?: string;
+  genre?: string;
+  network?: string;
+  total_seasons?: number;
+  total_episodes?: number;
+  status?: string;
+  first_air_date?: string;
+  last_air_date?: string;
+  poster_image_url?: string;
+  tmdb_id?: string;
+  tvmaze_id?: string;
+  imdb_id?: string;
+  viewing_status?: 'want_to_watch' | 'watching' | 'completed' | 'dropped';
+  current_season?: number;
+  current_episode?: number;
+  user_notes?: string;
+  is_favorite?: boolean;
+  source?: string;
+}
+
+export interface TVShowUpdate {
+  title?: string;
+  description?: string;
+  genre?: string;
+  network?: string;
+  total_seasons?: number;
+  total_episodes?: number;
+  status?: string;
+  first_air_date?: string;
+  last_air_date?: string;
+  poster_image_url?: string;
+  viewing_status?: 'want_to_watch' | 'watching' | 'completed' | 'dropped';
+  current_season?: number;
+  current_episode?: number;
+  date_started?: string;
+  date_finished?: string;
+  user_notes?: string;
+  is_favorite?: boolean;
+}
+
+export interface TVShowListResponse {
+  tv_shows: TVShow[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface TVShowFilters {
+  viewing_status?: string;
+  genre?: string;
+  network?: string;
+  is_favorite?: boolean;
+  search?: string;
+}
