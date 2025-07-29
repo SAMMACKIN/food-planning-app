@@ -20,7 +20,7 @@ import {
   FormControlLabel,
   Divider,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import { Grid } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as UncheckedIcon,
@@ -226,14 +226,14 @@ const EpisodeTracker: React.FC<EpisodeTrackerProps> = ({ open, tvShow, onClose }
           sx={{ mb: 3, height: 8, borderRadius: 1 }}
         />
         
-        <Grid container spacing={1}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 1 }}>
           {Array.from({ length: episodeCount }, (_, i) => i + 1).map((episode) => {
             const isWatched = isEpisodeWatched(season, episode);
             const isCurrentEpisode = season === tvShow.current_season && episode === tvShow.current_episode;
             
             return (
-              <Grid item xs={4} sm={3} md={2} key={episode}>
                 <Tooltip
+                  key={episode}
                   title={
                     isCurrentEpisode
                       ? 'Current Episode'
@@ -281,10 +281,9 @@ const EpisodeTracker: React.FC<EpisodeTrackerProps> = ({ open, tvShow, onClose }
                     )}
                   </Box>
                 </Tooltip>
-              </Grid>
             );
           })}
-        </Grid>
+        </Box>
       </Box>
     );
   };

@@ -43,8 +43,6 @@ import {
   Stack,
   Badge,
 } from '@mui/material';
-// @ts-ignore - Grid component type issue with MUI v7
-import Grid from '@mui/material/Grid';
 import {
   Add as AddIcon,
   MoreVert as MoreVertIcon,
@@ -266,10 +264,18 @@ const TVShowsManagement: React.FC = () => {
   
   // Render grid view
   const renderGridView = () => (
-    <Grid container spacing={3}>
+    <Box sx={{ 
+      display: 'grid', 
+      gridTemplateColumns: { 
+        xs: '1fr', 
+        sm: 'repeat(2, 1fr)', 
+        md: 'repeat(3, 1fr)', 
+        lg: 'repeat(4, 1fr)' 
+      }, 
+      gap: 3 
+    }}>
       {tvShows.map((tvShow) => (
-        <Grid item xs={12} sm={6} md={4} lg={3} key={tvShow.id}>
-          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Card key={tvShow.id} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ position: 'relative' }}>
               <CardMedia
                 component="img"
@@ -351,9 +357,8 @@ const TVShowsManagement: React.FC = () => {
               </Stack>
             </CardContent>
           </Card>
-        </Grid>
       ))}
-    </Grid>
+    </Box>
   );
   
   // Render table view
@@ -452,8 +457,8 @@ const TVShowsManagement: React.FC = () => {
         
         {/* Filters */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 'auto' }, maxWidth: { xs: '100%', md: '300px' } }}>
               <TextField
                 fullWidth
                 placeholder="Search TV shows..."
@@ -468,8 +473,8 @@ const TVShowsManagement: React.FC = () => {
                   ),
                 }}
               />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            </Box>
+            <Box sx={{ minWidth: { xs: '100%', sm: 'auto' }, width: { xs: '100%', sm: '200px' } }}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -484,24 +489,24 @@ const TVShowsManagement: React.FC = () => {
                   <MenuItem value="dropped">Dropped</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            </Box>
+            <Box sx={{ minWidth: { xs: '100%', sm: 'auto' }, width: { xs: '100%', sm: '200px' } }}>
               <TextField
                 fullWidth
                 label="Genre"
                 value={genreFilter}
                 onChange={(e) => setGenreFilter(e.target.value)}
               />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            </Box>
+            <Box sx={{ minWidth: { xs: '100%', sm: 'auto' }, width: { xs: '100%', sm: '200px' } }}>
               <TextField
                 fullWidth
                 label="Network"
                 value={networkFilter}
                 onChange={(e) => setNetworkFilter(e.target.value)}
               />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            </Box>
+            <Box sx={{ minWidth: { xs: '100%', sm: 'auto' }, width: { xs: '100%', sm: '200px' } }}>
               <FormControl fullWidth>
                 <InputLabel>Favorites</InputLabel>
                 <Select
@@ -514,8 +519,8 @@ const TVShowsManagement: React.FC = () => {
                   <MenuItem value="false">Non-favorites</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={1}>
+            </Box>
+            <Box sx={{ minWidth: { xs: '100%', sm: 'auto' }, width: { xs: '100%', sm: '100px' } }}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -524,8 +529,8 @@ const TVShowsManagement: React.FC = () => {
               >
                 Search
               </Button>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Paper>
         
         {/* View Mode Toggle */}
