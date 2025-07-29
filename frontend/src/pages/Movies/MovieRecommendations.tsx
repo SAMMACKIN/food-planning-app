@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  Grid,
   Paper,
   FormControl,
   InputLabel,
@@ -20,6 +19,7 @@ import {
   Tooltip,
   Skeleton,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   AutoAwesome as RecommendationsIcon,
   Movie as MovieIcon,

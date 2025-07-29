@@ -9,7 +9,6 @@ import {
   Typography,
   Tabs,
   Tab,
-  Grid,
   Checkbox,
   IconButton,
   LinearProgress,
@@ -21,6 +20,7 @@ import {
   FormControlLabel,
   Divider,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as UncheckedIcon,

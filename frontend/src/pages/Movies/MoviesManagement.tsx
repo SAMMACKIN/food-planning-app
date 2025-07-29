@@ -8,7 +8,6 @@ import {
   CardMedia,
   Button,
   Chip,
-  Grid,
   IconButton,
   Menu,
   MenuItem,
@@ -35,6 +34,7 @@ import {
   Paper,
   Tooltip,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Add as AddIcon,
   MoreVert as MoreVertIcon,

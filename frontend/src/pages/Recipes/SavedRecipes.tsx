@@ -6,7 +6,6 @@ import {
   CardContent,
   Button,
   Chip,
-  Grid,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,6 +20,7 @@ import {
   InputLabel,
   Select,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Timer,
   People,

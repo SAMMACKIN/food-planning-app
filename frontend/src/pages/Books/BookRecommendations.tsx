@@ -16,7 +16,6 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Grid,
   Paper,
   Divider,
   useTheme,
@@ -24,6 +23,7 @@ import {
   Collapse,
   LinearProgress,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Refresh as RefreshIcon,
   AutoAwesome as AIIcon,
