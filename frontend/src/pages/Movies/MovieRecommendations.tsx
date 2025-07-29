@@ -141,9 +141,8 @@ const MovieRecommendations: React.FC = () => {
     const isAdded = (recommendation as any).added;
     
     return (
-      <Grid item xs={12} md={6} key={`${recommendation.title}-${index}`}>
-        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <CardContent sx={{ flexGrow: 1 }}>
+      <Card key={`${recommendation.title}-${index}`} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ flexGrow: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="h6" component="h3" gutterBottom>
@@ -211,8 +210,7 @@ const MovieRecommendations: React.FC = () => {
               {isAdded ? 'Added!' : 'Add to Collection'}
             </Button>
           </CardActions>
-        </Card>
-      </Grid>
+      </Card>
     );
   };
 
@@ -286,27 +284,33 @@ const MovieRecommendations: React.FC = () => {
 
       {/* Loading */}
       {loading && (
-        <Grid container spacing={3}>
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          gap: 3
+        }}>
           {[1, 2, 3, 4].map((i) => (
-            <Grid item xs={12} md={6} key={i}>
-              <Card>
-                <CardContent>
-                  <Skeleton variant="text" width="60%" height={32} />
-                  <Skeleton variant="text" width="40%" />
-                  <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
-                  <Skeleton variant="rectangular" height={60} sx={{ mt: 2 }} />
-                </CardContent>
-              </Card>
-            </Grid>
+            <Card key={i}>
+              <CardContent>
+                <Skeleton variant="text" width="60%" height={32} />
+                <Skeleton variant="text" width="40%" />
+                <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
+                <Skeleton variant="rectangular" height={60} sx={{ mt: 2 }} />
+              </CardContent>
+            </Card>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {/* Recommendations */}
       {!loading && recommendations.length > 0 && (
-        <Grid container spacing={3}>
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          gap: 3
+        }}>
           {recommendations.map((rec, index) => renderRecommendationCard(rec, index))}
-        </Grid>
+        </Box>
       )}
 
       {/* Empty state */}
