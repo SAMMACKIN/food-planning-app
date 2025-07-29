@@ -43,6 +43,7 @@ import {
   Stack,
   Badge,
 } from '@mui/material';
+// @ts-ignore - Grid component type issue with MUI v7
 import Grid from '@mui/material/Grid';
 import {
   Add as AddIcon,

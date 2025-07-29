@@ -13,8 +13,8 @@ import {
   Box,
   Typography,
   Alert,
+  Stack,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -113,29 +113,25 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
             </Alert>
           )}
           
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Title"
-                required
-                value={formData.title}
-                onChange={(e) => handleChange('title', e.target.value)}
-              />
-            </Grid>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="Title"
+              required
+              value={formData.title}
+              onChange={(e) => handleChange('title', e.target.value)}
+            />
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                multiline
-                rows={3}
-                value={formData.description || ''}
-                onChange={(e) => handleChange('description', e.target.value)}
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={formData.description || ''}
+              onChange={(e) => handleChange('description', e.target.value)}
+            />
             
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Genre"
@@ -143,9 +139,7 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                 onChange={(e) => handleChange('genre', e.target.value)}
                 placeholder="e.g., Drama, Comedy, Sci-Fi"
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+              
               <TextField
                 fullWidth
                 label="Network"
@@ -153,9 +147,9 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                 onChange={(e) => handleChange('network', e.target.value)}
                 placeholder="e.g., Netflix, HBO, AMC"
               />
-            </Grid>
+            </Box>
             
-            <Grid item xs={12} sm={4}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Total Seasons"
@@ -164,9 +158,7 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                 value={formData.total_seasons || ''}
                 onChange={(e) => handleChange('total_seasons', e.target.value ? parseInt(e.target.value) : undefined)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <TextField
                 fullWidth
                 label="Total Episodes"
@@ -175,9 +167,7 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                 value={formData.total_episodes || ''}
                 onChange={(e) => handleChange('total_episodes', e.target.value ? parseInt(e.target.value) : undefined)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <FormControl fullWidth>
                 <InputLabel>Show Status</InputLabel>
                 <Select
@@ -192,9 +182,9 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                   <MenuItem value="canceled">Canceled</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="First Air Date"
@@ -203,9 +193,7 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+              
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Last Air Date"
@@ -214,19 +202,17 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Poster Image URL"
-                value={formData.poster_image_url || ''}
-                onChange={(e) => handleChange('poster_image_url', e.target.value)}
-                placeholder="https://..."
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Poster Image URL"
+              value={formData.poster_image_url || ''}
+              onChange={(e) => handleChange('poster_image_url', e.target.value)}
+              placeholder="https://..."
+            />
             
-            <Grid item xs={12}>
+            <Box>
               <Typography variant="subtitle2" gutterBottom>
                 Viewing Status
               </Typography>
@@ -243,79 +229,69 @@ const AddTVShowDialog: React.FC<AddTVShowDialogProps> = ({ open, onClose, onAdd 
                   <MenuItem value="dropped">Dropped</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
+            </Box>
             
             {formData.viewing_status === 'watching' && (
-              <>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Current Season"
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    value={formData.current_season}
-                    onChange={(e) => handleChange('current_season', parseInt(e.target.value) || 1)}
-                  />
-                </Grid>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Current Season"
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  value={formData.current_season}
+                  onChange={(e) => handleChange('current_season', parseInt(e.target.value) || 1)}
+                />
                 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Current Episode"
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    value={formData.current_episode}
-                    onChange={(e) => handleChange('current_episode', parseInt(e.target.value) || 1)}
-                  />
-                </Grid>
-              </>
+                <TextField
+                  fullWidth
+                  label="Current Episode"
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  value={formData.current_episode}
+                  onChange={(e) => handleChange('current_episode', parseInt(e.target.value) || 1)}
+                />
+              </Box>
             )}
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Notes"
-                multiline
-                rows={2}
-                value={formData.user_notes || ''}
-                onChange={(e) => handleChange('user_notes', e.target.value)}
-                placeholder="Personal notes about this show..."
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Notes"
+              multiline
+              rows={2}
+              value={formData.user_notes || ''}
+              onChange={(e) => handleChange('user_notes', e.target.value)}
+              placeholder="Personal notes about this show..."
+            />
             
-            <Grid item xs={12}>
+            <Box>
               <Typography variant="subtitle2" gutterBottom>
                 External IDs (Optional)
               </Typography>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12} sm={4}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="TMDB ID"
                 value={formData.tmdb_id || ''}
                 onChange={(e) => handleChange('tmdb_id', e.target.value)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <TextField
                 fullWidth
                 label="TVMaze ID"
                 value={formData.tvmaze_id || ''}
                 onChange={(e) => handleChange('tvmaze_id', e.target.value)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <TextField
                 fullWidth
                 label="IMDB ID"
                 value={formData.imdb_id || ''}
                 onChange={(e) => handleChange('imdb_id', e.target.value)}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Stack>
         </Box>
       </DialogContent>
       <DialogActions>

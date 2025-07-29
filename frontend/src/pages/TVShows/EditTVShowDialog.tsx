@@ -15,8 +15,8 @@ import {
   Alert,
   FormControlLabel,
   Checkbox,
+  Stack,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -96,29 +96,25 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
             </Alert>
           )}
           
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Title"
-                required
-                value={formData.title || ''}
-                onChange={(e) => handleChange('title', e.target.value)}
-              />
-            </Grid>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="Title"
+              required
+              value={formData.title || ''}
+              onChange={(e) => handleChange('title', e.target.value)}
+            />
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                multiline
-                rows={3}
-                value={formData.description || ''}
-                onChange={(e) => handleChange('description', e.target.value)}
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={formData.description || ''}
+              onChange={(e) => handleChange('description', e.target.value)}
+            />
             
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Genre"
@@ -126,9 +122,7 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                 onChange={(e) => handleChange('genre', e.target.value)}
                 placeholder="e.g., Drama, Comedy, Sci-Fi"
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+              
               <TextField
                 fullWidth
                 label="Network"
@@ -136,9 +130,9 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                 onChange={(e) => handleChange('network', e.target.value)}
                 placeholder="e.g., Netflix, HBO, AMC"
               />
-            </Grid>
+            </Box>
             
-            <Grid item xs={12} sm={4}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Total Seasons"
@@ -147,9 +141,7 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                 value={formData.total_seasons || ''}
                 onChange={(e) => handleChange('total_seasons', e.target.value ? parseInt(e.target.value) : undefined)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <TextField
                 fullWidth
                 label="Total Episodes"
@@ -158,9 +150,7 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                 value={formData.total_episodes || ''}
                 onChange={(e) => handleChange('total_episodes', e.target.value ? parseInt(e.target.value) : undefined)}
               />
-            </Grid>
-            
-            <Grid item xs={12} sm={4}>
+              
               <FormControl fullWidth>
                 <InputLabel>Show Status</InputLabel>
                 <Select
@@ -175,9 +165,9 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   <MenuItem value="canceled">Canceled</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="First Air Date"
@@ -186,9 +176,7 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+              
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Last Air Date"
@@ -197,19 +185,17 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Poster Image URL"
-                value={formData.poster_image_url || ''}
-                onChange={(e) => handleChange('poster_image_url', e.target.value)}
-                placeholder="https://..."
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Poster Image URL"
+              value={formData.poster_image_url || ''}
+              onChange={(e) => handleChange('poster_image_url', e.target.value)}
+              placeholder="https://..."
+            />
             
-            <Grid item xs={12}>
+            <Box>
               <Typography variant="subtitle2" gutterBottom>
                 Viewing Status
               </Typography>
@@ -226,35 +212,31 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   <MenuItem value="dropped">Dropped</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
+            </Box>
             
             {formData.viewing_status === 'watching' && (
-              <>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Current Season"
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    value={formData.current_season || 1}
-                    onChange={(e) => handleChange('current_season', parseInt(e.target.value) || 1)}
-                  />
-                </Grid>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Current Season"
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  value={formData.current_season || 1}
+                  onChange={(e) => handleChange('current_season', parseInt(e.target.value) || 1)}
+                />
                 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Current Episode"
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    value={formData.current_episode || 1}
-                    onChange={(e) => handleChange('current_episode', parseInt(e.target.value) || 1)}
-                  />
-                </Grid>
-              </>
+                <TextField
+                  fullWidth
+                  label="Current Episode"
+                  type="number"
+                  inputProps={{ min: 1 }}
+                  value={formData.current_episode || 1}
+                  onChange={(e) => handleChange('current_episode', parseInt(e.target.value) || 1)}
+                />
+              </Box>
             )}
             
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Date Started"
@@ -263,9 +245,7 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+              
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Date Finished"
@@ -274,46 +254,40 @@ const EditTVShowDialog: React.FC<EditTVShowDialogProps> = ({ open, tvShow, onClo
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </LocalizationProvider>
-            </Grid>
+            </Box>
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Notes"
-                multiline
-                rows={2}
-                value={formData.user_notes || ''}
-                onChange={(e) => handleChange('user_notes', e.target.value)}
-                placeholder="Personal notes about this show..."
-              />
-            </Grid>
+            <TextField
+              fullWidth
+              label="Notes"
+              multiline
+              rows={2}
+              value={formData.user_notes || ''}
+              onChange={(e) => handleChange('user_notes', e.target.value)}
+              placeholder="Personal notes about this show..."
+            />
             
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.is_favorite || false}
-                    onChange={(e) => handleChange('is_favorite', e.target.checked)}
-                  />
-                }
-                label="Mark as Favorite"
-              />
-            </Grid>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.is_favorite || false}
+                  onChange={(e) => handleChange('is_favorite', e.target.checked)}
+                />
+              }
+              label="Mark as Favorite"
+            />
             
-            <Grid item xs={12}>
-              <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Episodes Watched:</strong> {tvShow.episodes_watched} / {tvShow.total_episodes || '?'}
-                  {tvShow.progress_percentage !== undefined && (
-                    <> ({Math.round(tvShow.progress_percentage)}% complete)</>
-                  )}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  To track individual episodes, close this dialog and use "Track Episodes" from the menu.
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Episodes Watched:</strong> {tvShow.episodes_watched} / {tvShow.total_episodes || '?'}
+                {tvShow.progress_percentage !== undefined && (
+                  <> ({Math.round(tvShow.progress_percentage)}% complete)</>
+                )}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                To track individual episodes, close this dialog and use "Track Episodes" from the menu.
+              </Typography>
+            </Box>
+          </Stack>
         </Box>
       </DialogContent>
       <DialogActions>
