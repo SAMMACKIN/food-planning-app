@@ -335,10 +335,10 @@ POORLY RATED BOOKS (1-2 stars - AVOID similar):
 {chr(10).join([f"- {book['title']} by {book['author']} ({book['rating']}⭐)" for book in context['poorly_rated_books'][:5]])}
 
 FAVORITE BOOKS:
-{chr(10).join([f"- {book['title']} by {book['author']}{f' ({book["rating"]}⭐)' if book.get('rating') else ''}" for book in context['favorite_books'][:5]])}
+{chr(10).join([f"- {book['title']} by {book['author']}" + (f" ({book['rating']}⭐)" if book.get('rating') else '') for book in context['favorite_books'][:5]])}
 
 RECENTLY READ BOOKS:
-{chr(10).join([f"- {book['title']} by {book['author']} ({book.get('genre', 'Unknown genre')}){f' - {book["rating"]}⭐' if book.get('rating') else ''}" for book in context['read_books'][-5:]])}
+{chr(10).join([f"- {book['title']} by {book['author']} ({book.get('genre', 'Unknown genre')})" + (f" - {book['rating']}⭐" if book.get('rating') else '') for book in context['read_books'][-5:]])}
 
 USER RATING PROFILE:
 - Average rating: {context.get('average_rating', 'N/A')}

@@ -48,6 +48,7 @@ from app.db.database import Base
 from app.core.auth_service import AuthService
 from app.models import *  # Import all models to register them
 from app.models.recipe_rating import RecipeRating  # Ensure rating model is imported
+from app.models.content import Movie, TVShow, EpisodeWatch, ContentRating, ContentShare  # Ensure content models are imported
 
 # Test ingredient IDs for consistent testing (using UUID strings for SQL compatibility)
 TEST_INGREDIENT_IDS = {

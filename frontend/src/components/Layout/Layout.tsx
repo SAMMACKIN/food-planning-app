@@ -90,7 +90,8 @@ const Layout: React.FC = () => {
     if (location.pathname.includes('/books')) return 6;
     // TV & Movies section
     if (location.pathname.includes('/tv-shows')) return 8;
-    if (location.pathname.includes('/movies')) return 8;
+    if (location.pathname.includes('/movies/recommendations')) return 10;
+    if (location.pathname.includes('/movies')) return 9;
     // Other sections
     if (location.pathname.includes('/user-guide')) return 10;
     if (location.pathname.includes('/changes')) return 11;
@@ -143,7 +144,8 @@ const Layout: React.FC = () => {
       title: 'TV & Movies',
       icon: <TVIcon />,
       items: [
-        { label: 'My Collection', icon: <MovieIcon />, path: '/movies' },
+        { label: 'TV Shows', icon: <TVIcon />, path: '/tv-shows' },
+        { label: 'Movies', icon: <MovieIcon />, path: '/movies' },
         { label: 'Recommendations', icon: <RecommendationsIcon />, path: '/movies/recommendations' }
       ]
     },
@@ -317,7 +319,7 @@ const Layout: React.FC = () => {
                   (item.path === '/recipes' && getCurrentBottomNav() === 1) ||
                   (item.path === '/books' && getCurrentBottomNav() === 2) ||
                   (item.path === '/tv-shows' && getCurrentBottomNav() === 3) ||
-                  (item.path === '/movies' && getCurrentBottomNav() === 4);
+                  (item.path === '/movies' && getCurrentBottomNav() === 3);
                 
                 return (
                   <ListItemButton 
