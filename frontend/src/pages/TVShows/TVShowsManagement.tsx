@@ -243,7 +243,7 @@ const TVShowsManagement: React.FC = () => {
       case 'dropped':
         return <DroppedIcon />;
       default:
-        return null;
+        return undefined;
     }
   };
   
