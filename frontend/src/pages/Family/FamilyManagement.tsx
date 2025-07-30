@@ -200,7 +200,7 @@ const FamilyManagement: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={3}>
+        <Grid spacing={3}>
           {familyMembers.map((member) => (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={member.id}>
               <Card>

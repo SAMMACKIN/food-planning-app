@@ -304,7 +304,7 @@ const SavedRecipes: React.FC = () => {
           }
         </Alert>
       ) : (
-        <Grid container spacing={3}>
+        <Grid spacing={3}>
           {filteredRecipes.map((recipe) => (
             <Grid size={{ xs: 12, md: 6, lg: 4 }} key={recipe.id}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

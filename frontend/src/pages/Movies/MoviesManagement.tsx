@@ -540,7 +540,7 @@ const MoviesManagement: React.FC = () => {
 
           {/* Movies Display */}
           {viewMode === 'grid' ? (
-            <Grid container spacing={3}>
+            <Grid spacing={3}>
               {movies.map(renderMovieCard)}
             </Grid>
           ) : (
