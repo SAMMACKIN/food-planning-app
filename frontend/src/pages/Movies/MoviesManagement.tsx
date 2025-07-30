@@ -87,7 +87,7 @@ const MoviesManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ViewingStatus | ''>('');
   const [genreFilter, setGenreFilter] = useState('');
   const [favoriteFilter, setFavoriteFilter] = useState<string>('');
-  const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'movie' | 'tv'>('all');
+  const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'movie' | 'tv'>('movie');
   
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -118,7 +118,7 @@ const MoviesManagement: React.FC = () => {
       let filteredMovies = response.movies;
       if (contentTypeFilter !== 'all') {
         filteredMovies = response.movies.filter(movie => {
-          const isTvShow = movie.genre === 'TV Series' || (movie.source === 'netflix_import' && movie.title.includes(': Season'));
+          const isTvShow = isTvShow_helper(movie);
           return contentTypeFilter === 'tv' ? isTvShow : !isTvShow;
         });
       }
@@ -131,6 +131,51 @@ const MoviesManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to detect TV shows
+  const isTvShow_helper = (movie: Movie): boolean => {
+    // Check genre for TV Series indicators
+    const genre = movie.genre?.toLowerCase() || '';
+    const tvGenreKeywords = ['tv series', 'television', 'series', 'tv show', 'tv', 'miniseries', 'limited series'];
+    if (tvGenreKeywords.some(keyword => genre.includes(keyword))) {
+      return true;
+    }
+    
+    // Check title for TV show patterns
+    const title = movie.title?.toLowerCase() || '';
+    const tvTitlePatterns = [
+      ': season ',
+      'season ',
+      ' s0', ' s1', ' s2', ' s3', ' s4', ' s5', ' s6', ' s7', ' s8', ' s9',
+      'episode',
+      'season finale',
+      'series finale'
+    ];
+    if (tvTitlePatterns.some(pattern => title.includes(pattern))) {
+      return true;
+    }
+    
+    // Check description for TV show indicators
+    const description = movie.description?.toLowerCase() || '';
+    const tvDescKeywords = ['episode', 'season', 'series', 'tv show', 'television'];
+    const matchCount = tvDescKeywords.filter(keyword => description.includes(keyword)).length;
+    if (matchCount >= 2) {  // Multiple TV-related keywords in description
+      return true;
+    }
+    
+    // Check source for Netflix import patterns
+    if (movie.source === 'netflix_import' && title.includes(': season')) {
+      return true;
+    }
+    
+    // Check runtime - TV episodes are typically shorter than movies
+    // Most movies are 90+ minutes, TV episodes are usually 20-60 minutes
+    if (movie.runtime && movie.runtime < 75 && (genre.includes('drama') || genre.includes('comedy') || genre.includes('action'))) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Effects
@@ -389,8 +434,8 @@ const MoviesManagement: React.FC = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TvIcon color="primary" />
-          TV & Movies
+          <MovieIcon color="primary" />
+          Movies
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <ToggleButtonGroup
@@ -552,19 +597,22 @@ const MoviesManagement: React.FC = () => {
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <MovieIcon sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
-                No {contentTypeFilter === 'tv' ? 'TV shows' : contentTypeFilter === 'movie' ? 'movies' : 'content'} found
+                No movies found
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {searchTerm || statusFilter || genreFilter || favoriteFilter || contentTypeFilter !== 'all'
                   ? 'Try adjusting your filters or search term.'
-                  : 'Add your first movie or TV show to get started!'}
+                  : 'Add your first movie to get started!'}
+              </Typography>
+              <Typography variant="body2" color="info.main" sx={{ mb: 3, fontStyle: 'italic' }}>
+                📺 Looking for TV shows? Find them in the TV Shows section!
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setAddDialogOpen(true)}
               >
-                Add {contentTypeFilter === 'tv' ? 'TV Show' : 'Movie'}
+                Add Movie
               </Button>
             </Box>
           )}
