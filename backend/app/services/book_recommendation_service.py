@@ -128,6 +128,9 @@ class BookRecommendationService:
             ai_response = await self.ai.get_ai_response(prompt)
             print(f"✅ AI response received, length: {len(ai_response)}")
             
+            # Log first 500 chars of response for debugging
+            print(f"📝 AI Response preview: {ai_response[:500]}...")
+            
             # Parse AI response
             recommendations = self._parse_ai_recommendations(ai_response, session_id)
             print(f"📚 Parsed {len(recommendations)} recommendations from AI")
@@ -146,6 +149,31 @@ class BookRecommendationService:
             
             # Limit to requested count
             final_recommendations = final_recommendations[:request.max_recommendations]
+            
+            # If we have no recommendations, try a simplified prompt
+            if len(final_recommendations) == 0:
+                print("⚠️ No recommendations after filtering. Trying simplified prompt...")
+                try:
+                    simple_prompt = f"""Recommend {request.max_recommendations} books for someone who likes {', '.join(context['preferred_genres'][:3]) if context['preferred_genres'] else 'various genres'}.
+
+Return ONLY this JSON format:
+{{
+  "recommendations": [
+    {{
+      "title": "Book Title",
+      "author": "Author Name", 
+      "genre": "Genre",
+      "description": "Description",
+      "reasoning": "Why they'll like it"
+    }}
+  ]
+}}"""
+                    simple_response = await self.ai.get_ai_response(simple_prompt)
+                    print(f"📝 Simple AI response: {simple_response[:500]}...")
+                    final_recommendations = self._parse_ai_recommendations(simple_response, session_id)
+                    print(f"📚 Parsed {len(final_recommendations)} recommendations from simple prompt")
+                except Exception as e:
+                    print(f"❌ Simplified prompt also failed: {e}")
             
             return BookRecommendationResponse(
                 recommendations=final_recommendations,
@@ -484,9 +512,13 @@ Format your response as JSON:
             
             return recommendations
             
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parsing error: {e}")
+            print(f"❌ AI response was not valid JSON. Response: {ai_response[:1000]}...")
+            return []
         except Exception as e:
             print(f"❌ Error parsing AI recommendations: {e}")
-            print(f"❌ Full AI response: {ai_response}")
+            print(f"❌ Full AI response: {ai_response[:1000]}...")
             return []
     
     def _filter_existing_books(
