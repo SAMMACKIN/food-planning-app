@@ -863,7 +863,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
             
             # Fallback to Perplexity
             if provider == "all" or provider == "perplexity":
-                if self.perplexity_api_key:
+                if self.perplexity_key:
                     try:
                         logger.info("🤖 Using Perplexity for AI response")
                         return await self._get_perplexity_response(prompt)
@@ -904,7 +904,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text or explanation.
             }
             
             headers = {
-                "Authorization": f"Bearer {self.perplexity_api_key}",
+                "Authorization": f"Bearer {self.perplexity_key}",
                 "Content-Type": "application/json"
             }
             
