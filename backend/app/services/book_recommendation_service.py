@@ -11,28 +11,63 @@ from sqlalchemy import desc, and_, or_
 import sys
 import os
 
-# Import AI service with proper path handling
+# Import AI service with proper path handling for both development and production
+# In production, the working directory is 'backend' due to Procfile
+# In development, it might be the project root
+
+import_errors = []
+
+# Try 1: Direct import (works when running from backend directory in production)
 try:
-    # First try: relative import from backend root
-    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ai_service_path = os.path.join(backend_dir, 'ai_service.py')
-    
-    if os.path.exists(ai_service_path):
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
-        from ai_service import ai_service
-        print("✅ Successfully imported AI service from backend root")
-    else:
-        raise ImportError("ai_service.py not found in backend root")
-        
+    from ai_service import ai_service
+    print("✅ Successfully imported AI service via direct import")
 except ImportError as e:
-    print(f"❌ Failed to import AI service: {e}")
-    # Create a minimal fallback
-    class MinimalAIService:
-        async def get_ai_response(self, prompt: str) -> str:
-            return '''{"recommendations": []}'''
+    import_errors.append(f"Direct import failed: {e}")
     
-    ai_service = MinimalAIService()
+    # Try 2: Add parent directory to path (for when ai_service.py is in parent)
+    try:
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        while parent_dir and 'backend' in parent_dir:
+            parent_dir = os.path.dirname(parent_dir)
+            if os.path.exists(os.path.join(parent_dir, 'ai_service.py')):
+                if parent_dir not in sys.path:
+                    sys.path.insert(0, parent_dir)
+                from ai_service import ai_service
+                print(f"✅ Successfully imported AI service from {parent_dir}")
+                break
+        else:
+            raise ImportError("Could not find ai_service.py in parent directories")
+    except ImportError as e:
+        import_errors.append(f"Parent directory import failed: {e}")
+        
+        # Try 3: Look for ai_service.py in the same directory as this file's parent's parent
+        try:
+            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            ai_service_path = os.path.join(backend_dir, 'ai_service.py')
+            
+            if os.path.exists(ai_service_path):
+                if backend_dir not in sys.path:
+                    sys.path.insert(0, backend_dir)
+                from ai_service import ai_service
+                print(f"✅ Successfully imported AI service from backend root: {backend_dir}")
+            else:
+                raise ImportError(f"ai_service.py not found at {ai_service_path}")
+                
+        except ImportError as e:
+            import_errors.append(f"Backend root import failed: {e}")
+            print(f"❌ All import attempts failed:")
+            for err in import_errors:
+                print(f"   - {err}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Current file location: {__file__}")
+            print(f"Python path: {sys.path[:3]}...")  # Show first 3 entries
+            
+            # Create a minimal fallback that will raise an error
+            class MinimalAIService:
+                async def get_ai_response(self, prompt: str) -> str:
+                    raise ValueError(f"AI service not available - all imports failed. Errors: {'; '.join(import_errors)}")
+            
+            ai_service = MinimalAIService()
 
 from ..models.content import Book, BookRecommendationFeedback
 from ..schemas.books import (
@@ -82,8 +117,13 @@ class BookRecommendationService:
                 print(f"🤖 Groq client available: {self.ai.groq_client is not None}")
             if hasattr(self.ai, 'claude_client'):
                 print(f"🤖 Claude client available: {self.ai.claude_client is not None}")
-            if hasattr(self.ai, 'perplexity_api_key'):
-                print(f"🤖 Perplexity available: {self.ai.perplexity_api_key is not None}")
+            if hasattr(self.ai, 'perplexity_key'):
+                print(f"🤖 Perplexity available: {self.ai.perplexity_key is not None}")
+            
+            # Check if we're using the fallback service
+            if self.ai.__class__.__name__ == 'MinimalAIService':
+                print(f"⚠️ WARNING: Using fallback MinimalAIService - AI import failed!")
+                raise ValueError("AI service import failed - using fallback service that cannot generate recommendations")
             
             ai_response = await self.ai.get_ai_response(prompt)
             print(f"✅ AI response received, length: {len(ai_response)}")
@@ -121,11 +161,15 @@ class BookRecommendationService:
             import traceback
             traceback.print_exc()
             
-            # Return empty recommendations with error message
+            # Return empty recommendations with helpful error message
+            error_msg = str(e)
+            if "No AI provider available" in error_msg:
+                error_msg = "AI book recommendations require at least one API key to be configured. Please add ANTHROPIC_API_KEY, PERPLEXITY_API_KEY, or GROQ_API_KEY to your backend/.env file."
+            
             return BookRecommendationResponse(
                 recommendations=[],
                 session_id=session_id,
-                context_summary=f"Unable to generate recommendations: {str(e)}",
+                context_summary=f"Unable to generate recommendations: {error_msg}",
                 total_recommendations=0
             )
     
